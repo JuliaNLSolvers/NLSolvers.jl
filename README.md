@@ -5,68 +5,170 @@
 | [![Codecov branch](https://img.shields.io/codecov/c/github/pkofod/NLSolvers.jl/master.svg)](https://codecov.io/gh/pkofod/NLSolvers.jl) |[![Build Status](https://ci.appveyor.com/api/projects/status/prp8ygfp4rr9tafe?svg=true)](https://ci.appveyor.com/project/blegat/optim-jl) 
 
 NLSolvers provides optimization, curve fitting, and equation solving functionalities for Julia.
-The goal is to provide a set of robust and flexible methods that runs fast and is easy to use.
+The goal is to provide a set of robust and flexible methods that run fast. Currently, the package
+does not try to implement any automatic generation of unspecified functions (gradients, Hessians,
+Hessian-vector products) using AD.
 
-## Solving your problems
-NLSolvers.jl uses different problem types for different problems. For example, a `MinProblem` would
-be `solve!`ed or `solve`ed depending of the circumstances.
+NLSolvers.jl uses different problem types for different problems
 
+- `OptimizationProblem` for optimization problems
+- `NEqProblem` for non-linear equations problems
+- `FixedPointProblem` for non-linear equations problems
+
+## Optimization Problems
 Take the following scalar objective (with scalar input)
 ```julia
 using NLSolvers
-function scalarobj(x, ∇f, ∇²f)
-    if ∇²f !== nothing
-        ∇²f = 12x^2 - sin(x)
-    end
-    if ∇f !== nothing
-        ∇f = 4x^3 + cos(x)
-    end
-
+function objective(x)
     fx = x^4 + sin(x)
-    objective_return(fx, ∇f, ∇²f)
 end
-scalar_obj = TwiceDiffed(scalarobj)
+function gradient(∇f, x)
+    ∇f = 4x^3 + cos(x)
+    return ∇f
+end
+objective_gradient(∇f, x) = objective(x), gradient(∇f, x)
+function hessian(∇²f, x)
+    ∇²f = 12x^2 - sin(x)
+    return ∇²f
+end
+function objective_gradient_hessian(∇f, ∇²f, x)
+    f, ∇f = objective_gradient(∇f, x)
+    ∇²f = hessian(∇²f, x)
+    return f, ∇f, ∇²f
+end
+scalarobj = ScalarObjective(f=objective,
+                            g=gradient,
+                            fg=objective_gradient,
+                            fgh=objective_gradient_hessian,
+                            h=hessian)
+optprob = OptimizationProblem(scalarobj; inplace=false) # scalar input, so not inplace
+
+solve(optprob, 0.3, LineSearch(Newton()), OptimizationOptions())
 ```
-Now, define a `MinProblem`
-```julia
-mp = MinProblem(scalar_obj)
+With output
 ```
-Then, we would use `solve` to solve the instance
-```julia
-solve(mp, x0, LineSearch(Newton()), MinOptions())
-```
-and then 
-```julia
-julia> solve(mp, 4.0, LineSearch(ConjugateGradient()), MinOptions())
-```
-which gives
-```julia
 Results of minimization
 
 * Algorithm:
-  Conjugate Gradient Descent (HZ) with backtracking (no interp)
+  Newton's method with default linsolve with backtracking (no interp)
 
 * Candidate solution:
   Final objective value:    -4.35e-01
-  Final gradient norm:      2.88e-09
+  Final gradient norm:      3.07e-12
 
-  Initial objective value:  2.55e+02
-  Initial gradient norm:    2.55e+02
+  Initial objective value:  3.04e-01
+  Initial gradient norm:    1.06e+00
 
 * Convergence measures
-  |x - x'|              = 4.11e-07 <= 0.00e+00 (false)
-  |x - x'|/|x|          = 6.94e-07 <= 0.00e+00 (false)
-  |f(x) - f(x')|        = 4.01e-13 <= 0.00e+00 (false)
-  |f(x) - f(x')|/|f(x)| = 9.22e-13 <= 0.00e+00 (false)
-  |g(x)|                = 2.88e-09 <= 1.00e-08 (true)
-  |g(x)|/|g(x₀)|        = 1.13e-11 <= 0.00e+00 (false)
+  |x - x'|              = 6.39e-07 <= 0.00e+00 (false)
+  |x - x'|/|x|          = 1.08e-06 <= 0.00e+00 (false)
+  |f(x) - f(x')|        = 9.71e-13 <= 0.00e+00 (false)
+  |f(x) - f(x')|/|f(x)| = 2.23e-12 <= 0.00e+00 (false)
+  |g(x)|                = 3.07e-12 <= 1.00e-08 (true)
+  |g(x)|/|g(x₀)|        = 2.88e-12 <= 0.00e+00 (false)
 
 * Work counters
-  Seconds run:   1.94e-01
-  Iterations:    18
+  Seconds run:   7.15e-06
+  Iterations:    6
+```
+The problem types are especially useful when manifolds, bounds, and other constraints enter the picture.
+
+Let's take the same problem as above but write it with arrays and mutating code style. The inplace keyword argument to the `OptimizationProblem` is used to apply
+the desired code paths internally. If set to true, cache arrays will be updated inplace and mutation is promised to be allowed for the input type(s). If set to
+false, no operations will mutate or happen in place.
+```
+using NLSolvers
+function objective_ip(x)
+    fx = x[1]^4 + sin(x[1])
+end
+function gradient_ip(∇f, x)
+    ∇f[1] = 4x[1]^3 + cos(x[1])
+    return ∇f
+end
+objective_gradient_ip(∇f, x) = objective_ip(x), gradient_ip(∇f, x)
+function hessian_ip(∇²f, x)
+    ∇²f[1] = 12x[1]^2 - sin(x[1])
+    return ∇²f
+end
+function objective_gradient_hessian_ip(∇f, ∇²f, x)
+    f, ∇f = objective_gradient_ip(∇f, x)
+    ∇²f = hessian_ip(∇²f, x)
+    return f, ∇f, ∇²f
+end
+scalarobj_ip = ScalarObjective(f=objective_ip,
+                            g=gradient_ip,
+                            fg=objective_gradient_ip,
+                            fgh=objective_gradient_hessian_ip,
+                            h=hessian_ip)
+optprob_ip = OptimizationProblem(scalarobj_ip; inplace=true)
+
+solve(optprob_ip, [0.3], LineSearch(Newton()), OptimizationOptions())
+```
+which gives
+```
+Results of minimization
+
+* Algorithm:
+  Newton's method with default linsolve with backtracking (no interp)
+
+* Candidate solution:
+  Final objective value:    -4.35e-01
+  Final gradient norm:      3.07e-12
+
+  Initial objective value:  3.04e-01
+  Initial gradient norm:    1.06e+00
+
+* Convergence measures
+  |x - x'|              = 6.39e-07 <= 0.00e+00 (false)
+  |x - x'|/|x|          = 1.08e-06 <= 0.00e+00 (false)
+  |f(x) - f(x')|        = 9.71e-13 <= 0.00e+00 (false)
+  |f(x) - f(x')|/|f(x)| = 2.23e-12 <= 0.00e+00 (false)
+  |g(x)|                = 3.07e-12 <= 1.00e-08 (true)
+  |g(x)|/|g(x₀)|        = 2.88e-12 <= 0.00e+00 (false)
+
+* Work counters
+  Seconds run:   1.10e-05
+  Iterations:    6
 
 ```
-The problem types are especially useful when manifolds, bounds, and other constraints enter the picture. They make sure that there is only ever one initial argument: the objective or the problem definition. The functions `minimize(!)` are really shortcuts for unconstrained optimization.
+as above. Another set of examples could be `SArray`'s and `MArray`'s from the `StaticArrays.jl` package. 
+
+```
+using StaticArrays
+solve(optprob_ip, @MVector([0.3]), LineSearch(Newton()), OptimizationOptions())
+```
+which gives
+```
+Results of minimization
+
+* Algorithm:
+  Newton's method with default linsolve with backtracking (no interp)
+
+* Candidate solution:
+  Final objective value:    -4.35e-01
+  Final gradient norm:      3.07e-12
+
+  Initial objective value:  3.04e-01
+  Initial gradient norm:    1.06e+00
+
+* Convergence measures
+  |x - x'|              = 6.39e-07 <= 0.00e+00 (false)
+  |x - x'|/|x|          = 1.08e-06 <= 0.00e+00 (false)
+  |f(x) - f(x')|        = 9.71e-13 <= 0.00e+00 (false)
+  |f(x) - f(x')|/|f(x)| = 2.23e-12 <= 0.00e+00 (false)
+  |g(x)|                = 3.07e-12 <= 1.00e-08 (true)
+  |g(x)|/|g(x₀)|        = 2.88e-12 <= 0.00e+00 (false)
+
+* Work counters
+  Seconds run:   5.68e-04
+  Iterations:    6
+```
+
+So numbers, mutating array code and non-mutating array code is supported depending on the input to the problem type and initial `x` or state in general.
+
+## Systems of Nonlinear Equations `NEqProblem`
+
+
 
 ## Custom solve
 Newton methods generally accept a linsolve argument.
@@ -299,7 +401,7 @@ res = minimize!(himmelblau!, copy([2.0,2.0]), (Newton(Direct()), NWI()))
 
 
 
-## Wrapping a LeastSquares problem for MinProblems
+## Wrapping a LeastSquares problem for OptimizationProblems
 To be able to do inplace least squares problems it is necessary to provide proper cache arrays to be used internally. To do this we write
 
 ```julia
