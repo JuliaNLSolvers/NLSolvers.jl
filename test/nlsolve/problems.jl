@@ -32,7 +32,7 @@ function Jvop_rosenbrock!(x)
 end    
 
 NLE_PROBS["rosenbrock"]["array"]["x0"] = [-1.2, 1.0]
-NLE_PROBS["rosenbrock"]["array"]["mutating"] = NLSolvers.NEqObjective(F_rosenbrock!, J_rosenbrock!, FJ_rosenbrock!, Jvop_rosenbrock!)
+NLE_PROBS["rosenbrock"]["array"]["mutating"] = NLSolvers.VectorObjective(F_rosenbrock!, J_rosenbrock!, FJ_rosenbrock!, Jvop_rosenbrock!)
 
 
 function F_powell_singular!(x::Vector, Fx::Vector, Jx::Union{Nothing, Matrix}=nothing)
@@ -88,7 +88,7 @@ function f()
        Jx = quantile_j(Jx, x)
        Fx, Jx
     end
-    quantobj = NLSolvers.NEqObjective(quantile_f, quantile_j, quantile_fj, nothing)
+    quantobj = NLSolvers.VectorObjective(quantile_f, quantile_j, quantile_fj, nothing)
 
     quantproblem = NEqProblem(quantobj, nothing, NLSolvers.Euclidean(0), NLSolvers.OutOfPlace())
 
@@ -106,7 +106,7 @@ function quantile_fj(Fx, Jx, x)
    Jx = quantile_j(Jx, x)
    Fx, Jx
 end
-const quantobj = NLSolvers.NEqObjective(quantile_f, quantile_j, quantile_fj, nothing)
+const quantobj = NLSolvers.VectorObjective(quantile_f, quantile_j, quantile_fj, nothing)
 
 const quantproblem = NEqProblem(quantobj, nothing, NLSolvers.Euclidean(0), NLSolvers.OutOfPlace())
 

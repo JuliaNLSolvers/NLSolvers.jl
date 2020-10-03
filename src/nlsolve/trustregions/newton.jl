@@ -61,7 +61,7 @@ function solve(prob::NEqProblem, x, approach::TrustRegion{<:Union{SR1, DBFGS, BF
     x_outer = copy(x)
 
     normed_residual = NormedResiduals(x_outer, Fx_outer, F)
-    ρ2F0 = 2*value(normed_residual, x_outer)
+    ρ2F0 = sqrt(value(normed_residual, x_outer)*2)
     ρF0 = norm(normed_residual.Fx, Inf)
     td = OptimizationProblem(normed_residual)
     res = solve(td, x, approach, OptimizationOptions(maxiter=options.maxiter))
