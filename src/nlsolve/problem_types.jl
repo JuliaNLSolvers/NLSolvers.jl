@@ -34,16 +34,16 @@ is_inplace(problem::NEqProblem) = mstyle(problem) === InPlace()
 function value(nleq::NEqProblem, x, F)
     value(nleq.R, x, F)
 end
-struct NEqObjective{TF, TJ, TFJ, TJv}
+struct VectorObjective{TF, TJ, TFJ, TJv}
   F::TF
   J::TJ
   FJ::TFJ
   Jv::TJv
 end
-function value(nleq::NEqObjective, x, F)
+function value(nleq::VectorObjective, x, F)
   nleq.F(x, F)
 end
-function value_jacobian!(nleq::NEqProblem{<:NEqObjective, <:Any, <:Any}, x, F, J)
+function value_jacobian!(nleq::NEqProblem{<:VectorObjective, <:Any, <:Any}, x, F, J)
   nleq.FJ(x, F, J)
 end
 

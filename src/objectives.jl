@@ -14,7 +14,7 @@ struct ScalarObjective{Tf, Tg, Tfg, Tfgh, Th, Thv, Tbf, P}
     batched_f::Tbf
     param::P
 end
-ScalarObjective(f) = ScalarObjective(f, nothing, nothing, nothing, nothing, nothing, nothing, nothing)
+ScalarObjective(;f=nothing, g=nothing, fg=nothing, fgh=nothing, h=nothing) = ScalarObjective(f, g, fg, fgh, h, nothing, nothing, nothing)
 has_param(so::ScalarObjective) = so.param === nothing ? false : true
 function value(so::ScalarObjective, x)
     if has_param(so)

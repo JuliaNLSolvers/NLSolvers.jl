@@ -58,7 +58,7 @@ function jvop(x)
     jv.u .= x
     jv
 end
-prob_obj = NLSolvers.NEqObjective(F_powell!, nothing, F_jacobian_powell!, jvop)
+prob_obj = NLSolvers.VectorObjective(F_powell!, nothing, F_jacobian_powell!, jvop)
 
 
 prob = NEqProblem(prob_obj)

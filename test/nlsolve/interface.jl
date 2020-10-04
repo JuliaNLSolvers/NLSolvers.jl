@@ -50,7 +50,7 @@ function jvop(x)
     jv.u .= x
     jv
 end
-prob_obj = NLSolvers.NEqObjective(F_fletcher_powell!, nothing, F_jacobian_fletcher_powell!, jvop)
+prob_obj = NLSolvers.VectorObjective(F_fletcher_powell!, nothing, F_jacobian_fletcher_powell!, jvop)
 
 prob = NEqProblem(prob_obj)
 
@@ -111,7 +111,7 @@ function FJ_dfsane_exponential!(Fx, Jx, x)
   ForwardDiff.jacobian!(Jx, dfsane_exponential, Fx, x)
   Fx, Jx
 end
-prob_obj = NLSolvers.NEqObjective(dfsane_exponential, nothing, FJ_dfsane_exponential!, nothing)
+prob_obj = NLSolvers.VectorObjective(dfsane_exponential, nothing, FJ_dfsane_exponential!, nothing)
 
 n = 5000
 x0 = fill(n/(n-1), n)
@@ -139,7 +139,7 @@ function dfsane_exponential2(Fx, x)
     end
     Fx
 end
-dfsane_prob2 = NLSolvers.NEqObjective(dfsane_exponential2, nothing, nothing,nothing)
+dfsane_prob2 = NLSolvers.VectorObjective(dfsane_exponential2, nothing, nothing,nothing)
 n = 500
 x0 = fill(1/(n^2), n)
 res = solve(NEqProblem(dfsane_prob2), x0, NLSolvers.DFSANE(), NLSolvers.NEqOptions())
