@@ -168,6 +168,85 @@ So numbers, mutating array code and non-mutating array code is supported dependi
 
 ## Systems of Nonlinear Equations `NEqProblem`
 
+To solve a system of non-linear equations you should use the `NEqProblem` type. First,
+we have to define a `VectorObjective`. We can try to solve for the roots in the problem
+defined by setting the gradient of the Rosenbrock test problem equal to zero.
+```
+function F_rosenbrock!(Fx, x)
+    Fx[1] = 1 - x[1]
+    Fx[2] = 10(x[2]-x[1]^2)
+    return Fx
+end
+function J_rosenbrock!(Jx, x)
+    Jx[1,1] = -1
+    Jx[1,2] = 0
+    Jx[2,1] = -20*x[1]
+    Jx[2,2] = 10
+    return Jx
+end
+function FJ_rosenbrock!(Fx, Jx, x)
+    F_rosenbrock!(Fx, x)
+    J_rosenbrock!(Jx, x)
+    Fx, Jx
+end
+function Jvop_rosenbrock!(x)
+    function JacV(Fv, v)
+        Fv[1] = -1*v[1]
+        Fv[2,] = -20*x[1]*v[1] + 10*v[2]
+    end
+    LinearMap(JacV, length(x))
+end
+vectorobj = NLSolvers.VectorObjective(F_rosenbrock!, J_rosenbrock!, FJ_rosenbrock!, Jvop_rosenbrock!)
+```
+and define a probem type that lets `solve` dispatch to the correct code
+```
+vectorprob = NEqProblem(vectorobj)
+```
+and we can solve using two variants of Newton's method. One that globalizes the
+solve using a trust-region based method and one that uses a line search
+```
+
+julia> solve(vectorprob, [5.0, 0.0], TrustRegion(Newton(), Dogleg()), NEqOptions())
+Results of solving non-linear equations
+
+* Algorithm:
+  Newton's method with default linsolve with Dogleg{Nothing}
+
+* Candidate solution:
+  Final residual 2-norm:      5.24e-14
+  Final residual Inf-norm:    5.24e-14
+
+  Initial residual 2-norm:    6.25e+04
+  Initial residual Inf-norm:  2.50e+02
+
+* Convergence measures
+  |F(x')|               = 5.24e-14 <= 0.00e+00 (false)
+
+* Work counters
+  Seconds run:   1.91e-05
+  Iterations:    2
+
+
+julia> solve(vectorprob, [5.0, 0.0], LineSearch(Newton()), NEqOptions())
+Results of solving non-linear equations
+
+* Algorithm:
+  Newton's method with default linsolve with backtracking (no interp)
+
+* Candidate solution:
+  Final residual 2-norm:      0.00e+00
+  Final residual Inf-norm:    0.00e+00
+
+  Initial residual 2-norm:    2.50e+02
+  Initial residual Inf-norm:  2.50e+02
+
+* Convergence measures
+  |F(x')|               = 0.00e+00 <= 0.00e+00 (true)
+
+* Work counters
+  Seconds run:   1.00e-05
+  Iterations:    2
+```
 
 
 ## Custom solve

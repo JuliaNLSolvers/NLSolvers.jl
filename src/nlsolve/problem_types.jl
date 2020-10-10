@@ -40,11 +40,11 @@ struct VectorObjective{TF, TJ, TFJ, TJv}
   FJ::TFJ
   Jv::TJv
 end
-function value(nleq::VectorObjective, x, F)
-  nleq.F(x, F)
+function value(nleq::VectorObjective, F, x)
+  nleq.F(F, x)
 end
-function value_jacobian!(nleq::NEqProblem{<:VectorObjective, <:Any, <:Any}, x, F, J)
-  nleq.FJ(x, F, J)
+function value_jacobian!(nleq::NEqProblem{<:VectorObjective, <:Any, <:Any}, F, J, x)
+  nleq.FJ(F, J, x)
 end
 
 """

@@ -1,11 +1,10 @@
 """
-  LsqProblem(residuals)
+  LeastSquaresProblem(residuals::VectorObjective)
 
-An LsqProblem ([Non-linear] Least squares Problem), is used to represent the
+A LeastSquaresProblem is used to represent the
 mathematical problem of finding the smallest possible sum of squared values of
 the elements of the residual function. The problem is defined by `residual` which is
-an appropriate objective type (for example `NonDiffed`, `OnceDiffed`, ...) for the
-types of algorithm to be used.
+a `VectorObjective`.
 
 Options are stored in `options` and are of the `NLsqOptions` type. See more information
 about options using `?NLsqOptions`.
@@ -14,13 +13,16 @@ The package NLSolversAD.jl adds automatic conversion of problems to match algori
 that require higher order derivates than provided by the user. It also adds AD
 constructors for a target number of derivatives.
 """
-struct LsqProblem{R<:ObjWrapper, B, M, C}
+struct LeastSquaresProblem{R<:ObjWrapper, O, B, M, C}
   residuals::R
   bounds::B
   manifold::M
   constraints::C
 end
 
-struct LsqOptions{Tmi}
+struct LeastSquaresOptions{Tmi}
   maxiter::Tmi
 end
+
+# observations are useful if you only want to specify it as a ScalarObjective
+solve(problem::LeastSquaresProblem, x, method, options::LeastSquaresOptions) = throw(MethodError("solve not implemented for $(summary(method)) and LeastSquaresProblem."))
