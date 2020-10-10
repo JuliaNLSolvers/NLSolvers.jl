@@ -126,6 +126,10 @@ include("nlsolve/acceleration/anderson.jl")
 # Forcing Terms
 export FixedForceTerm, DemboSteihaug, EisenstatWalkerA, EisenstatWalkerB
 
+include("lsqsolve/problem_types.jl")
+include("lsqsolve/optimization.jl")
+export OptimizationProblem, OptimizationOptions
+
 function negate(problem::AbstractProblem, A)
 
 end
