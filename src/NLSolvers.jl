@@ -128,7 +128,7 @@ export FixedForceTerm, DemboSteihaug, EisenstatWalkerA, EisenstatWalkerB
 
 include("lsqsolve/problem_types.jl")
 include("lsqsolve/optimization.jl")
-export OptimizationProblem, OptimizationOptions
+export LeastSquaresProblem, LeastSquaresOptions
 
 function negate(problem::AbstractProblem, A)
 

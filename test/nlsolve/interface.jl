@@ -76,7 +76,7 @@ res = solve(prob, x0, TrustRegion(Newton()), NEqOptions())
 
 x0 = [-1.0, 0.0, 0.0]
 res = solve(prob, x0, TrustRegion(SR1()), NEqOptions())
-@test norm(res.info.best_residual, Inf) < 1e-9
+@test norm(res.info.best_residual, Inf) < 1e-8
 
 x0 = [-1.0, 0.0, 0.0]
 state = (z=copy(x0), d=copy(x0), Fx=copy(x0), Jx=zeros(3,3))

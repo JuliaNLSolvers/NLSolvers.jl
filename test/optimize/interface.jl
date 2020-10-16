@@ -40,6 +40,7 @@ using Test
 # 
 # TODO: LineObjetive doesn't need ! when we have problem in there and mstyle
 
+# Todo Normed residuals doesn't have batched. Try APSO on equations
 #### OPTIMIZATION
 f = OPT_PROBS["himmelblau"]["array"]["mutating"]
 x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
