@@ -88,7 +88,6 @@ function solve(problem::OptimizationProblem, x0, method::APSO, options::Optimiza
         best_f = Fs_learn
       end
     end
-
     # TODO find a better name for _f (look inthe paper, it might be called f there)
     current_state, swarm_f = get_swarm_state(X, Fs, x, current_state)
     ω, c₁, c₂ = update_swarm_params!(c₁, c₂, ω, current_state, swarm_f)

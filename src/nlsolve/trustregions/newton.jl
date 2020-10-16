@@ -7,8 +7,10 @@ struct NormedResiduals{Tx, Tfx, Tf}
     Fx::Tfx
     F::Tf
 end
+has_batched_f(::NormedResiduals) = false
+has_param(::NormedResiduals) = false
 function value(nr::NormedResiduals, x)
-    Fx = nr.F.F(x, nr.Fx)
+    Fx = nr.F.F(nr.Fx, x)
   
     # this is just to grab them outside, but this hsould come from the convergence info perhaps?
     nr.x .= x
@@ -17,8 +19,9 @@ function value(nr::NormedResiduals, x)
     f = (norm(Fx)^2)/2
     return f
 end
+
 function upto_gradient(nr::NormedResiduals, Fx, x)
-    Fx, Jx = nr.F.FJ(Fx, Fx*x', x)
+    Fx, Jx = nr.F.FJ(nr.Fx, nr.Fx*x', x)
 
     # this is just to grab them outside, but this hsould come from the convergence info perhaps?
     nr.x .= x

@@ -62,6 +62,7 @@ function batched_value(so::ScalarObjective, X)
     end
 end
 function batched_value(so::ScalarObjective, F, X)
+
     if has_batched_f(so)# add
         if has_param(so)
             return F = so.batched_f(F, X, so.param)
@@ -73,7 +74,7 @@ function batched_value(so::ScalarObjective, F, X)
             F .= so.f.(X, Ref(so.param))
             return F
         else
-            F .= so.f.(X, Ref(so.param))
+            F .= so.f.(X)
             return F
         end
     end
@@ -151,4 +152,78 @@ function (lw::LsqWrapper)(∇f, x)
   _F, _J = lw.R(lw.F, lw.J, x)
   copyto!(∇f, sum(_J; dims=1))
   sum(abs2, _F), ∇f
+end
+
+
+
+
+
+
+
+
+struct LeastSquares{Tx, TFx, TJx, Tf, Tfj, Td}
+    x::Tx
+    Fx::TFx
+    Jx::TJx
+    F::Tf
+    FJ::Tfj
+    ydata::Td
+end
+has_ydata(lsq::LeastSquares) = !(lsq.ydata === nothing)
+function value(lsq::LeastSquares, x)
+    # Evaluate the residual system or the "predicted" value for LeastSquares
+    Fx = lsq.F(lsq.Fx, x)
+    # Find out if this is used, maybe set to NaN to see if something fails
+    lsq.x .= x
+
+    # If this comes from a LeastSquaresProblem there will be a lhs to subtract
+    if has_ydata(lsq)
+        Fx .= Fx .- lsq.ydata
+    end
+    lsq.Fx .= Fx
+
+    # Least Squares
+    f = (norm(Fx)^2)/2
+    return f
+end
+function batched_value(lsq::LeastSquares, F, X)
+   F .= value.(Ref(lsq), X)
+end
+function upto_gradient(lsq::LeastSquares, Fx, x)
+    # Evaluate the residual system or the "predicted" value for LeastSquares
+    # and the Jacobian of either one
+    Fx_sq, Jx_sq = lsq.FJ(lsq.Fx, lsq.Fx*x', x)
+    
+    # Find out if this is used, maybe set to NaN to see if something fails
+    lsq.x .= x
+    
+    # If this comes from a LeastSquaresProblem there will be a lhs to subtract
+    if has_ydata(lsq)
+        Fx_sq .= Fx_sq .- lsq.ydata
+    end
+    lsq.Fx .= Fx_sq
+
+    # Least Squares
+    f = (norm(Fx_sq)^2)/2
+    Fx .= Jx_sq'*Fx_sq
+   return f, Fx
+end
+function upto_hessian(lsq::LeastSquares, Fx, Jx, x)  #Fx is the gradient and Jx is the Hessian
+    Fx_sq, Jx_sq = lsq.FJ(lsq.Fx, lsq.Jx, x)
+
+    # this is just to grab them outside, but this hsould come from the convergence info perhaps?
+    lsq.x .= x
+    lsq.Fx .= Fx_sq
+    f = (norm(Fx)^2)/2
+    # this is the gradient
+    Fx .= Jx_sq'*Fx_sq
+    # As you may notice, this can be expensive... Because the gradient
+    # is going to be very simple. May want to create a
+    # special type or way to hook into trust regions here. We can exploit
+    # that we only need the cauchy and the newton steps, not any shifted
+    # systems. There is no need to get the full hessian. because these two
+    # steps are don't need these multiplies
+    # This is the Hessian
+    Jx .= Jx_sq'*Jx_sq
+    return f, Fx, Jx
 end

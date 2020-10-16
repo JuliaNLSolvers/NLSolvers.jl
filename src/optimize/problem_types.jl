@@ -37,6 +37,7 @@ constraints(p::OptimizationProblem, args...) = p.constraints(args...)
 OptimizationProblem(; obj=nothing, bounds=nothing, manifold=Euclidean(0), constraints=nothing, inplace=true, initial_x=nothing) =
   OptimizationProblem(obj, bounds, manifold, constraints, inplace===true ? InPlace() : OutOfPlace(), initial_x)
 OptimizationProblem(obj; inplace=true) = OptimizationProblem(obj, nothing, Euclidean(0), nothing, inplace===true ? InPlace() : OutOfPlace(), nothing)
+OptimizationProblem(obj, bounds::Tuple; inplace=true) = OptimizationProblem(obj, bounds, Euclidean(0), nothing, inplace===true ? InPlace() : OutOfPlace(), nothing)
 
 struct ConvergenceInfo{Ts, T, O}
   solver::Ts

@@ -13,11 +13,15 @@ The package NLSolversAD.jl adds automatic conversion of problems to match algori
 that require higher order derivates than provided by the user. It also adds AD
 constructors for a target number of derivatives.
 """
-struct LeastSquaresProblem{R<:ObjWrapper, O, B, M, C}
+struct LeastSquaresProblem{R, B, M, C}
   residuals::R
   bounds::B
   manifold::M
   constraints::C
+end
+function LeastSquaresProblem(residuals, bounds = nothing)
+  manifold = Euclidean(0)
+  LeastSquaresProblem{typeof(residuals), typeof(bounds), typeof(manifold), Nothing}(residuals, bounds, manifold, nothing)
 end
 
 struct LeastSquaresOptions{Tmi}
@@ -25,4 +29,7 @@ struct LeastSquaresOptions{Tmi}
 end
 
 # observations are useful if you only want to specify it as a ScalarObjective
-solve(problem::LeastSquaresProblem, x, method, options::LeastSquaresOptions) = throw(MethodError("solve not implemented for $(summary(method)) and LeastSquaresProblem."))
+function solve(problem::LeastSquaresProblem, x, method, options::LeastSquaresOptions)
+  _error = ArgumentError("solve not implemented for $(summary(method)) and LeastSquaresProblem.")
+  throw(_error)
+end
