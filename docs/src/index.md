@@ -9,7 +9,7 @@ NLSolvers.jl is the backend code for [Optim.jl](https://github.com/JuliaNLSolver
 The package is a registered package, and can be installed with `Pkg.add`.
 
 ```julia
-julia> using Pkg; Pkg.add("OptimNLSolvers")
+julia> using Pkg; Pkg.add("NLSolvers")
 ```
 or through the `pkg` REPL mode by typing
 ```
