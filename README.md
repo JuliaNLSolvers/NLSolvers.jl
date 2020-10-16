@@ -285,30 +285,3 @@ SAMIN, BOXES
 Univariate!!
 IP Newotn
 Krylov Hessian
-
-
-
-## Wrapping a LeastSquares problem for OptimizationProblems
-To be able to do inplace least squares problems it is necessary to provide proper cache arrays to be used internally. To do this we write
-
-```julia
-@. model(x, p) = p[1]*exp(-x*p[2])
-xdata = range(0, stop=10, length=20)
-ydata = model(xdata, [1.0 2.0]) + 0.01*randn(length(xdata))
-p0 = [0.5, 0.5]
-
-using ForwardDiff
-function F(p)
-  model(xdata, p)
-end
-function J(p)
-  ForwardDiff.jacobian(F, p)
-end
-function obj(_J, _F, x)
-    f = F(x)
-    j = _J isa Nothing ? _J : J(x)
-    objective_return(f, j)
-end
-od = OnceDiffed(obj)
-lw = LsqWrapper1(od, true, true)
-```
