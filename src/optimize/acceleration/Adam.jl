@@ -17,6 +17,7 @@ struct Adam{T}
   ϵ::T
 end
 Adam(;alpha=0.0001, beta_mean=0.9, beta_var=0.999, epsilon=1e-8) = Adam(alpha, beta_mean, beta_var, epsilon)
+summary(::Adam) = "Adam"
 
 """
     AdaMax(; alpha=0.002, beta_mean=0.9, beta_var=0.999)
@@ -37,7 +38,7 @@ struct AdaMax{T}
   β₂::T
 end
 AdaMax(;alpha=0.002, beta_mean=0.9, beta_var=0.999) = AdaMax(alpha, beta_mean, beta_var)
-
+summary(::AdaMax) = "AdaMax"
 
 function solve(problem::OptimizationProblem, x0, adam::Adam, options::OptimizationOptions)
   α, β₁, β₂, ϵ = adam.α, adam.β₁, adam.β₂, adam.ϵ

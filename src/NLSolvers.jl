@@ -103,7 +103,7 @@ export DBFGS, BFGS, SR1, DFP, GradientDescent, Newton, BB, LBFGS, ActiveBox
 include("optimize/linesearch/linesearch.jl")
 export HS, CD, HZ, FR, PRP, VPRP, LS, DY
 include("optimize/randomsearch/randomsearch.jl")
-export SimulatedAnnealing, PureRandomSearch, APSO
+export SimulatedAnnealing, PureRandomSearch, ParticleSwarm
 include("optimize/directsearch/directsearch.jl")
 export NelderMead
 include("optimize/acceleration/root.jl")

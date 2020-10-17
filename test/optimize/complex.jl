@@ -20,7 +20,7 @@ x0 = randn(n)+im*randn(n)
 
 
 ####### WTF ! Inplace takes 1000 iters and oop doesn't
-# solve(prob, x0, APSO(), OptimizationOptions()) # fails
+# solve(prob, x0, ParticleSwarm(), OptimizationOptions()) # fails
 solve(prob, x0, SimulatedAnnealing(), OptimizationOptions())
 solve(prob, copy(x0), LineSearch(LBFGS(), Backtracking()), OptimizationOptions()) # fails due to bounds
 solve(prob, copy(x0), LineSearch(LBFGS(), Backtracking()), OptimizationOptions(g_abstol=1e-6)) # fails due to bounds

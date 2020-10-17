@@ -234,7 +234,7 @@ end
 # nd = NonDiffed(t->sum(abs2, boxbod_f.(xdata, Ref(t)).-ydata))
 # bounds = (fill(0.0, 2), fill(500.0, 2))
 # problem = MinProblem(; obj=nd, bounds=bounds)
-# @show minimize!(problem, zeros(2), APSO(), OptimizationOptions())
+# @show minimize!(problem, zeros(2), ParticleSwarm(), OptimizationOptions())
 # @show minimize!(nd, [200.0, 1], NelderMead(), OptimizationOptions())
 
 # @show minimize!(nd, minimize!(nd, [200.0, 10.0], NelderMead(), OptimizationOptions()).info.minimizer, NelderMead(), OptimizationOptions())
@@ -254,7 +254,7 @@ end
 # minimize!(lsqwrap, [100.0, 1.0], NelderMead(), OptimizationOptions())
 
 # lsqwrap = NLSolvers.LsqWrapper(F, zeros(6), zeros(6,2))
-# minimize!(MinProblem(;obj=lsqwrap,bounds=([0.0,0.0],[250.0,2.0])), [100.0, 1.0], APSO(), OptimizationOptions())
+# minimize!(MinProblem(;obj=lsqwrap,bounds=([0.0,0.0],[250.0,2.0])), [100.0, 1.0], ParticleSwarm(), OptimizationOptions())
 
 # function F(F, b)
 #   @. F = b[1]*(1 - exp(-b[2]*xdata)) - ydata

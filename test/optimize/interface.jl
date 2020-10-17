@@ -13,16 +13,13 @@ using Test
 #
 # Make DOGLEG work also with BFGS (why is convergence so slow?)
 # # Look into what caches are created
-# # Why does SR1 give inf above?
 #
-# Mutated first r last (easy to make fallback for nonmutating)
 # NelderMead
 # time limit not enforced in @show solve(NelderMead)
 # no convergence crit either
 #
-# APSO
+# ParticleSwarm
 # no @show solve
-# wrong return type (no ConvergenceInfo)
 #
 # PureRandom search. wrong return type and move bounds to problem
 #
@@ -40,7 +37,7 @@ using Test
 # 
 # TODO: LineObjetive doesn't need ! when we have problem in there and mstyle
 
-# Todo Normed residuals doesn't have batched. Try APSO on equations
+# Todo Normed residuals doesn't have batched. Try ParticleSwarm on equations
 #### OPTIMIZATION
 f = OPT_PROBS["himmelblau"]["array"]["mutating"]
 x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
@@ -61,7 +58,7 @@ res = solve(prob_oop, x0, NelderMead(), OptimizationOptions())
 @test res.info.minimum == 0.0
 
 x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob_bounds, x0, APSO(), OptimizationOptions())
+res = solve(prob_bounds, x0, ParticleSwarm(), OptimizationOptions())
 @test_broken all(x0 .== [3.0,2.0])
 @test res.info.minimum == 0.0
 
