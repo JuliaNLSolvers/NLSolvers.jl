@@ -87,20 +87,6 @@ res = solve(prob, copy(p0), TrustRegion(BFGS()), LeastSquaresOptions(40))
 res = solve(prob, copy(p0), TrustRegion(BFGS()), LeastSquaresOptions(40))
 res = solve(prob, copy(p0), Adam(), LeastSquaresOptions(40))
 
-
-
-unimodel(x, p) = p[1]*exp(-x[1]*p[2])
-xdata = range(0, stop=10, length=20)
-ydata = unimodel.(xdata, Ref([1.0 2.0])) + 0.01*randn(length(xdata))
-p0 = [0.5, 0.5]
-obj = LeastSquaresModel(unimodel, xdata, ydata)
-prob = OptimizationProblem(obj, ([0.0,0.0],[3.0,3.0]))
-res = solve(prob, copy(p0), LineSearch(BFGS()), OptimizationOptions())
-res = solve(prob, copy(p0), NelderMead(), OptimizationOptions())
-res = solve(prob, copy(p0), SimulatedAnnealing(), OptimizationOptions())
-res = solve(prob, copy(p0), ParticleSwarm(), OptimizationOptions())
-
-# can do this based on model or model and derivative of model
 function LeastSquaresModel(model, xdata, ydata)
     function f(x)
         function squared_error(xy)
@@ -129,6 +115,20 @@ function LeastSquaresModel(model, xdata, ydata)
     end
     obj = ScalarObjective(f, g!, fg, fgh!, h!, nothing, nothing, nothing)        
 end
+
+unimodel(x, p) = p[1]*exp(-x[1]*p[2])
+xdata = range(0, stop=10, length=20)
+ydata = unimodel.(xdata, Ref([1.0 2.0])) + 0.01*randn(length(xdata))
+p0 = [0.5, 0.5]
+obj = LeastSquaresModel(unimodel, xdata, ydata)
+prob = OptimizationProblem(obj, ([0.0,0.0],[3.0,3.0]))
+res = solve(prob, copy(p0), LineSearch(BFGS()), OptimizationOptions())
+res = solve(prob, copy(p0), NelderMead(), OptimizationOptions())
+res = solve(prob, copy(p0), SimulatedAnnealing(), OptimizationOptions())
+res = solve(prob, copy(p0), ParticleSwarm(), OptimizationOptions())
+
+# can do this based on model or model and derivative of model
+
 function f(x)
     mod = model(xdata, x)
     return sum(abs2, mod.-ydata)/2
