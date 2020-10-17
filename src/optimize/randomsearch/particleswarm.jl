@@ -1,6 +1,6 @@
 ## References
 # - [1] Zhan, Zhang, and Chung. Adaptive particle swarm optimization, IEEE Transactions on Systems, Man, and Cybernetics, Part B: CyberneticsVolume 39, Issue 6 (2009): 1362-1381
-struct APSO{Tn, T}
+struct ParticleSwarm{Tn, T}
   n_particles::Tn
   limit_search_space::Bool
   elitist_learning::Bool
@@ -10,9 +10,10 @@ struct APSO{Tn, T}
   σmax::T
 end
 # defaults for c's are from the flowchart of page 1370, σ's are from the bottom of 1370  
-APSO(; n_particles=nothing, limit_search_space=false, elitist_learning=true, c₁=2.0, c₂=2.0, σmin=0.1, σmax=1.0) = 
-  APSO(n_particles, limit_search_space, elitist_learning, c₁, c₂, σmin, σmax)
-function solve(problem::OptimizationProblem, x0, method::APSO, options::OptimizationOptions)
+ParticleSwarm(; n_particles=nothing, limit_search_space=false, elitist_learning=true, c₁=2.0, c₂=2.0, σmin=0.1, σmax=1.0) = 
+  ParticleSwarm(n_particles, limit_search_space, elitist_learning, c₁, c₂, σmin, σmax)
+summary(::ParticleSwarm) = "Adaptive Particle Swarm"
+function solve(problem::OptimizationProblem, x0, method::ParticleSwarm, options::OptimizationOptions)
     if !(mstyle(problem) === InPlace())
         throw(ErrorException("solve() not defined for OutOfPlace() with Anderson"))
     end
