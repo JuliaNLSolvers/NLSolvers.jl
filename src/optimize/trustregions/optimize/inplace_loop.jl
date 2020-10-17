@@ -38,7 +38,7 @@ function solve(problem::OptimizationProblem, s0::Tuple, approach::TrustRegion, o
     return ConvergenceInfo(approach, (Δ=Δkp1, ρs=norm(x.-z), ρx=norm(x), minimizer=z, fx=fx, minimum=fz, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=iter, time=time()-t0), options)
 end
 function print_trace(approach::TrustRegion, options, iter, t0, objvars, Δ)
-    if !isa(options.logger, NullLogger) 
+    if false
         println(@sprintf("iter: %d   time: %f   f: %.4e   ||∇f||: %.4e    Δ: %.4e", iter, time()-t0, objvars.fz, norm(objvars.∇fz, Inf), Δ))
     end
 end

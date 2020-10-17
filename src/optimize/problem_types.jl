@@ -117,7 +117,7 @@ function Base.show(io::IO, ci::ConvergenceInfo)
   println(io, "  Iterations:    $(info.iter)")
 end
 
-struct OptimizationOptions{T1, T2, T3, T4, Txn, Tgn, Tlog}
+struct OptimizationOptions{T1, T2, T3, T4, Txn, Tgn}
   x_abstol::T1
   x_reltol::T1
   x_norm::Txn
@@ -130,18 +130,17 @@ struct OptimizationOptions{T1, T2, T3, T4, Txn, Tgn, Tlog}
   nm_tol::T3
   maxiter::T4
   show_trace::Bool
-  logger::Tlog
 end
 
 OptimizationOptions(; x_abstol=0.0, x_reltol=0.0, x_norm=x->norm(x, Inf),
              g_abstol=1e-8, g_reltol=0.0, g_norm=x->norm(x, Inf),
              f_limit=-Inf, f_abstol=0.0, f_reltol=0.0,
-             nm_tol=1e-8, maxiter=10000, show_trace=false, logger=show_trace ? ConsoleLogger() : NullLogger()) =
+             nm_tol=1e-8, maxiter=10000, show_trace=false) =
   OptimizationOptions(x_abstol, x_reltol, x_norm,
              g_abstol, g_reltol, g_norm,
              f_limit, f_abstol, f_reltol,
              nm_tol,
-             maxiter, show_trace, logger)
+             maxiter, show_trace)
 
 struct MinResults{Tr, Tc<:ConvergenceInfo, Th, Ts, To}
   res::Tr

@@ -1,8 +1,7 @@
 module NLSolvers
 
 import Base: show, summary
-
-using Logging
+using Statistics # for var in statistics... probably not worth it
 
 #============================ LinearAlgebra ===========================
   We use often use the LinearAlgebra functions dot and norm for opera-

@@ -128,7 +128,6 @@ function centroid!(c, simplex_vector, h=0)
 end
 
 centroid(simplex_vector, h) = centroid!(similar(simplex_vector[1]), simplex_vector, h)
-using Statistics
 function nmobjective(y::Vector)
     a = sqrt(var(y) * (length(y) / (length(y) - 1)))
     return a
@@ -193,8 +192,6 @@ function solve(mstyle::InPlace, prob::OptimizationProblem, simplex::ValuedSimple
     ConvergenceInfo(method, (nm_obj=nm_obj, centroid=x_centroid, simplex=simplex, minimizer=x_min, minimum=f_min, f0=f0, iter=iter, time=time()-t0), options)
 end
 function print_trace(::NelderMead, options, iter, t0, simplex_value)
-    if !isa(options.logger, NullLogger) 
-    end
 end
 
 function iterate!(prob, method::NelderMead, simplex_vector, simplex_value, i_order, x_cache, x_centroid, x_reflect, α, β, γ, δ)

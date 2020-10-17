@@ -24,7 +24,6 @@ function solve(problem::OptimizationProblem, s0::Tuple, approach::LineSearch, op
 end
 
 function _solve(mstyle, problem::OptimizationProblem, s0::Tuple, approach::LineSearch, options::OptimizationOptions, cache)
-#    global_logger(options.logger)
     t0 = time()
 
     #==============
@@ -67,7 +66,7 @@ function _solve(mstyle, problem::OptimizationProblem, s0::Tuple, approach::LineS
     return ConvergenceInfo(approach, (P=P, B=B, ρs=norm(x.-z), ρx=norm(x), minimizer=z, fx=fx, minimum=fz, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=iter, time=time()-t0), options)
 end
 function print_trace(approach::LineSearch, options, iter, t0, objvars)
-    if !isa(options.logger, NullLogger) 
+    if false 
        println(@sprintf("iter: %d   time: %.4f   obj: %.4e   ||∇f||: %.4e    α: %.4e", iter, time()-t0, objvars.fz, norm(objvars.∇fz, Inf), objvars.α))
     end
 end
@@ -104,7 +103,7 @@ function iterate(mstyle::InPlace, cache, objvars, P, approach::LineSearch, probl
     return (x=x, fx=fx, ∇fx=∇fx, z=z, fz=fz, ∇fz=∇fz, B=B, Pg=Pg, α=α), P, QNVars(d, s, y)
 end
 function print_trace(approach::LineSearch, options, iter, t0, objvars, Δ)
-    if !isa(options.logger, NullLogger) 
+    if false
         println(@sprintf("iter: %d   time: %f   f: %.4e   ||∇f||: %.4e    Δ: %.4e", iter, time()-t0, objvars.fz, norm(objvars.∇fz, Inf), Δ))
     end
 end

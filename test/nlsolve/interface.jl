@@ -1,4 +1,3 @@
-using Revise
 using NLSolvers
 using LinearAlgebra
 using SparseDiffTools
