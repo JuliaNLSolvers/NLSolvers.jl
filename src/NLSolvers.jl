@@ -34,9 +34,6 @@ using LinearAlgebra:  dot, I, norm, # used everywhere in updates, convergence, e
                       axpy! # for Anderson
 import LinearAlgebra: mul!, dot # need to extend for preconditioners
 
-# For better random number generators and rand!
-using RandomNumbers
-
 using Printf
 
 function solve end
@@ -56,7 +53,6 @@ end
 export objective_return
 isallfinite(x) = mapreduce(isfinite, *, x)
 
-using StaticArrays
 abstract type MutateStyle end
 
 abstract type AbstractProblem end

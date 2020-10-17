@@ -292,3 +292,77 @@ end
     
 
 end
+
+@testset "Krylov" begin
+    # Start with a stupid example
+    n = 10
+    A = sprand(10, 10, 0.1)
+    A = A*A' + I
+    F(Fx, x) = mul!(Fx, A, x)
+
+    x0, = rand(10)
+    xp = copy(x0)
+    Fx = copy(xp)
+
+    function theta(x)
+        if x[1] > 0
+            return atan(x[2] / x[1]) / (2.0 * pi)
+        else
+            return (pi + atan(x[2] / x[1])) / (2.0 * pi)
+        end
+    end
+
+    function F_powell!(Fx, x)
+            if ( x[1]^2 + x[2]^2 == 0 )
+                dtdx1 = 0;
+                dtdx2 = 0;
+            else
+                dtdx1 = - x[2] / ( 2 * pi * ( x[1]^2 + x[2]^2 ) );
+                dtdx2 =   x[1] / ( 2 * pi * ( x[1]^2 + x[2]^2 ) );
+            end
+            Fx[1] = -2000.0*(x[3]-10.0*theta(x))*dtdx1 +
+                200.0*(sqrt(x[1]^2+x[2]^2)-1)*x[1]/sqrt( x[1]^2+x[2]^2 );
+            Fx[2] = -2000.0*(x[3]-10.0*theta(x))*dtdx2 +
+                200.0*(sqrt(x[1]^2+x[2]^2)-1)*x[2]/sqrt( x[1]^2+x[2]^2 );
+            Fx[3] =  200.0*(x[3]-10.0*theta(x)) + 2.0*x[3];
+        Fx
+    end
+
+    function F_jacobian_powell!(Fx, Jx, x)
+        ForwardDiff.jacobian!(Jx, F_powell!, Fx, x)
+        Fx, Jx
+    end
+    x0 = [-1.0, 0.0, 0.0]
+
+    Fc, Jc = zeros(3), zeros(3,3)
+    F_jacobian_powell!(Fc, Jc, x0)
+
+    jv = JacVec(F_powell!, rand(3); autodiff=false)
+    function jvop(x)
+        jv.u .= x
+        jv
+    end
+    prob_obj = NLSolvers.VectorObjective(F_powell!, nothing, F_jacobian_powell!, jvop)
+
+
+    prob = NEqProblem(prob_obj)
+    res = solve(prob, copy(x0), LineSearch(Newton(), Backtracking()))
+    @test norm(res.info.best_residual) < 1e-15
+
+    using IterativeSolvers
+    function inexact_linsolve(x0, JvOp, Fx, ηₖ)
+        krylov_iter = IterativeSolvers.gmres_iterable!(x0, JvOp, Fx; maxiter=50)
+        res = copy(Fx)
+        rhs = ηₖ*norm(Fx, 2)
+        for item in krylov_iter
+            res = krylov_iter.residual.current
+            if res <= rhs
+                break
+            end
+        end
+        return x0, res
+    end
+    res = solve(prob, copy(x0), InexactNewton(inexact_linsolve, FixedForceTerm(0.001), 1e-4, 300), NEqOptions(maxiter=1000))
+    @test norm(res.info.best_residual) < 1e-10
+
+end

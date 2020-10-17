@@ -5,7 +5,6 @@
 # https://pdfs.semanticscholar.org/b321/3084f663260076dcb92f2fa6031b362dc5bc.pdf
 # https://www.sciencedirect.com/science/article/abs/pii/0098135483800027
 # 
-using IterativeSolvers
 abstract type ForcingSequence end
 
 struct FixedForceTerm{T} <: ForcingSequence
@@ -83,19 +82,21 @@ end
 Constructs a method type for the Inexact Newton's method with Linesearch.
 
 """
-struct InexactNewton{ForcingType<:ForcingSequence, Tη}
+struct InexactNewton{LinSolve, ForcingType<:ForcingSequence, Tη}
+    linsolve::LinSolve
     force_seq::ForcingType
     η₀::Tη
     maxiter::Int
 end
 #InexactNewton(; force_seq=FixedForceTinexacerm(1e-4), eta0 = 1e-4, maxiter=300)=InexactNewton(force_seq, eta0, maxiter)
-InexactNewton(; force_seq=DemboSteihaug(), eta0 = 1e-4, maxiter=300)=InexactNewton(force_seq, eta0, maxiter)
+
+InexactNewton(; linsolve, force_seq=DemboSteihaug(), eta0 = 1e-4, maxiter=300)=InexactNewton(linsolve, force_seq, eta0, maxiter)
 # map from method to forcing sequence
 η(fft::InexactNewton, info) = η(fft.force_seq, info)
 
 
 function solve(problem::NEqProblem, x, method::InexactNewton, options::NEqOptions)
-    if !(mstyle(prob) === InPlace())
+    if !(mstyle(problem) === InPlace())
         throw(ErrorException("solve() not defined for OutOfPlace() with InexactNewton"))
     end
     t0 = time()
@@ -105,7 +106,7 @@ function solve(problem::NEqProblem, x, method::InexactNewton, options::NEqOption
 
     Tx = eltype(x)
     xp, Fx = copy(x), copy(x)
-    Fx = F(x, Fx)
+    Fx = F(Fx, x)
     JvOp = JvGen(x)
 
     ρ2F0 = norm(Fx, 2)
@@ -126,21 +127,13 @@ function solve(problem::NEqProblem, x, method::InexactNewton, options::NEqOption
         if iter == 1 && !isa(method.force_seq, FixedForceTerm) 
             ηₖ = method.η₀
         else 
-           ηₖ = η(method, force_info)
+            ηₖ = η(method, force_info)
         end
-
         JvOp = JvGen(x)
 
         xp .= 0
-        krylov_iter = IterativeSolvers.gmres_iterable!(xp, JvOp, Fx; maxiter=50)
-        res = copy(Fx)
-        rhs = ηₖ*norm(Fx, 2)
-        for item in krylov_iter
-            res = krylov_iter.residual.current
-            if res <= rhs
-                break
-            end
-        end
+        xp, res = method.linsolve(xp, JvOp, Fx, ηₖ)
+
         ρs = norm(xp)
         t = 1e-4
         # use line searc functions here
@@ -152,10 +145,9 @@ function solve(problem::NEqProblem, x, method::InexactNewton, options::NEqOption
         it = 0
         while !btk_conv
             it += 1
-
-            z = retract(problem, z, x, xp)
-
-            Fx = problem.R.F(z, Fx)
+            z = retract(problem, z, x, xp, -1)
+            
+            Fx = problem.R.F(Fx, z)
             btk_conv = norm(Fx, 2) ≤ (1-t*(1-ηₖ))*ρFx || it > 20
         end
         if norm(Fx, 2) < stoptol

@@ -32,7 +32,7 @@ log_temperature(t) = 1 / log(t)^2
 function default_neighbor(x_best)
   T = eltype(x_best)
   n = length(x_best)
-  return x_best .+ T.(RandomNumbers.randn(n))
+  return x_best .+ T.(randn(n))
 end
 
 function solve(prob::OptimizationProblem, x0, method::SimulatedAnnealing, options::OptimizationOptions)
@@ -71,7 +71,7 @@ function solve(prob::OptimizationProblem, x0, method::SimulatedAnnealing, option
     else
       # If proposal is inferior, we move to it with probability p
       p = exp(-(f_candidate - f_now) / temperature)
-      if RandomNumbers.rand() <= p
+      if rand() <= p
         x_now = copy(x_candidate)
         f_now = f_candidate
       end

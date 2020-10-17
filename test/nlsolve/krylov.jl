@@ -24,7 +24,7 @@ function theta(x)
    end
 end
 
-function F_powell!(x, Fx)
+function F_powell!(Fx, x)
         if ( x[1]^2 + x[2]^2 == 0 )
             dtdx1 = 0;
             dtdx2 = 0;
@@ -40,12 +40,12 @@ function F_powell!(x, Fx)
     Fx
 end
 
-function F_jacobian_powell!(x, Fx, Jx)
-    ForwardDiff.jacobian!(Jx, (y,x)->F_powell!(x,y), Fx, x)
+function F_jacobian_powell!(Fx, Jx, x)
+    ForwardDiff.jacobian!(Jx, F_powell!, Fx, x)
     Fx, Jx
 end
 Fc, Jc = zeros(3), zeros(3,3)
-F_jacobian_powell!(x0, Fc, Jc)
+F_jacobian_powell!(Fc, Jc, x0)
 
 import NLSolvers: OnceDiffedJv
 function OnceDiffedJv(F; seed, autodiff=false)
@@ -53,7 +53,7 @@ function OnceDiffedJv(F; seed, autodiff=false)
     OnceDiffedJv(F, JacOp)
 end
 
-jv = JacVec((y,x)->F_powell!(x,y), rand(3); autodiff=false)
+jv = JacVec(F_powell!, rand(3); autodiff=false)
 function jvop(x)
     jv.u .= x
     jv
@@ -63,8 +63,24 @@ prob_obj = NLSolvers.VectorObjective(F_powell!, nothing, F_jacobian_powell!, jvo
 
 prob = NEqProblem(prob_obj)
 x0 = [-1.0, 0.0, 0.0]
-solve(prob, x0, LineSearch(Newton(), Backtracking()))
-solve(prob, x0, InexactNewton(FixedForceTerm(0.4), 1e-12, 300), NEqOptions(maxiter=1))
+res = solve(prob, copy(x0), LineSearch(Newton(), Backtracking()))
+@test norm(res.info.best_residual) < 1e-15
+
+using IterativeSolvers
+function inexact_linsolve(x0, JvOp, Fx, ηₖ)
+    krylov_iter = IterativeSolvers.gmres_iterable!(x0, JvOp, Fx; maxiter=50)
+    res = copy(Fx)
+    rhs = ηₖ*norm(Fx, 2)
+    for item in krylov_iter
+        res = krylov_iter.residual.current
+        if res <= rhs
+            break
+        end
+    end
+    return x0, res
+end
+res = solve(prob, copy(x0), InexactNewton(inexact_linsolve, FixedForceTerm(0.001), 1e-4, 300), NEqOptions(maxiter=1000))
+@test norm(res.info.best_residual) < 1e-10
 
 function f_2by2!(F, x)
     F[1] = (x[1]+3)*(x[2]^3-7)+18
