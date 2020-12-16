@@ -63,6 +63,7 @@ struct OutOfPlace <:MutateStyle end
 include("precondition.jl")
 include("Manifolds.jl")
 include("objectives.jl")
+export LeastSquaresObjective
 include("linearalgebra.jl")
 export NonDiffed, OnceDiffed, TwiceDiffed, ScalarObjective
 

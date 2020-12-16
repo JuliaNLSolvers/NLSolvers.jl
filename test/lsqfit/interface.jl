@@ -75,17 +75,18 @@ end
 x0 = [-1.2, 1.0]
 
 # Use y-data to setup Fx (and Jx) correctly
-vectorobj = NLSolvers.LeastSquares(copy(x0), copy(ydata), ydata*x0', F!, FJ!, ydata)
+vectorobj = LeastSquaresObjective(copy(ydata), ydata*x0', F!, FJ!, ydata)
 
 prob=LeastSquaresProblem(vectorobj, ([0.0,0.0],[1.0,1.0]))
-res = solve(prob, copy(p0), LineSearch(BFGS()), LeastSquaresOptions(40))
 res = solve(prob, copy(p0), LineSearch(SR1()), LeastSquaresOptions(40))
 res = solve(prob, copy(p0), LineSearch(DFP()), LeastSquaresOptions(40))
+res = solve(prob, copy(p0), LineSearch(BFGS()), LeastSquaresOptions(40))
 res = solve(prob, copy(p0), LineSearch(DBFGS()), LeastSquaresOptions(40))
 res = solve(prob, copy(p0), TrustRegion(BFGS()), LeastSquaresOptions(40))
 res = solve(prob, copy(p0), TrustRegion(BFGS()), LeastSquaresOptions(40))
 res = solve(prob, copy(p0), TrustRegion(BFGS()), LeastSquaresOptions(40))
 res = solve(prob, copy(p0), Adam(), LeastSquaresOptions(40))
+res = solve(prob, copy(p0), AdaMax(), LeastSquaresOptions(40))
 
 function LeastSquaresModel(model, xdata, ydata)
     function f(x)
