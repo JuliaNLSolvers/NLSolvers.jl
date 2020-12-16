@@ -1,6 +1,7 @@
 struct SimulatedAnnealing{Tn, Ttemp} <: RandomSearch
     neighbor::Tn
     temperature::Ttemp
+    n_per_temperature::Int
 end
 Base.summary(::SimulatedAnnealing) = "Simulated Annealing"
 
@@ -24,8 +25,9 @@ function, often over a quite large domains. For the historical reasons given abo
 algorithm uses terms such as cooling, temperature, and acceptance probabilities.
 """
 SimulatedAnnealing(;neighbor = default_neighbor,
-                    temperature = log_temperature) =
-  SimulatedAnnealing(neighbor, temperature)
+                    temperature = log_temperature,
+                    n_per_temperature = 1) =
+  SimulatedAnnealing(neighbor, temperature, n_per_temperature)
 
 log_temperature(t) = 1 / log(t)^2
 
@@ -52,30 +54,32 @@ function solve(prob::OptimizationProblem, x0, method::SimulatedAnnealing, option
     # Determine the temperature for current iteration
     temperature = method.temperature(iter)
 
-    # Randomly generate a neighbor of our current state
-    x_candidate = method.neighbor(x_best)
+    for n_temp = 1:method.n_per_temperature
+      # Randomly generate a neighbor of our current state
+      x_candidate = method.neighbor(x_best)
 
-    # Evaluate the cost function at the proposed state
-    f_candidate = value(prob, x_candidate)
+      # Evaluate the cost function at the proposed state
+      f_candidate = value(prob, x_candidate)
 
-    if f_candidate <= f_now # this handles non-finite values as well
-      # If proposal is superior, we always move to it
-      x_now = copy(x_candidate)
-      f_now = f_candidate
-
-      # If the new state is the best state yet, keep a record of it
-      if f_candidate < f_best
-        x_best = copy(x_now)
-        f_best = f_now
-       end
-    else
-      # If proposal is inferior, we move to it with probability p
-      p = exp(-(f_candidate - f_now) / temperature)
-      if rand() <= p
+      if f_candidate <= f_now # this handles non-finite values as well
+        # If proposal is superior, we always move to it
         x_now = copy(x_candidate)
         f_now = f_candidate
+
+        # If the new state is the best state yet, keep a record of it
+        if f_candidate < f_best
+          x_best = copy(x_now)
+          f_best = f_now
+        end
+      else
+        # If proposal is inferior, we move to it with probability p
+        p = exp(-(f_candidate - f_now) / temperature)
+        if rand() <= p
+          x_now = copy(x_candidate)
+          f_now = f_candidate
+        end
       end
-    end
+    end # n_per_temperature
     is_converged = converged(method, f_now, options)
   end
 

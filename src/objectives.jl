@@ -154,27 +154,17 @@ function (lw::LsqWrapper)(∇f, x)
   sum(abs2, _F), ∇f
 end
 
-
-
-
-
-
-
-
-struct LeastSquares{Tx, TFx, TJx, Tf, Tfj, Td}
-    x::Tx
+struct LeastSquaresObjective{TFx, TJx, Tf, Tfj, Td}
     Fx::TFx
     Jx::TJx
     F::Tf
     FJ::Tfj
     ydata::Td
 end
-has_ydata(lsq::LeastSquares) = !(lsq.ydata === nothing)
-function value(lsq::LeastSquares, x)
-    # Evaluate the residual system or the "predicted" value for LeastSquares
+has_ydata(lsq::LeastSquaresObjective) = !(lsq.ydata === nothing)
+function value(lsq::LeastSquaresObjective, x)
+    # Evaluate the residual system or the "predicted" value for LeastSquaresObjective
     Fx = lsq.F(lsq.Fx, x)
-    # Find out if this is used, maybe set to NaN to see if something fails
-    lsq.x .= x
 
     # If this comes from a LeastSquaresProblem there will be a lhs to subtract
     if has_ydata(lsq)
@@ -186,16 +176,13 @@ function value(lsq::LeastSquares, x)
     f = (norm(Fx)^2)/2
     return f
 end
-function batched_value(lsq::LeastSquares, F, X)
+function batched_value(lsq::LeastSquaresObjective, F, X)
    F .= value.(Ref(lsq), X)
 end
-function upto_gradient(lsq::LeastSquares, Fx, x)
+function upto_gradient(lsq::LeastSquaresObjective, Fx, x)
     # Evaluate the residual system or the "predicted" value for LeastSquares
     # and the Jacobian of either one
     Fx_sq, Jx_sq = lsq.FJ(lsq.Fx, lsq.Fx*x', x)
-    
-    # Find out if this is used, maybe set to NaN to see if something fails
-    lsq.x .= x
     
     # If this comes from a LeastSquaresProblem there will be a lhs to subtract
     if has_ydata(lsq)
@@ -208,11 +195,9 @@ function upto_gradient(lsq::LeastSquares, Fx, x)
     Fx .= Jx_sq'*Fx_sq
    return f, Fx
 end
-function upto_hessian(lsq::LeastSquares, Fx, Jx, x)  #Fx is the gradient and Jx is the Hessian
+function upto_hessian(lsq::LeastSquaresObjective, Fx, Jx, x)  #Fx is the gradient and Jx is the Hessian
     Fx_sq, Jx_sq = lsq.FJ(lsq.Fx, lsq.Jx, x)
 
-    # this is just to grab them outside, but this hsould come from the convergence info perhaps?
-    lsq.x .= x
     lsq.Fx .= Fx_sq
     f = (norm(Fx)^2)/2
     # this is the gradient
