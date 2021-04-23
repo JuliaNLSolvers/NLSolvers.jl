@@ -1,21 +1,24 @@
-function solve(problem::OptimizationProblem, s0::Tuple, approach::TrustRegion, options::OptimizationOptions)
+function solve(problem::OptimizationProblem, s0::Tuple, approach::TrustRegion, options::OptimizationOptions; initial_Δ=200.0)
+    x0, B0 = s0
+    objvars = prepare_variables(problem, approach, copy(x0), copy(x0), B0)
+    solve(problem, approach, options, objvars; initial_Δ)
+end
+function solve(problem::OptimizationProblem, approach::TrustRegion, options::OptimizationOptions, objvars;  initial_Δ=20.0)
     if !(mstyle(problem) === InPlace())
-        throw(ErrorException("solve() not defined for OutOfPlace() with Anderson"))
+        throw(ErrorException("solve() not defined for OutOfPlace() with TrustRegion solvers"))
     end
     t0 = time()
-    x0, B0 = s0
-    T = eltype(x0)
-    Δmin = sqrt(eps(T))
-
-    objvars = prepare_variables(problem, approach, x0, copy(x0), B0)
+    T = eltype(objvars.z)
+    Δmin = cbrt(eps(T))
+    Δk = T(initial_Δ)
     f0, ∇f0 = objvars.fz, norm(objvars.∇fz, Inf) # use user norm
 
-    Δk = T(20.0)
     if any(initial_converged(approach, objvars, ∇f0, options, false, Δk))
         return ConvergenceInfo(approach, (Δ=Δk, ρs=norm(objvars.x.-objvars.z), ρx=norm(objvars.x),
                                           minimizer=objvars.z, fx=objvars.fx, minimum=objvars.fz,
                                           ∇fz=objvars.∇fz, f0=f0, ∇f0=∇f0, iter=0, time=time()-t0), options)
     end
+
     qnvars = QNVars(objvars.z, objvars.z)
     p = copy(objvars.x)
 
@@ -27,9 +30,7 @@ function solve(problem::OptimizationProblem, s0::Tuple, approach::TrustRegion, o
     while iter <= options.maxiter && !any(is_converged)
         iter += 1
         objvars, Δkp1, reject = iterate!(p, objvars, Δkp1, approach, problem, options, qnvars, false)
-        if length(x0) == 3 && iter > 400
-            @show objvars
-        end
+
         # Check for convergence
         is_converged = converged(approach, objvars, ∇f0, options, reject, Δkp1)
         print_trace(approach, options, iter, t0, objvars, Δkp1)
@@ -53,6 +54,7 @@ function iterate!(p, objvars, Δk, approach::TrustRegion, problem, options, qnva
     copyto!(∇fx, ∇fz)
     spr = subproblemsolver(∇fx, B, Δk, p, scheme; abstol=1e-10)
     Δm = -spr.mz
+
     # Grab the model value, m. If m is zero, the solution, z, does not improve
     # the model value over x. If the model is not converged, but the optimal
     # step is inside the trust region and gives a zero improvement in the objec-
