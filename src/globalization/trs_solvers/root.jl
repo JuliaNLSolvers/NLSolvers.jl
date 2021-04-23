@@ -7,11 +7,11 @@ abstract type NearlyExactTRSP <: TRSPSolver end
 include("solvers/NWI.jl")
 include("solvers/Dogleg.jl")
 include("solvers/NTR.jl")
+include("solvers/TCG.jl")
 #include("subproblemsolvers/TRS.jl") just make an example instead of relying onTRS.jl
 
 function tr_return(;λ, ∇f, H, s, interior, solved, hard_case, Δ, m=nothing)
 	m = m isa Nothing ? dot(∇f, s) + dot(s, H * s)/2 : m
-
 	(p=s, mz=m, interior=interior, λ=λ, hard_case=hard_case, solved=solved, Δ=Δ)
 end
 
