@@ -51,14 +51,26 @@ function (ms::NTR)(∇f, H, Δ::T, s, scheme, λ0=0; abstol=1e-10, maxiter=50, �
     λ = T(λ0)
     θ = T(1)/2
     n = length(∇f)
-    H = H isa UniformScaling ? Diagonal(copy(∇f).*0 .+ 1) : H
     h = H isa UniformScaling ? copy(∇f)*0+1 : diag(H)
+    H = H isa UniformScaling ? Diagonal(copy(∇f).*0 .+ 1) : H
 
+    # Check for interior convergence
+    if λ == T(0)
+        F = cholesky(Symmetric(H); check=false)
+        s .= -∇f
+        s .= F\s
+        s₂ = norm(s, 2)
+        if issuccess(F) && s₂ < Δ
+            H = update_H!(H, h)
+            return tr_return(;λ=λ, ∇f=∇f, H=H, s=s, interior=true, solved=true, hard_case=false, Δ=Δ)
+        end
+    end
+
+    # If the solution was not internal, start Newton's method on the
+    # secular equation.
     isg = initial_safeguards(H, h, ∇f, Δ)
     λ = safeguard_λ(λ, isg)
     λL, λU = isg.L, isg.U
-
-    s₂ = T(0.0)
 
     for iter = 1:maxiter
         H = update_H!(H, h, λ)
@@ -67,23 +79,25 @@ function (ms::NTR)(∇f, H, Δ::T, s, scheme, λ0=0; abstol=1e-10, maxiter=50, �
         #===========================================================================
          If F is successful, then H is positive definite, and we can safely look
          at the Newton step. If this is interior, we're done, if not, we're either
-         in L or G. In L, the Newton step stays in L and is safe to take. G requires
-         more work.
+         in L or G. In L, the Newton step on the secular equation  stays in L and
+         is safe to take. G requires more work.
         ===========================================================================#
         if issuccess(F)
             # H(λ) is PD, so we're in 𝓕
-            s .= (F\-∇f)
 
-            s₂ = norm(s)
+            # Algorithm 7.3.1 on p. 185 in [ConnGouldTointBook]
+            # Step 1 was factorizing
+            # Step 2
+            s .= -∇f
+            s .= F\s
+
+            # Check if step is approximately equal to the radius
+            s₂ = norm(s, 2)
             if s₂ ≈ Δ
                 H = update_H!(H, h)
                 return tr_return(; λ=λ, ∇f=∇f, H=H, s=s, interior=false, solved=true, hard_case=false, Δ=Δ)
             end
             if s₂ < Δ # in 𝓖 because we're in 𝓕, but curve below Δ
-                if λ == T(0)
-                    H = update_H!(H, h)
-                    return tr_return(;λ=λ, ∇f=∇f, H=H, s=s, interior=true, solved=true, hard_case=false, Δ=Δ)
-                end
                 # we're in 𝓖 so λ is a new upper bound; λᴹ < λ
                 in𝓖 = true
                 λU = λ
@@ -91,9 +105,13 @@ function (ms::NTR)(∇f, H, Δ::T, s, scheme, λ0=0; abstol=1e-10, maxiter=50, �
                 # in 𝓛 λ is a *lower* bound instead
                λL = λ
             end
+
+            # Step 3
             w = F.U'\s
+
+            # Step 4
             # Newton trial step
-            λ⁺ = λ + (s₂^2/dot(w,w))*(s₂ - Δ)/Δ
+            λ⁺ = λ + ((s₂ - Δ)/Δ)*(s₂^2/dot(w, w))
             if in𝓖
                 linpack = true
                 w, u = λL_with_linpack(F)
@@ -115,10 +133,11 @@ function (ms::NTR)(∇f, H, Δ::T, s, scheme, λ0=0; abstol=1e-10, maxiter=50, �
                     λ = λ⁺
                 else # we landed in N, this is bad, so use bounds to approach L
                     λ = max(sqrt(λL*λU), λL + θ*(λU - λL))
-                end 
+                end
             else # in L, we can safely step
                 λ = λ⁺
             end
+
             # check for convergence
             if in𝓖 && abs(s₂ - Δ) ≤ κeasy * Δ
                 H = update_H!(H, h)
@@ -133,7 +152,6 @@ function (ms::NTR)(∇f, H, Δ::T, s, scheme, λ0=0; abstol=1e-10, maxiter=50, �
                     end
                 end
             end
-
         else # λ ∈ 𝓝, because the factorization failed (typo in CGT)
             # Use partial factorization to find δ and v such that
             # H(λ) + δ*e*e' = 0. All we can do here is to find a better
@@ -143,6 +161,7 @@ function (ms::NTR)(∇f, H, Δ::T, s, scheme, λ0=0; abstol=1e-10, maxiter=50, �
             λ = max(sqrt(λL*λU), λL + θ*(λU - λL)) # no converence possible, so step in bracket
         end
     end
+    H = update_H!(H, h)
     tr_return(;λ=λ, ∇f=∇f, H=H, s=s, interior=true, solved=false, hard_case=false, Δ=Δ)
 end
 
