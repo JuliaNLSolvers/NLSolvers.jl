@@ -32,7 +32,7 @@ function fixedpoint!(g, x,
     but we always do at least one evaluation of G, to set up AA.
 
     Notation: AA solves g(x) - x = 0 or F(x) = 0
-  ==============================================================#  
+  ==============================================================#
   Gx  = g(Gx, x)
   Fx .= Gx .- x
   ρF0 = norm(Fx, Inf)
@@ -116,7 +116,7 @@ function fixedpoint!(g, x,
             Rv = UpperTriangular(view(R, 1:effective_memory, 1:effective_memory))
         end
     end
- 
+
     # solve least squares problem
     γv = zeros(effective_memory) #view(γv, 1:m_eff)
     ldiv!(Rv, mul!(γv, Qv', vec(Fx)))

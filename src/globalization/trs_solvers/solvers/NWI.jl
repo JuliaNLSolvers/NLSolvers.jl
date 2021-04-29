@@ -1,19 +1,19 @@
-#=================================================================================
-  NWI (Nocedal Wright Iterative)) is a trust region sub-problem solver that sol-
+"""
+  NWI (Nocedal Wright Iterative) is a trust region sub-problem solver that sol-
   ves the quadratic programming problem subject to the solution being in a
-  Euclidean Ball. It is appropriate for all types of Hessians. It solves the
-  problem by solving the secular equ  ation by a safeguarded Newton's method.
+  Euclidean ball. It is appropriate for all types of Hessians. It solves the
+  problem by solving the secular equation by a safeguarded Newton's method.
   The secular equation is simply a the inverse of the difference between the
   step length and the trust region radius. It accepts either the Newton step
   if this is interior and the Hessian is positive definite, or steps to the
-  boundary (with some slack) in a clever way.
+  boundary (with some slack) in a clever way.The implementation is found in
+  section 4.3 of [NocedalWrightBook2nd]
 
-  NTR accepts all Hessians and is therefore well-suited for Newton's method for
+  NWI accepts all Hessians and is therefore well-suited for Newton's method for
   any vexity. It is expensive for very large problems, and uses the direct
   eigensolution. This could potentially be useful for problems with simple 
   structure of the eigenproblem, but I suspect NWI is superior in most cases.
-=================================================================================#
-
+"""
 struct NWI <: NearlyExactTRSP
 end
 summary(::NWI) = "Trust Region (Newton, eigen)"
@@ -23,9 +23,9 @@ summary(::NWI) = "Trust Region (Newton, eigen)"
 
 Returns a tuple of initial safeguarding values for λ. Newton's method might not
 work well without these safeguards when the Hessian is not positive definite.
+The equations are found in p. 560 of [MoreSorensen1983]
 """
 function initial_safeguards(B, h, g, Δ)
-    # equations are on p. 560 of [MORESORENSEN]
     T = eltype(g)
     λS = maximum(-h)
 
@@ -34,10 +34,18 @@ function initial_safeguards(B, h, g, Δ)
     Bnorm = opnorm(B, 1)
     λL = max(T(0), λS, gnorm/Δ - Bnorm)
     λU = gnorm/Δ + Bnorm
-    (L=λL, U=λU, S=λS)
+
+    return (L=λL, U=λU, S=λS)
 end
+
+"""
+    initial_safeguards(B, h, g, Δ)
+
+Returns a tuple of initial safeguarding values for λ. Newton's method might not
+work well without these safeguards when the Hessian is not positive definite.
+The equations are found in p. 558 of [MoreSorensen1983]
+"""
 function safeguard_λ(λ::T, λsg) where T
-    # p. 558
     λ = min(max(λ, λsg.L), λsg.U)
     if λ ≤ λsg.S
         λ = max(T(1)/1000*λsg.U, sqrt(λsg.L*λsg.U))
@@ -49,7 +57,7 @@ end
     is_maybe_hard_case(QΛQ, Qt∇f)
 
 Returns a tuple of a Bool, `hardcase` and an integer, `λidx`. `hardcase` is true
-if the sub-problem is the "hard case", that is the case where the smallest
+if the sub-problem is potentially the "hard case", that is the case where the smallest
 eigenvalue is negative. `λidx` is the index of the first eigenvalue not equal
 to the smallest eigenvalue. `QΛQ.values` holds the eigenvalues of H sorted low
 to high, `Qt∇f` is a vector of the inner products between the eigenvectors and the
@@ -92,7 +100,7 @@ function is_maybe_hard_case(QΛQ, Qt∇f::AbstractVector{T}) where T
         λidx += 1
     end
 
-    hard_case, λidx
+    return hard_case, λidx
 end
 
 # Equation 4.38 in N&W (2006)
@@ -115,6 +123,7 @@ end
 
 """
     solve_tr_subproblem!(∇f, H, Δ, s; abstol, maxiter)
+
 Args:
     ∇f: The gradient
     H:  The Hessian
@@ -140,12 +149,14 @@ function (ms::NWI)(∇f, H, Δ, p, scheme; abstol=1e-10, maxiter=50)
     # Note that currently the eigenvalues are only sorted if H is perfectly
     # symmetric.  (Julia issue #17093)
     if H isa Diagonal
-        QΛQ = eigen(H)
+        QΛQ = eigen(H; sortby=identity)
     else
         QΛQ = eigen(Symmetric(H))
     end
+
     Q, Λ = QΛQ.vectors, QΛQ.values
     λmin, λmax = Λ[1], Λ[n]
+
     # Cache the inner products between the eigenvectors and the gradient.
     Qt∇f = Q' * ∇f
 
@@ -176,11 +187,12 @@ function (ms::NWI)(∇f, H, Δ, p, scheme; abstol=1e-10, maxiter=50)
     # The hard case is when the gradient is orthogonal to all
     # eigenvectors associated with the lowest eigenvalue.
     maybe_hard_case, first_j = is_maybe_hard_case(QΛQ, Qt∇f)
+
     # Solutions smaller than this lower bound on lambda are not allowed:
     # as the shifted Hessian will not be PSD.
     λ_lb = -λmin
     λ = λ_lb
-    
+
     # Verify that it is actually the hard case situation by calculating the
     # step with λ = λmin (it's currently λ_lb, verify that that is correct).
     if maybe_hard_case
@@ -221,9 +233,7 @@ function (ms::NWI)(∇f, H, Δ, p, scheme; abstol=1e-10, maxiter=50)
     λ = safeguard_λ(λ, isg)
     for iter in 1:maxiter
         λ_previous = λ
-        for i = 1:n
-            @inbounds H[i, i] = h[i] + λ
-        end
+        H = update_H!(H, h, λ)
 
         F = H isa Diagonal ? cholesky(H; check=false) : cholesky(Hermitian(H); check=false)
         if !issuccess(F)
@@ -252,9 +262,8 @@ function (ms::NWI)(∇f, H, Δ, p, scheme; abstol=1e-10, maxiter=50)
             break
         end
     end
-    for i = 1:n
-        @inbounds H[i, i] = h[i]
-    end
+
+    H = update_H!(H, h)
     m = dot(∇f, p) + dot(p, H * p)/2
     return (p=p, mz=m, interior=interior, λ=λ, hard_case=hard_case, solved=solved, Δ=Δ)
 end

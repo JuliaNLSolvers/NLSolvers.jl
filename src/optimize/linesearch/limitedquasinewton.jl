@@ -79,7 +79,7 @@ function iterate(mstyle::InPlace, iter::Integer, qnvars::TwoLoopVars, objvars, P
     s = current_memory == length(qnvars.S) ? qnvars.S[1] : qnvars.S[1+current_memory]
     @. s = α * d
     z = retract(problem, z, x, s)
- 
+
     # Update approximation
     fz, ∇fz, qnvars = update_obj!(problem, qnvars, α, x, ∇fx, z, ∇fz, current_memory, scheme)
     return (x=x, fx=fx, ∇fx=∇fx, z=z, fz=fz, ∇fz=∇fz, B=nothing, Pg=nothing), qnvars, P

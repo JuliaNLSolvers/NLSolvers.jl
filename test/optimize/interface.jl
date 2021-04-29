@@ -5,6 +5,7 @@ using SparseArrays
 using IterativeSolvers
 using ForwardDiff
 using Test
+# include("problems.jl")
 
 @testset "optimization interface" begin
 # TODO

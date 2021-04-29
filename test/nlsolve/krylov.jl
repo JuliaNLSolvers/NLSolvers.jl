@@ -55,7 +55,7 @@ end
 
 jv = JacVec(F_powell!, rand(3); autodiff=false)
 function jvop(x)
-    jv.u .= x
+    jv.x .= x
     jv
 end
 prob_obj = NLSolvers.VectorObjective(F_powell!, nothing, F_jacobian_powell!, jvop)

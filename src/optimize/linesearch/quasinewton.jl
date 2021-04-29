@@ -31,9 +31,10 @@ function _solve(mstyle, problem::OptimizationProblem, s0::Tuple, approach::LineS
     ==============#
     x0, B0 = s0
     T = eltype(x0)
-    
+
     objvars = prepare_variables(problem, approach, x0, copy(x0), B0)
     P = initial_preconditioner(approach, x0)
+
     f0, ∇f0 = objvars.fz, norm(objvars.∇fz, Inf) # use user norm
 
     if any(initial_converged(approach, objvars, ∇f0, options))
@@ -56,6 +57,7 @@ function _solve(mstyle, problem::OptimizationProblem, s0::Tuple, approach::LineS
                      iterate
         ==============================#
         objvars, P, qnvars = iterate(mstyle, qnvars, objvars, P, approach, problem, options, false)
+
         #==============================
                 check convergence
         ==============================#

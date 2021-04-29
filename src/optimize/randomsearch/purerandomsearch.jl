@@ -6,7 +6,7 @@ PureRandomSearch(; draw, lb, ub)
 ```
 
 Defines a pure random search method sampling from `draw`. It is up to the caller
-to either supply a `draw` that takes zero input arguments and outputs an iterative
+to either supply a `draw` that takes zero input arguments and outputs an iterate
 consistent with the objective function. If no `draw` method is supplied, the user
 must provide lower bounds `lb` and upper bounds `ub` consistent with the objective
 function.
@@ -41,7 +41,7 @@ function solve(prob, prs::PureRandomSearch, options)
         fcandidate = value(prob, xcandidate)
         if fcandidate ≤ fbest
             fbest = fcandidate
-            xbest = copy(xcandidate)
+            xbest = xcandidate
         end
     end
     return (fbest = fbest, xbest = xbest)

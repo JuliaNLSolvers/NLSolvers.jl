@@ -19,7 +19,7 @@ has_param(so::ScalarObjective) = so.param === nothing ? false : true
 function value(so::ScalarObjective, x)
     if has_param(so)
         return so.f(x, so.param)
-    else  
+    else
         return so.f(x)
     end
 end
@@ -183,7 +183,7 @@ function upto_gradient(lsq::LeastSquaresObjective, Fx, x)
     # Evaluate the residual system or the "predicted" value for LeastSquares
     # and the Jacobian of either one
     Fx_sq, Jx_sq = lsq.FJ(lsq.Fx, lsq.Fx*x', x)
-    
+
     # If this comes from a LeastSquaresProblem there will be a lhs to subtract
     if has_ydata(lsq)
         Fx_sq .= Fx_sq .- lsq.ydata
