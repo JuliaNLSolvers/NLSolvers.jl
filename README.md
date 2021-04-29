@@ -279,7 +279,7 @@ nan hessian
 
 line search should have a short curcuit for very small steps
 
-# next steps 
+# Next steps 
 Mixed complementatiry
 SAMIN, BOXES
 Univariate!!
