@@ -1,4 +1,4 @@
-function solve(problem::OptimizationProblem, s0::Tuple, approach::TrustRegion, options::OptimizationOptions; initial_Δ=200.0)
+function solve(problem::OptimizationProblem, s0::Tuple, approach::TrustRegion, options::OptimizationOptions; initial_Δ=20.0)
     x0, B0 = s0
     objvars = prepare_variables(problem, approach, copy(x0), copy(x0), B0)
     solve(problem, approach, options, objvars; initial_Δ)
@@ -18,7 +18,6 @@ function solve(problem::OptimizationProblem, approach::TrustRegion, options::Opt
                                           minimizer=objvars.z, fx=objvars.fx, minimum=objvars.fz,
                                           ∇fz=objvars.∇fz, f0=f0, ∇f0=∇f0, iter=0, time=time()-t0), options)
     end
-
     qnvars = QNVars(objvars.z, objvars.z)
     p = copy(objvars.x)
 
@@ -64,11 +63,11 @@ function iterate!(p, objvars, Δk, approach::TrustRegion, problem, options, qnva
     if abs(spr.mz) < eps(T)
         # set flag to check for problems
     end
-    
-    z = retract(problem, z, x, p)
 
+    z = retract(problem, z, x, p)
     # Update before acceptance, to keep adding information about the hessian
     # even when the step is not "good" enough.
+
     fz, ∇fz, B, s, y = update_obj!(problem, spr.p, y, ∇fx, z, ∇fz, B, scheme, scale)
 
     # Δf is often called ared or Ared for actual reduction. I prefer "change in"
@@ -85,7 +84,6 @@ function iterate!(p, objvars, Δk, approach::TrustRegion, problem, options, qnva
         fz = fx
         ∇fz .= ∇fx
     end
-
     return (x=x, fx=fx, ∇fx=∇fx, z=z, fz=fz, ∇fz=∇fz, B=B, Pg=nothing), Δkp1, reject_step
 end
 
@@ -106,7 +104,7 @@ function update_trust_region(spr, R, p)
 
     Δk = spr.Δ
     # We accept all steps larger than α ∈ [0, 1/4). See p. 415 of [SOREN] and
-    # p.79 as well as  Theorem 4.5 and 4.6 of [N&W]. A α = 0 might cycle,
+    # p.79 as well as  Theorem 4.5 and 4.6 of [N&W]. An α = 0 might cycle,
     # see p. 4 of [YUAN].
     if !(α <= R)
         if spr.interior

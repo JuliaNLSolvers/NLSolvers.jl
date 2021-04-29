@@ -51,7 +51,7 @@ function (ms::NTR)(∇f, H, Δ::T, s, scheme, λ0=0; abstol=1e-10, maxiter=50, �
     λ = T(λ0)
     θ = T(1)/2
     n = length(∇f)
-    h = H isa UniformScaling ? copy(∇f)*0+1 : diag(H)
+    h = H isa UniformScaling ? copy(∇f).*0 .+ 1 : diag(H)
     H = H isa UniformScaling ? Diagonal(copy(∇f).*0 .+ 1) : H
 
     # Check for interior convergence

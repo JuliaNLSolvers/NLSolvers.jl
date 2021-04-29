@@ -81,5 +81,5 @@ end
   end
   @. Y[m] = ∇fz - ∇fx
   ρ[m] = 1/dot(S[m], Y[m])
-  TwoLoopVars(qnvars.d, S, Y, qnvars.α, ρ) 
+  TwoLoopVars(qnvars.d, S, Y, qnvars.α, ρ)
 end

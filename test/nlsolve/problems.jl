@@ -29,7 +29,7 @@ function Jvop_rosenbrock!(x)
         Fv[2,] = -20*x[1]*v[1] + 10*v[2]
     end
     LinearMap(JacV, length(x))
-end    
+end
 
 NLE_PROBS["rosenbrock"]["array"]["x0"] = [-1.2, 1.0]
 NLE_PROBS["rosenbrock"]["array"]["mutating"] = NLSolvers.VectorObjective(F_rosenbrock!, J_rosenbrock!, FJ_rosenbrock!, Jvop_rosenbrock!)
