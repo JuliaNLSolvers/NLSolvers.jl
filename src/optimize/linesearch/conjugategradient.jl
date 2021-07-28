@@ -71,15 +71,15 @@ function update_parameter(mstyle, cg::HZ, d, ∇fz, ∇fx, y, P, P∇fz)
     θ = T(2)
     η = T(cg.η)
     # βHS = update_parameter(mstyle, HS(), d,  ∇fz, ∇fx, y, P, P∇fz)
-    # but let's save the dy calculation from begin repeated for
-    # efficiency's sake        
+    # but let's save the dy calculation from being repeated for
+    # efficiency's sake
     dy = dot(d, y)
     βHS = dot(y, P∇fz)/dy
 
     # Apply preconditioner to y
     Py = apply_preconditioner(mstyle, P, copy(P∇fz), y)
     βN = βHS - θ*dot(y, Py)/dy*dot(d, ∇fz)/dy
-    
+
     # 2013 version is scale invariant
     Pinv_y = apply_inverse_preconditioner(mstyle, P, copy(P∇fz), y)
     ηk = η*dot(d, ∇fx)/dot(d, Pinv_y)
@@ -105,7 +105,7 @@ function update_parameter(mstyle, cg::HS, d, ∇fz, ∇fx, y, P, P∇fz)
 end
 #===============================================================================
   Fletcher-Reeves (FR)
-  
+
   Fletcher, Reeves, and Colin M. Reeves. "Function minimization by conjugate
   gradients." The computer journal 7, no. 2 (1964): 149-154.
 ===============================================================================#
@@ -122,7 +122,7 @@ end
   Polak, Elijah, and Gerard Ribiere. "Note sur la convergence de méthodes de
   directions conjuguées." ESAIM: Mathematical Modelling and Numerical Analysis-
   Modélisation Mathématique et Analyse Numérique 3, no. R1 (1969): 35-43.
-  
+
   Polyak, Boris T. "The conjugate gradient method in extremal problems." USSR
   Computational Mathematics and Mathematical Physics 9, no. 4 (1969): 94-112.
 ===============================================================================#
@@ -183,8 +183,6 @@ function update_parameter(mstyle, cg::VPRP, d, ∇fz, ∇fx, y, P, P∇fz)
   num/dot(d, y)
 end
 
-
-
 # using an "initial vectors" function we can initialize s if necessary or nothing if not to save on vectors
 function solve(problem::OptimizationProblem, x0, cg::ConjugateGradient, options::OptimizationOptions)
   _solve(problem, x0, LineSearch(cg, HZAW()), options, mstyle(problem))
@@ -220,7 +218,7 @@ function iterate(mstyle::InPlace, cgvars::CGVars, objvars, approach::LineSearch{
     # split up the approach into the hessian approximation scheme and line search
     x, fx, ∇fx, z, fz, ∇fz, B, Pg = objvars
     Tx = eltype(x)
-  
+
     scheme, linesearch = modelscheme(approach), algorithm(approach)
     y, d, α, β = cgvars.y, cgvars.d, cgvars.α, cgvars.β
 

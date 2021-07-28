@@ -9,13 +9,21 @@ struct ParticleSwarm{Tn, T}
   σmin::T
   σmax::T
 end
-# defaults for c's are from the flowchart of page 1370, σ's are from the bottom of 1370  
-ParticleSwarm(; n_particles=nothing, limit_search_space=false, elitist_learning=true, c₁=2.0, c₂=2.0, σmin=0.1, σmax=1.0) = 
+# defaults for c's are from the flowchart of page 1370, σ's are from the bottom of 1370
+ParticleSwarm(;
+  n_particles=nothing,
+  limit_search_space=false,
+  elitist_learning=true,
+  c₁=2.0,
+  c₂=2.0,
+  σmin=0.1,
+  σmax=1.0) =
   ParticleSwarm(n_particles, limit_search_space, elitist_learning, c₁, c₂, σmin, σmax)
+
 summary(::ParticleSwarm) = "Adaptive Particle Swarm"
 function solve(problem::OptimizationProblem, x0, method::ParticleSwarm, options::OptimizationOptions)
     if !(mstyle(problem) === InPlace())
-        throw(ErrorException("solve() not defined for OutOfPlace() with Anderson"))
+        throw(ErrorException("solve() not defined for OutOfPlace() with $(summary(method))"))
     end
     t0 = time()
     n_particles = method.n_particles isa Nothing ? max(length(x0), 5) : method.n_particles
@@ -37,65 +45,65 @@ function solve(problem::OptimizationProblem, x0, method::ParticleSwarm, options:
     end
     current_state = 0
 
-  # spread the initial population uniformly over the whole search space
-  width = upper .- lower
-  for i in 1:n_particles
-    X[i] .= lower .+ width .* rand(T)
-    X_best[i] .= X[i]
-  end
-
-  best_f = T(0)
-  swarm_f = best_f
-  f0 = swarm_f
-  X_best[1] .= x0
-  X[1] .= x0
-  iter = 0
-  while iter <= options.maxiter
-    iter += 1
-    limit_X!(X, lower, upper)
-  	Fs = batched_value(problem, Fs, X)
-
-    if iter == 1
-      copyto!(Fs_best, Fs)
-      best_f = Base.minimum(Fs)
+    # spread the initial population uniformly over the whole search space
+    width = upper .- lower
+    for i in 1:n_particles
+      X[i] .= lower .+ width .* rand(T)
+      X_best[i] .= X[i]
     end
-    best_f = housekeeping!(Fs, Fs_best, X, X_best, x, best_f)
-    if iter == 1
-        f0 = best_f
-    end
-    if method.elitist_learning # try to avoid non-global minima
-      x_learn .= x
-      # Perturb a random dimension and replace the current worst
-      # solution in X with x_learn if x_learn presents the new
-      # best solution. Else, discard x_learn.
-      worst_Fs, i_worst = findmax(Fs)
-      random_index = rand(1:n)
 
-      # Eqn (14) - See Section VI-C for a discussion of max and min
-      # Could allow for an annealing scheme. Maybe a SAMIN style?
-      σlearn = σmax - (σmax - σmin) * iter / options.maxiter
-      
-      x_learn[random_index] = x_learn[random_index] + width[random_index]*σlearn*randn()
-      x_learn[random_index] = max(lower[random_index], min(upper[random_index], x_learn[random_index]))
-      
-      Fs_learn = value(problem, x_learn)
-      if Fs_learn < best_f
-        X_best[i_worst] .= x_learn
-        X[i_worst]      .= x_learn
-        x .= x_learn
+    best_f = T(0)
+    swarm_f = best_f
+    f0 = swarm_f
+    X_best[1] .= x0
+    X[1] .= x0
+    iter = 0
+    while iter <= options.maxiter
+      iter += 1
+      limit_X!(X, lower, upper)
+    	Fs = batched_value(problem, Fs, X)
 
-        Fs_best[i_worst] = Fs_learn
-        Fs[i_worst] = Fs_learn
-        best_f = Fs_learn
+      if iter == 1
+        copyto!(Fs_best, Fs)
+        best_f = Base.minimum(Fs)
       end
+      best_f = housekeeping!(Fs, Fs_best, X, X_best, x, best_f)
+      if iter == 1
+          f0 = best_f
+      end
+      if method.elitist_learning # try to avoid non-global minima
+        x_learn .= x
+        # Perturb a random dimension and replace the current worst
+        # solution in X with x_learn if x_learn presents the new
+        # best solution. Else, discard x_learn.
+        worst_Fs, i_worst = findmax(Fs)
+        random_index = rand(1:n)
+
+        # Eqn (14) - See Section VI-C for a discussion of max and min
+        # Could allow for an annealing scheme. Maybe a SAMIN style?
+        σlearn = σmax - (σmax - σmin) * iter / options.maxiter
+
+        x_learn[random_index] = x_learn[random_index] + width[random_index]*σlearn*randn()
+        x_learn[random_index] = max(lower[random_index], min(upper[random_index], x_learn[random_index]))
+
+        Fs_learn = value(problem, x_learn)
+        if Fs_learn < best_f
+          X_best[i_worst] .= x_learn
+          X[i_worst]      .= x_learn
+          x .= x_learn
+
+          Fs_best[i_worst] = Fs_learn
+          Fs[i_worst] = Fs_learn
+          best_f = Fs_learn
+        end
+      end
+      # TODO find a better name for _f (look inthe paper, it might be called f there)
+      current_state, swarm_f = get_swarm_state(X, Fs, x, current_state)
+      ω, c₁, c₂ = update_swarm_params!(c₁, c₂, ω, current_state, swarm_f)
+      update_swarm!(X, X_best, x, n, V, ω, c₁, c₂)
     end
-    # TODO find a better name for _f (look inthe paper, it might be called f there)
-    current_state, swarm_f = get_swarm_state(X, Fs, x, current_state)
-    ω, c₁, c₂ = update_swarm_params!(c₁, c₂, ω, current_state, swarm_f)
-    update_swarm!(X, X_best, x, n, V, ω, c₁, c₂)
-  end
-  best_f, x
-  ConvergenceInfo(method, (swarm_f=swarm_f, X=X, Fs=Fs, minimizer=x, minimum=best_f, f0=f0, iter=iter, time=time()-t0), options)
+    best_f, x
+    ConvergenceInfo(method, (swarm_f=swarm_f, X=X, Fs=Fs, minimizer=x, minimum=best_f, f0=f0, iter=iter, time=time()-t0), options)
 end
 
 function update_swarm!(X, X_best, best_point, n, V, ω, c₁, c₂)

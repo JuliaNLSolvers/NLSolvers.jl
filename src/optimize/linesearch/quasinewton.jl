@@ -6,6 +6,13 @@ end
 function QNVars(x, g)
     QNVars(copy(g), copy(x), copy(x))
 end
+struct QNObjVars{T, Tf, Tn, Tb, Tpg}
+    x::T
+    F::Tf
+    ∇f::Tn
+    B::Tb
+    Pg::Tpg
+end
 function preallocate_qn_caches(mstyle, x0)
     if mstyle === InPlace()
         # Maintain gradient and state pairs in QNVars

@@ -4,7 +4,6 @@
 # https://epubs.siam.org/doi/10.1137/0911026
 # https://pdfs.semanticscholar.org/b321/3084f663260076dcb92f2fa6031b362dc5bc.pdf
 # https://www.sciencedirect.com/science/article/abs/pii/0098135483800027
-# 
 abstract type ForcingSequence end
 
 struct FixedForceTerm{T} <: ForcingSequence
@@ -29,7 +28,6 @@ struct EisenstatWalkerA{T} <: ForcingSequence
 end
 EisenstatWalkerA() = EisenstatWalkerA(0.1, 0.9999)
 function η(fft::EisenstatWalkerA, info)
-
     η = (info.ρFz - info.residual_old)/info.ρFx
     β = info.η_old^(1+sqrt(5)/2)
     if β ≥ fft.s
@@ -88,8 +86,6 @@ struct InexactNewton{LinSolve, ForcingType<:ForcingSequence, Tη}
     η₀::Tη
     maxiter::Int
 end
-#InexactNewton(; force_seq=FixedForceTinexacerm(1e-4), eta0 = 1e-4, maxiter=300)=InexactNewton(force_seq, eta0, maxiter)
-
 InexactNewton(; linsolve, force_seq=DemboSteihaug(), eta0 = 1e-4, maxiter=300)=InexactNewton(linsolve, force_seq, eta0, maxiter)
 # map from method to forcing sequence
 η(fft::InexactNewton, info) = η(fft.force_seq, info)
@@ -146,7 +142,7 @@ function solve(problem::NEqProblem, x, method::InexactNewton, options::NEqOption
         while !btk_conv
             it += 1
             z = retract(problem, z, x, xp, -1)
-            
+
             Fx = problem.R.F(Fx, z)
             btk_conv = norm(Fx, 2) ≤ (1-t*(1-ηₖ))*ρFx || it > 20
         end

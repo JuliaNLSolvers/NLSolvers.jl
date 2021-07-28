@@ -70,7 +70,6 @@ export NonDiffed, OnceDiffed, TwiceDiffed, ScalarObjective
 # make this struct that has scheme and approx
 abstract type QuasiNewton{T1} end
 
-
 abstract type HessianApproximation end
 struct Inverse <: HessianApproximation end
 struct Direct <: HessianApproximation end

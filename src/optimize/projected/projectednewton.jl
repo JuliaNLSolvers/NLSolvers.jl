@@ -83,7 +83,7 @@ function solve(prob::OptimizationProblem, x0, scheme::ActiveBox, options::Optimi
         x = copy(z)
         fx = copy(fz)
         ∇fx = copy(∇fz)
- 
+
         ϵ = min(norm(clamp.(x.-∇fx, lower, upper).-x), ϵbounds) # Kelley 5.41 and just after (83) in [1]
         activeset = is_ϵ_active.(x, lower, upper, ∇fx, ϵ)
 
@@ -100,14 +100,13 @@ function solve(prob::OptimizationProblem, x0, scheme::ActiveBox, options::Optimi
         z = @. x + s
         s = clamp.(z, lower, upper) - x
         z = x + s
-        
+
         # Update approximation
         fz, ∇fz, B, s, y = update_obj(prob.objective, s, ∇fx, z, ∇fz, B, Newton(), is_first)
         if norm(x.-clamp.(x.-∇fz, lower, upper), Inf) < options.g_abstol
             return ConvergenceInfo(scheme, (prob=prob, B=B, ρs=norm(x.-z), ρx=norm(x), minimizer=z, fx=fx, minimum=fz, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=iter, time=time()-t0), options)
         end
     end
-    @show z.-min.(upper, max.(z.-∇fz, lower))
   z, fz, options.maxiter
   return ConvergenceInfo(scheme, (prob=prob, B=B, ρs=norm(x.-z), ρx=norm(x), minimizer=z, fx=fx, minimum=fz, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=iter, time=time()-t0), options)
 end

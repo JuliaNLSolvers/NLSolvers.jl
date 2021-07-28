@@ -15,14 +15,33 @@ function TwoLoopVars(x, memory)
     TwoLoopVars(d, S, Y, α, ρ)
 end
 lbfgs_vars(method, x) = TwoLoopVars(x, method.memory)
-function solve(problem::OptimizationProblem, x0, approach::LineSearch{<:LBFGS{<:Inverse, <:TwoLoop}, <:Any, <:QNScaling}, options::OptimizationOptions, cache=preallocate_qn_caches(mstyle(problem), x0))
+function solve(
+    problem::OptimizationProblem,
+    x0,
+    approach::LineSearch{<:LBFGS{<:Inverse, <:TwoLoop}, <:Any, <:QNScaling},
+    options::OptimizationOptions,
+    cache=preallocate_qn_caches(mstyle(problem), x0),
+    )
     solve(problem, (x0, nothing), approach, options, cache)
 end
-function solve(problem::OptimizationProblem, s0::Tuple, approach::LineSearch{<:LBFGS{<:Inverse, <:TwoLoop}, <:Any, <:QNScaling}, options::OptimizationOptions, cache=preallocate_qn_caches(mstyle(problem), first(s0)))
-    _solve(InPlace(), problem, s0, approach, options, cache)
+function solve(
+    problem::OptimizationProblem,
+    s0::Tuple,
+    approach::LineSearch{<:LBFGS{<:Inverse, <:TwoLoop}, <:Any, <:QNScaling},
+    options::OptimizationOptions,
+    cache=preallocate_qn_caches(mstyle(problem), first(s0)),
+    )
+    _solve(mstyle(problem), problem, s0, approach, options, cache)
 end
 
-function _solve(mstyle, problem::OptimizationProblem, s0::Tuple, approach::LineSearch{<:LBFGS{<:Inverse, <:TwoLoop}, <:Any, <:QNScaling}, options::OptimizationOptions, cache)
+function _solve(
+    mstyle,
+    problem::OptimizationProblem,
+    s0::Tuple,
+    approach::LineSearch{<:LBFGS{<:Inverse, <:TwoLoop}, <:Any, <:QNScaling},
+    options::OptimizationOptions,
+    cache,
+    )
     t0 = time()
 
     #==============
@@ -69,6 +88,7 @@ function iterate(mstyle::InPlace, iter::Integer, qnvars::TwoLoopVars, objvars, P
 
     # Update preconditioner
     P = update_preconditioner(scheme, x, P) # returns nothing????
+
     # Update current gradient and calculate the search direction
     d = find_direction!(scheme, copy(∇fz), qnvars, current_memory, K, P) # solve Bd = -∇fx
     φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, real(dot(∇fx, d))) # real is needed to convert complex dots to actually being real
