@@ -144,7 +144,8 @@ function solve(mstyle::InPlace, prob::OptimizationProblem, x0, method::NelderMea
     simplex_value = batched_value(prob, simplex_vector) # this could be batched
     order = sortperm(simplex_value)
     simplex = ValuedSimplex(simplex_vector, simplex_value, order)
-    res = solve(mstyle, prob, simplex, method, options)
+    nmcache = NMCaches(simplex)
+    res = solve(mstyle, prob, simplex, method, options, nmcache)
     x0 .= res.info.minimizer
     return res
 end
@@ -202,7 +203,7 @@ function iterate!(prob, method::NelderMead, simplex_vector, simplex_value, i_ord
 
     # Compute a reflection
     x_highest = simplex_vector[i_order[end]]
-    @. x_reflect .= x_centroid + α * (x_centroid - x_highest)
+    @. x_reflect = x_centroid + α * (x_centroid - x_highest)
 
     f_reflect = value(prob, x_reflect)
     if f_reflect < simplex_value[i_order[1]] # f_lowest(simplex)
@@ -276,6 +277,7 @@ function iterate!(prob, method::NelderMead, simplex_vector, simplex_value, i_ord
         step_type = "shrink"
     end
 
+    # Only allocation is here
     sortperm!(i_order, simplex_value)
 
     x_centroid = centroid!(x_centroid, simplex_vector, i_order[end])
