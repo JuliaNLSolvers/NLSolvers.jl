@@ -46,7 +46,7 @@ function _solve(mstyle, problem::OptimizationProblem, s0::Tuple, approach::LineS
 
     if any(initial_converged(approach, objvars, ∇f0, options))
         x, fx, ∇fx, z, fz, ∇fz, B, Pg = objvars
-        return ConvergenceInfo(approach, (P=P, B=B, ρs=norm(x.-z), ρx=norm(x), minimizer=z, fx=fx, minimum=fz, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=0, time=time()-t0), options)
+        return ConvergenceInfo(approach, (P=P, B=B, ρs=norm(x.-z), ρx=norm(x), solution=z, fx=fx, minimum=fz, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=0, time=time()-t0), options)
     end
     qnvars = QNVars(copy(objvars.∇fz), copy(objvars.∇fz), copy(objvars.∇fz))
 
@@ -72,7 +72,7 @@ function _solve(mstyle, problem::OptimizationProblem, s0::Tuple, approach::LineS
         print_trace(approach, options, iter, t0, objvars)
     end
     x, fx, ∇fx, z, fz, ∇fz, B, Pg = objvars
-    return ConvergenceInfo(approach, (P=P, B=B, ρs=norm(x.-z), ρx=norm(x), minimizer=z, fx=fx, minimum=fz, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=iter, time=time()-t0), options)
+    return ConvergenceInfo(approach, (P=P, B=B, ρs=norm(x.-z), ρx=norm(x), solution=z, fx=fx, minimum=fz, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=iter, time=time()-t0), options)
 end
 function print_trace(approach::LineSearch, options, iter, t0, objvars)
     if false 

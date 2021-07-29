@@ -70,6 +70,6 @@ function solve(prob::NEqProblem, x, approach::TrustRegion{<:Union{SR1, DBFGS, BF
     res = solve(td, x, approach, OptimizationOptions(maxiter=options.maxiter))
     # normed_residual to get Fx
     # f0*2 is wrong because it's 2norm
-    newinfo = (zero=res.info.minimizer, best_residual=Fx_outer, ρF0=ρF0, ρ2F0=ρ2F0, time=res.info.time, iter=res.info.iter)
+    newinfo = (solution=solution(res), best_residual=Fx_outer, ρF0=ρF0, ρ2F0=ρ2F0, time=res.info.time, iter=res.info.iter)
     return ConvergenceInfo(approach, newinfo, options)
 end

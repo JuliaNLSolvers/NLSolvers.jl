@@ -212,7 +212,7 @@ function _solve(problem::OptimizationProblem, x0, approach::LineSearch{<:Conjuga
         is_converged = converged(approach, objvars, ∇f0, options) 
     end
     x, fx, ∇fx, z, fz, ∇fz, B = objvars
-    return ConvergenceInfo(approach, (beta=β, ρs=norm(x.-z), ρx=norm(x), minimizer=z, fx=fx, minimum=fz, ∇fx=∇fx, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=k, time=time()-t0), options)
+    return ConvergenceInfo(approach, (beta=β, ρs=norm(x.-z), ρx=norm(x), solution=z, fx=fx, minimum=fz, ∇fx=∇fx, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=k, time=time()-t0), options)
 end
 function iterate(mstyle::InPlace, cgvars::CGVars, objvars, approach::LineSearch{<:ConjugateGradient, <:Any, <:Any}, problem::OptimizationProblem, options::OptimizationOptions, P=nothing, is_first=nothing)
     # split up the approach into the hessian approximation scheme and line search

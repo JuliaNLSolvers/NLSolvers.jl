@@ -56,6 +56,7 @@ prob = NEqProblem(prob_obj)
 x0 = [-1.0, 0.0, 0.0]
 res = solve(prob, x0, LineSearch(Newton(), Backtracking()))
 @test norm(res.info.best_residual, Inf) < 1e-12
+@test norm(solution(res) .- [1.0,0.0,0.0]) < 1e-8
 
 #x0 = [-1.0, 0.0, 0.0]
 #res = solve(prob, x0, Anderson(), NEqOptions())
@@ -76,6 +77,7 @@ res = solve(prob, x0, TrustRegion(Newton()), NEqOptions())
 x0 = [-1.0, 0.0, 0.0]
 res = solve(prob, x0, TrustRegion(SR1()), NEqOptions())
 @test norm(res.info.best_residual, Inf) < 1e-8
+@test norm(solution(res) .- [1.0,0.0,0.0]) < 1e-8
 
 x0 = [-1.0, 0.0, 0.0]
 state = (z=copy(x0), d=copy(x0), Fx=copy(x0), Jx=zeros(3,3))
@@ -236,8 +238,8 @@ end
 # @show minimize!(problem, zeros(2), ParticleSwarm(), OptimizationOptions())
 # @show minimize!(nd, [200.0, 1], NelderMead(), OptimizationOptions())
 
-# @show minimize!(nd, minimize!(nd, [200.0, 10.0], NelderMead(), OptimizationOptions()).info.minimizer, NelderMead(), OptimizationOptions())
-# @show minimize!(nd, minimize!(nd, [200.0, 5.0], NelderMead(), OptimizationOptions()).info.minimizer, NelderMead(), OptimizationOptions())
+# @show minimize!(nd, minimize!(nd, [200.0, 10.0], NelderMead(), OptimizationOptions()).info.solution, NelderMead(), OptimizationOptions())
+# @show minimize!(nd, minimize!(nd, [200.0, 5.0], NelderMead(), OptimizationOptions()).info.solution, NelderMead(), OptimizationOptions())
 
 # function F(b, F, J=nothing)
 #   @. F = b[1]*(1 - exp(-b[2]*xdata)) - ydata

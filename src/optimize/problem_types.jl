@@ -57,7 +57,7 @@ function Base.show(io::IO, ci::ConvergenceInfo)
   if haskey(info, :∇fz)
     println(io, "  Final gradient norm:      $(@sprintf("%.2e", opt.g_norm(info.∇fz)))")
     if haskey(info, :prob) && hasbounds(info.prob)
-      ρP = opt.g_norm(info.minimizer.-clamp.(info.minimizer.-info.∇fz, info.prob.bounds...))
+      ρP = opt.g_norm(info.solution.-clamp.(info.solution.-info.∇fz, info.prob.bounds...))
       println(io, "  Final projected gradient norm:  $(@sprintf("%.2e", ρP))")
     end
   end
@@ -106,7 +106,7 @@ function Base.show(io::IO, ci::ConvergenceInfo)
       end
     end
     if haskey(info, :prob) && hasbounds(info.prob)
-      if any(iszero, info.minimizer.-info.prob.bounds[1]) || any(iszero, info.prob.bounds[2].-info.minimizer)
+      if any(iszero, info.solution.-info.prob.bounds[1]) || any(iszero, info.prob.bounds[2].-info.solution)
         println(io, "\n  !!! Solution is at the boundary !!!")
       end
     end

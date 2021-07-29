@@ -84,7 +84,7 @@ function solve(prob::OptimizationProblem, x0, method::SimulatedAnnealing, option
     is_converged = converged(method, f_now, options)
   end
 
-  ConvergenceInfo(method, (minimizer=x_best, minimum=f_best, f_now=f_now, x_now=x_now, temperature=temperature, f0=f0, iter=iter, time=time()-t0), options)
+  ConvergenceInfo(method, (solution=x_best, minimum=f_best, f_now=f_now, x_now=x_now, temperature=temperature, f0=f0, iter=iter, time=time()-t0), options)
 end
 function converged(method::SimulatedAnnealing, fz, options)
   f_converged = false
