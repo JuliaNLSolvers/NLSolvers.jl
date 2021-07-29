@@ -182,4 +182,8 @@ end
 project_tanget(::InPlace, problem, w, x, v) = copyto!(w, v)
 project_tanget(::OutOfPlace, problem, w, x, v) = v
 
+# Common grabbers for output
+include("results_interface.jl")
+export solution
+
 end # module

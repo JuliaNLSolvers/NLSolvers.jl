@@ -70,7 +70,7 @@ function solve(problem::OptimizationProblem, x0, adam::Adam, options::Optimizati
     fz, ∇fz = upto_gradient(problem, ∇fz, z)
     is_converged = iter >= options.maxiter
   end
-  ConvergenceInfo(adam, (minimizer=z, minimum=fz, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=iter, time=time()-t0), options)
+  ConvergenceInfo(adam, (solution=z, minimum=fz, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=iter, time=time()-t0), options)
 end
 function solve(problem::OptimizationProblem, x0, adam::AdaMax, options::OptimizationOptions)
   α, β₁, β₂ = adam.α, adam.β₁, adam.β₂
@@ -96,5 +96,5 @@ function solve(problem::OptimizationProblem, x0, adam::AdaMax, options::Optimiza
     fz, ∇fz = upto_gradient(problem, ∇fz, z)
     is_converged = iter >= options.maxiter
   end
-  ConvergenceInfo(adam, (minimizer=z, minimum=fz, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=iter, time=time()-t0), options)
+  ConvergenceInfo(adam, (solution=z, minimum=fz, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=iter, time=time()-t0), options)
 end

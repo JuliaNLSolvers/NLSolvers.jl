@@ -146,7 +146,7 @@ function solve(mstyle::InPlace, prob::OptimizationProblem, x0, method::NelderMea
     simplex = ValuedSimplex(simplex_vector, simplex_value, order)
     nmcache = NMCaches(simplex)
     res = solve(mstyle, prob, simplex, method, options, nmcache)
-    x0 .= res.info.minimizer
+    x0 .= solution(res)
     return res
 end
 
@@ -190,7 +190,7 @@ function solve(mstyle::InPlace, prob::OptimizationProblem, simplex::ValuedSimple
         x_min = x_centroid
         f_min = f_centroid_min
     end
-    ConvergenceInfo(method, (nm_obj=nm_obj, centroid=x_centroid, simplex=simplex, minimizer=x_min, minimum=f_min, f0=f0, iter=iter, time=time()-t0), options)
+    ConvergenceInfo(method, (nm_obj=nm_obj, centroid=x_centroid, simplex=simplex, solution=x_min, minimum=f_min, f0=f0, iter=iter, time=time()-t0), options)
 end
 function print_trace(::NelderMead, options, iter, t0, simplex_value)
 end
@@ -410,5 +410,5 @@ function solve(mstyle::OutOfPlace, prob::OptimizationProblem, simplex::ValuedSim
         x_min = x_centroid
         f_min = f_centroid_min
     end
-    ConvergenceInfo(method, (nm_obj=nm_obj, centroid=x_centroid, simplex=simplex, minimizer=x_min, minimum=f_min, f0=f0, iter=iter, time=time()-t0), options)
+    ConvergenceInfo(method, (nm_obj=nm_obj, centroid=x_centroid, simplex=simplex, solution=x_min, minimum=f_min, f0=f0, iter=iter, time=time()-t0), options)
 end

@@ -72,7 +72,7 @@ function _solve(
         is_converged = converged(approach, objvars, ∇f0, options)
     end
     x, fx, ∇fx, z, fz, ∇fz, B, Pg = objvars
-    return ConvergenceInfo(approach, (P=P,B=B, ρs=norm(x.-z), ρx=norm(x), minimizer=z, fx=fx, minimum=fz, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=iter, time=time()-t0), options)
+    return ConvergenceInfo(approach, (P=P,B=B, ρs=norm(x.-z), ρx=norm(x), solution=z, fx=fx, minimum=fz, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=iter, time=time()-t0), options)
 end
 function iterate(mstyle::InPlace, iter::Integer, qnvars::TwoLoopVars, objvars, P, approach::LineSearch{<:LBFGS{<:Inverse, <:TwoLoop}, <:Any, <:QNScaling}, prob::OptimizationProblem, problem::OptimizationProblem, options::OptimizationOptions, is_first=nothing)
     # split up the approach into the hessian approximation scheme and line search

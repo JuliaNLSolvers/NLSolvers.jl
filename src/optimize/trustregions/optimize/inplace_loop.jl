@@ -15,7 +15,7 @@ function solve(problem::OptimizationProblem, approach::TrustRegion, options::Opt
 
     if any(initial_converged(approach, objvars, ∇f0, options, false, Δk))
         return ConvergenceInfo(approach, (Δ=Δk, ρs=norm(objvars.x.-objvars.z), ρx=norm(objvars.x),
-                                          minimizer=objvars.z, fx=objvars.fx, minimum=objvars.fz,
+                                          solution=objvars.z, fx=objvars.fx, minimum=objvars.fz,
                                           ∇fz=objvars.∇fz, f0=f0, ∇f0=∇f0, iter=0, time=time()-t0), options)
     end
     qnvars = QNVars(objvars.z, objvars.z)
@@ -35,7 +35,7 @@ function solve(problem::OptimizationProblem, approach::TrustRegion, options::Opt
         print_trace(approach, options, iter, t0, objvars, Δkp1)
     end
     x, fx, ∇fx, z, fz, ∇fz, B, Pg = objvars
-    return ConvergenceInfo(approach, (Δ=Δkp1, ρs=norm(x.-z), ρx=norm(x), minimizer=z, fx=fx, minimum=fz, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=iter, time=time()-t0), options)
+    return ConvergenceInfo(approach, (Δ=Δkp1, ρs=norm(x.-z), ρx=norm(x), solution=z, fx=fx, minimum=fz, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=iter, time=time()-t0), options)
 end
 function print_trace(approach::TrustRegion, options, iter, t0, objvars, Δ)
     if false

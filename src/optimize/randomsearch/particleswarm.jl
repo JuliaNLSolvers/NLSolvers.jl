@@ -103,7 +103,7 @@ function solve(problem::OptimizationProblem, x0, method::ParticleSwarm, options:
       update_swarm!(X, X_best, x, n, V, ω, c₁, c₂)
     end
     best_f, x
-    ConvergenceInfo(method, (swarm_f=swarm_f, X=X, Fs=Fs, minimizer=x, minimum=best_f, f0=f0, iter=iter, time=time()-t0), options)
+    ConvergenceInfo(method, (swarm_f=swarm_f, X=X, Fs=Fs, solution=x, minimum=best_f, f0=f0, iter=iter, time=time()-t0), options)
 end
 
 function update_swarm!(X, X_best, best_point, n, V, ω, c₁, c₂)
