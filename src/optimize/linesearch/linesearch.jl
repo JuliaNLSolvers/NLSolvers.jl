@@ -21,7 +21,6 @@ end
 modelscheme(ls::LineSearch) = ls.scheme
 algorithm(ls::LineSearch) = ls.linesearcher
 include("conjugategradient.jl")
-export ConjugateGradient
 
 include("quasinewton.jl")
 include("limitedquasinewton.jl")
