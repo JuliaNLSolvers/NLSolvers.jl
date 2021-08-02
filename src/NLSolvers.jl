@@ -16,7 +16,7 @@ using Statistics # for var in statistics... probably not worth it
   UniformScaling (I), Symmetric, Diagonal are all usefull to handle
   shifted systems, hessians, etc
 
-  eigen and diag are useful in trust region subprblems
+  eigen and diag are useful in trust region subproblems
 
   opnorm is used in the trust region subproblem safe guards to bound
   the estimate on lambda
@@ -32,6 +32,7 @@ using LinearAlgebra:  dot, I, norm, # used everywhere in updates, convergence, e
                       opnorm, # for NWI safe guards
                       checksquare, UpperTriangular, givens, lmul!, cond, # For QR update
                       axpy! # for Anderson
+
 import LinearAlgebra: mul!, dot # need to extend for preconditioners
 
 using Printf
@@ -96,6 +97,7 @@ export DBFGS, BFGS, SR1, DFP, GradientDescent, Newton, BB, LBFGS, ActiveBox
 
 # Include the actual functions that expose the functionality in this package.
 include("optimize/linesearch/linesearch.jl")
+export ConjugateGradient
 export HS, CD, HZ, FR, PRP, VPRP, LS, DY
 include("optimize/randomsearch/randomsearch.jl")
 export SimulatedAnnealing, PureRandomSearch, ParticleSwarm

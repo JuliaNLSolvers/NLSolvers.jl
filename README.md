@@ -248,6 +248,38 @@ Results of solving non-linear equations
   Iterations:    2
 ```
 
+## Unconstrained
+### Sampling based
+- SimulatedAnnealing
+- PureRandomSearch
+- ParticleSwarm
+### Direct search
+- NelderMead
+### Quasi-Newton Line search
+- DBFGS
+- BFGS
+- SR1
+- DFP
+- GradientDescent
+- LBFGS
+- ConjugateGradient
+### Newton Line Search
+- Newton
+### Gradient based (no line search)
+- Adam
+- AdaMax
+### Acceleration methods
+- Anderson
+### Krylov
+- InexactNewton
+### BB style
+- BB
+- DFSANE
+
+## Simple bounds (box)
+- ParticleSwarm
+- ActiveBox
+
 
 ## Custom solve
 Newton methods generally accept a linsolve argument.
@@ -260,15 +292,8 @@ will simply return this preconditioner. A preconditioner is used in two contexts
 Some methods that might be labeled as acceleration, momentum, or spectral methods can exhibit chaotic behavior. Please keep this in mind if comparing things like `DFSANE` with similar implemenations in other software. It can give very different results given different compiler optimizations, CPU architectures, etc. See for example https://link.springer.com/article/10.1007/s10915-011-9521-3 .
 
 
-
-Two types of functions:
-WorkVars # x, F, J, H, ??
-AlgVars # s, y, z, ...
+## TODO
 Documented in each type's docstring including LineSearch, BFGS, ....
-
-AlgVars = (LSVars, QNVars, ...)
-OptVars?
-Initial modelvars and QNvars
 
 Abstract arrays!!! :|
 manifolds
