@@ -1,2 +1,2 @@
-include("brent.jl")
+include("brentmin.jl")
 include("goldensection.jl")
