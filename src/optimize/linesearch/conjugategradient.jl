@@ -11,7 +11,7 @@
 
   Let N be a neighborhood of {x ∈ R^n : f(x) ⩽ f(x₀)}
 
-  [LA; Lipschitz Assumption]: ∃ L < ∞ : ||∇f(x)-∇f(y)|| ⩽ L||x-y|| for x,y ∈ N 
+  [LA; Lipschitz Assumption]: ∃ L < ∞ : ||∇f(x)-∇f(y)|| ⩽ L||x-y|| for x,y ∈ N
 
   Todos:
   Might consider Daniel 1967 that uses second order
@@ -96,7 +96,7 @@ end
   should also be small.
 
   Hestenes, Magnus R., and Eduard Stiefel. "Methods of conjugate gradients for
-  solving linear systems." Journal of research of the National Bureau of 
+  solving linear systems." Journal of research of the National Bureau of
   Standards 49, no. 6 (1952): 409-436.
 ===============================================================================#
 struct HS <: CGUpdate end

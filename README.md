@@ -248,7 +248,11 @@ Results of solving non-linear equations
   Iterations:    2
 ```
 
-## Unconstrained
+## Univariate optimization
+
+The only method that is exclusively univariate is Brent's method for function minimization `BrentMin`.
+
+## Multivariate optimization
 ### Sampling based
 - SimulatedAnnealing
 - PureRandomSearch
@@ -262,6 +266,7 @@ Results of solving non-linear equations
 - DFP
 - GradientDescent
 - LBFGS
+### Conjugate Gradient Descent
 - ConjugateGradient
 ### Newton Line Search
 - Newton
