@@ -4,13 +4,13 @@ struct BrentMin{T}
 end
 BrentMin(; division=(3-sqrt(5))/2, detect_flatness=false) = BrentMin(division, detect_flatness)
 
-function solve(problem::OptimizationProblem, x0, approach::BrentMin, options::OptimizationOptions)
-    _solve(problem, x0, approach, options)
+function solve(problem::OptimizationProblem, approach::BrentMin, options::OptimizationOptions)
+    _solve(problem, approach, options)
 end
 
-function _solve(prob, x0::T, bm::BrentMin, options) where T
-		a, b = bounds(prob)
-
+function _solve(prob, bm::BrentMin, options)
+	a, b = bounds(prob)
+    T = typeof(a)
     t = 1e-8
     c = bm.division
     v = w = x = a + c*(b - a)
