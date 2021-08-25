@@ -215,6 +215,24 @@ res = solve(prob, x0, TrustRegion(SR1(Inverse()), NTR()), OptimizationOptions())
 @test res.info.minimum == 2.0
 end
 
+const brent_f(x) = sign(x)
+const brent_scalar = ScalarObjective(;f=brent_f)
+const brent_prob = OptimizationProblem(brent_scalar, (-2.0,2.0))
+@testset "univariate nonalloc" begin
+    @allocated solve(brent_prob, BrentMin(), OptimizationOptions())
+    alloc = @allocated solve(brent_prob, BrentMin(), OptimizationOptions())
+    @test alloc == 0
+end
+
+@testset "brentmin" begin
+    f(x)= (5.0 + x)^2.0
+    obj=ScalarObjective(;f)
+    prob=OptimizationProblem(obj, (-10.1,9.0))
+
+    @test all(abs.(solve(prob, BrentMin(), OptimizationOptions()).-(-5.0,0.0)) .< 1e-8)
+end
+
+
 const statictest_s0 = OPT_PROBS["himmelblau"]["staticarray"]["state0"]
 const statictest_prob = OptimizationProblem(OPT_PROBS["himmelblau"]["staticarray"]["static"]; inplace=false)
 @testset "staticopt" begin

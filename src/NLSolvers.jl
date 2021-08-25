@@ -107,6 +107,9 @@ export NelderMead
 include("optimize/acceleration/root.jl")
 export Adam, AdaMax
 
+include("optimize/univariate/root.jl")
+export BrentMin
+
 include("optimize/trustregions/trustregions.jl")
 export minimize, minimize!, OptProblem, LineSearch, TrustRegion
 

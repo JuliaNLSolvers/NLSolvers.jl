@@ -27,7 +27,6 @@ function solve(problem::NEqProblem, x, method::LineSearch=LineSearch(Newton(), S
     else
         JFx = nothing
     end
-
     ρF0, ρ2F0 = norm(Fx, Inf),  norm(Fx, 2)
     age, force_update = 1, false
 
@@ -57,6 +56,7 @@ function solve(problem::NEqProblem, x, method::LineSearch=LineSearch(Newton(), S
         else
             d = JFx\-Fx
         end
+
         # Need to restrict to static and backtracking here because we don't allow
         # for methods that calculate the gradient of the line objective.
         #
@@ -78,7 +78,6 @@ function solve(problem::NEqProblem, x, method::LineSearch=LineSearch(Newton(), S
 
         # Perform line search along d
         α, ϕ_out, ls_success = find_steplength(mstyle, linesearch, φ, T(1))
-
         # Step in the direction α*d
         z = retract(problem, z, x, d, α)
 
