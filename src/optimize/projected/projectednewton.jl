@@ -1,7 +1,7 @@
 # Add a calculate_γ from Bertsekas.
 # This is when an initial α = 1 far oversteps the first point that hits a boundary
 # on the piece-wise linear projected search path. This could be done always, never
-# or if last search required a lot of line search reductions 
+# or if last search required a lot of line search reductions.
 
 """
 # ActiveBox
@@ -13,15 +13,17 @@
 `epsilon` determines the threshold for whether a bound is approximately active or not, see eqn. (32) in [1].
 
 ## Description
-ActiveBox second order for bound constrained optimization. It's an active set and allows for rapid exploration of the constraint face. It employs a modified Armijo-line search that takes the active set into account. Details can be found in [1].
+ActiveBox second order for bound constrained convex optimization. It's an active set and allows for rapid exploration of the constraint face. It employs a modified Armijo-line search that takes the active set into account. Details can be found in [1].
 
 ## References
-[1] http://www.mit.edu/~dimitrib/ProjectedNewton.pdf
+- 1) http://www.mit.edu/~dimitrib/ProjectedNewton.pdf
+- 2) Iterative Methods for Optimization https://archive.siam.org/books/textbooks/fr18_book.pdf
 """
-struct ActiveBox{T}
+struct ActiveBox{F,T}
+    factorize::F
     ϵ::T
 end
-ActiveBox(; epsilon=1e-12) = ActiveBox(epsilon)
+ActiveBox(; factorize=cholesky, epsilon=nothing) = ActiveBox(factorize, epsilon)
 summary(::ActiveBox) = "ActiveBox"
 modelscheme(::ActiveBox) = Newton()
 """
@@ -56,15 +58,21 @@ function is_ϵ_active(x, lower, upper, ∇fx, ϵ∇f=eltype(x)(0))
 
     lower_active || upper_active
 end
-
 isbinding(i, j) = i & j
+
+factorize(ab::ActiveBox, M) = ab.factorize(M)
+
 function solve(prob::OptimizationProblem, x0, scheme::ActiveBox, options::OptimizationOptions)
     t0 = time()
 
-    x0, B0 = x0, [1.0 0.0; 0.0 1.0]
-    lower, upper = bounds(prob)
-    ϵbounds = mapreduce(b->(b[2] - b[1])/2, min, zip(lower, upper)) # [1, pp. 100: 5.41]
+    x0, B0 = x0, (false*x0*x0' + I)
 
+    lower, upper = bounds(prob)
+    if isnothing(scheme.ϵ)
+        ϵbounds = mapreduce(b->(b[2] - b[1])/2, min, zip(lower, upper)) # [1, pp. 100], [2, 5.41]
+    else
+        ϵbounds = scheme.ϵ
+    end
     !any(clamp.(x0, lower, upper) .!= x0) || error("Initial guess not in the feasible region")
 
     linesearch = ArmijoBertsekas()
@@ -83,13 +91,14 @@ function solve(prob::OptimizationProblem, x0, scheme::ActiveBox, options::Optimi
         x = copy(z)
         fx = copy(fz)
         ∇fx = copy(∇fz)
-
         ϵ = min(norm(clamp.(x.-∇fx, lower, upper).-x), ϵbounds) # Kelley 5.41 and just after (83) in [1]
         activeset = is_ϵ_active.(x, lower, upper, ∇fx, ϵ)
 
         Hhat = diagrestrict.(B, activeset, activeset', Ix)
+
         # Update current gradient and calculate the search direction
-        d = clamp.(x.-Hhat\∇fx, lower, upper).-x # solve Bd = -∇fx  #use find_direction here
+        HhatFact = factorize(scheme, Hhat)
+        d = clamp.(x .- (HhatFact\∇fx), lower, upper).-x # use find_direction here
         φ = _lineobjective(mstyle, prob, ∇fz, z, x, d, fz, dot(∇fz, d))
 
         # Perform line search along d
@@ -98,6 +107,7 @@ function solve(prob::OptimizationProblem, x0, scheme::ActiveBox, options::Optimi
         # # Calculate final step vector and update the state
         s = @. α * d
         z = @. x + s
+
         s = clamp.(z, lower, upper) - x
         z = x + s
 
@@ -107,7 +117,7 @@ function solve(prob::OptimizationProblem, x0, scheme::ActiveBox, options::Optimi
             return ConvergenceInfo(scheme, (prob=prob, B=B, ρs=norm(x.-z), ρx=norm(x), solution=z, fx=fx, minimum=fz, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=iter, time=time()-t0), options)
         end
     end
-  z, fz, options.maxiter
+  iter = options.maxiter
   return ConvergenceInfo(scheme, (prob=prob, B=B, ρs=norm(x.-z), ρx=norm(x), solution=z, fx=fx, minimum=fz, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=iter, time=time()-t0), options)
 end
 

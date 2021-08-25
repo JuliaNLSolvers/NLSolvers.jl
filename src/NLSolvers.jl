@@ -33,7 +33,8 @@ using LinearAlgebra:  dot, I, norm, # used everywhere in updates, convergence, e
                       checksquare, UpperTriangular, givens, lmul!, cond, # For QR update
                       axpy! # for Anderson
 
-import LinearAlgebra: mul!, dot # need to extend for preconditioners
+import LinearAlgebra: mul!, dot, # need to extend for preconditioners
+                      factorize # for ActiveBox
 
 using Printf
 
