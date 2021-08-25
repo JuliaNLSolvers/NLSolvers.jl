@@ -172,7 +172,7 @@ res = solve(prob, x0, TrustRegion(BFGS(), Dogleg()), OptimizationOptions())
 x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
 res = solve(prob, x0, TrustRegion(DBFGS(), Dogleg()), OptimizationOptions())
 @test res.info.minimum < 1e-16
-7
+
 x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
 res = solve(prob, x0, Adam(), OptimizationOptions(maxiter=20000))
 @test res.info.minimum < 1e-16
