@@ -24,7 +24,7 @@ using Statistics # for var in statistics... probably not worth it
 
 using LinearAlgebra:  dot, I, norm, # used everywhere in updates, convergence, etc
                       mul!, rmul!, ldiv!, # quasi-newton updates, apply factorizations, etc
-                      cholesky, factorize, issuccess, # very useful in trust region solvers
+                      cholesky, cholesky!, factorize, issuccess, Cholesky, # very useful in trust region solvers
                       UniformScaling, Diagonal, # simple matrices
                       Symmetric, Hermitian, # wrap before factorizations or eigensystems to avoid checks
                       diag, # mostly for trust region diagonal manipulation
@@ -32,6 +32,7 @@ using LinearAlgebra:  dot, I, norm, # used everywhere in updates, convergence, e
                       opnorm, # for NWI safe guards
                       checksquare, UpperTriangular, givens, lmul!, cond, # For QR update
                       axpy! # for Anderson
+
 
 import LinearAlgebra: mul!, dot, # need to extend for preconditioners
                       factorize # for ActiveBox
@@ -95,6 +96,11 @@ export NWI, Dogleg, NTR
 # Quasi-Newton (including Newton and gradient descent) functionality
 include("quasinewton/quasinewton.jl")
 export DBFGS, BFGS, SR1, DFP, GradientDescent, Newton, BB, LBFGS, ActiveBox
+
+# To globalize Newton's method
+using PositiveFactorizations
+include("extras/positive_cholesky.jl")
+export positive_linsolve
 
 # Include the actual functions that expose the functionality in this package.
 include("optimize/linesearch/linesearch.jl")
@@ -191,5 +197,6 @@ project_tanget(::OutOfPlace, problem, w, x, v) = v
 # Common grabbers for output
 include("results_interface.jl")
 export solution
+
 
 end # module

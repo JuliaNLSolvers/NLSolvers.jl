@@ -262,6 +262,17 @@ end
     test_prob = OptimizationProblem(OPT_PROBS["himmelblau"]["array"]["mutating"]; inplace=false)
     res = solve(test_prob, test_x0, LineSearch(Newton()), OptimizationOptions())
     @test norm(res.info.∇fz, Inf) < 1e-8
+
+
+    test_x0 = [2.0, 2.0]
+    test_prob = OptimizationProblem(OPT_PROBS["himmelblau"]["array"]["mutating"]; inplace=true)
+    res = solve(test_prob, copy(test_x0), LineSearch(Newton(;linsolve=positive_linsolve)), OptimizationOptions())
+    @test norm(res.info.∇fz, Inf) < 1e-8
+
+    test_x0 = [2.0, 2.0]
+    test_prob = OptimizationProblem(OPT_PROBS["himmelblau"]["array"]["mutating"]; inplace=false)
+    res = solve(test_prob, test_x0, LineSearch(Newton(;linsolve=positive_linsolve)), OptimizationOptions())
+    @test norm(res.info.∇fz, Inf) < 1e-8
 end
 @testset "Newton linsolve" begin
     test_prob = OptimizationProblem(OPT_PROBS["himmelblau"]["array"]["mutating"]; inplace=true)

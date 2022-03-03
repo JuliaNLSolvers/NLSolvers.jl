@@ -46,7 +46,7 @@ function prepare_variables(problem, approach::LineSearch{<:ConjugateGradient, <:
     return (x=x, fx=fx, ∇fx=∇fx, z=z, fz=fz, ∇fz=∇fz, B=nothing, Pg=Pg)
 end
 
-summary(cg::ConjugateGradient) = "Conjugate Gradient Descent ($(summary(cg.update)))"
+summary(cg::ConjugateGradient) = "Conjugate Gradient Descent ($(summary(cg.update)) update)"
 #===============================================================================
   Conjugate Descent [Fletcher] (CD)
 
@@ -55,6 +55,7 @@ summary(cg::ConjugateGradient) = "Conjugate Gradient Descent ($(summary(cg.updat
   Optimization." John Wiley & Sons, New York (1987).
 ===============================================================================#
 struct CD <: CGUpdate end
+summary(::CD) = "Fletcher"
 function update_parameter(mstyle, cg::CD, d, ∇fz, ∇fx, y, P, P∇fz)
   -dot(∇fz, P∇fz)/dot(d, ∇fx)
 end
@@ -66,6 +67,7 @@ struct HZ{Tη} <: CGUpdate
     η::Tη # a "forcing term"
 end
 HZ() = HZ(0.4)
+summary(::HZ) = "Hager-Zhang"
 function update_parameter(mstyle, cg::HZ, d, ∇fz, ∇fx, y, P, P∇fz)
     T = eltype(∇fz)
     θ = T(2)
@@ -100,6 +102,7 @@ end
   Standards 49, no. 6 (1952): 409-436.
 ===============================================================================#
 struct HS <: CGUpdate end
+summary(::HS) = "Hestenes-Stiefel"
 function update_parameter(mstyle, cg::HS, d, ∇fz, ∇fx, y, P, P∇fz)
   dot(y, P∇fz)/dot(d, y)
 end
@@ -110,6 +113,7 @@ end
   gradients." The computer journal 7, no. 2 (1964): 149-154.
 ===============================================================================#
 struct FR <: CGUpdate end
+summary(::FR) = "Fletcher-Reeves"
 function update_parameter(mstyle, cg::FR, d, ∇fz, ∇fx, y, P, P∇fz)
     dot(∇fz, P∇fz)/dot(∇fx, ∇fx)
 end
@@ -128,6 +132,7 @@ end
 ===============================================================================#
 struct PRP{Plus} end
 PRP(;plus=true) = PRP{plus}()
+summary(::PRP) = "Polak-Ribiére-Polyak"
 function update_parameter(mstyle, ::PRP, d, ∇fz, ∇fx, y, P, P∇fz)
     dot(y, P∇fz)/dot(∇fx, ∇fx)
 end
@@ -149,6 +154,7 @@ end
   (1991): 129-137.
 ===============================================================================#
 struct LS <: CGUpdate end
+summary(::LS) = "Liu-Storey"
 function update_parameter(mstyle, ::LS, d, ∇fz, ∇fx, y, P, P∇fz)
   -dot(y, P∇fz)/dot(d, ∇fx)
 end
@@ -163,6 +169,7 @@ end
   (1999): 177-182.
 ===============================================================================#
 struct DY <: CGUpdate end
+summary(::DY) = "Dai-Yuan"
 function update_parameter(mstyle, cg::DY, d, ∇fz, ∇fx, y, P, P∇fz)
   dot(∇fz, P∇fz)/dot(d, y)
 end
@@ -175,6 +182,7 @@ end
   mathematics and computation 187, no. 2 (2007): 636-643.
 ===============================================================================#
 struct VPRP <: CGUpdate end
+summary(::VPRP) = "Wei-Yao-Liu"
 function update_parameter(mstyle, cg::VPRP, d, ∇fz, ∇fx, y, P, P∇fz)
   a = dot(∇fz, P∇fz)
   b = dot(∇fx, P∇fz)
