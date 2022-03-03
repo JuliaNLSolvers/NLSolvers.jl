@@ -2,6 +2,7 @@ struct BB{T1} <: QuasiNewton{T1}
  approx::T1
 end
 BB(;inverse=false) = BB(inverse ? Inverse() : Direct())
+summary(::BB) = "Barzilai-Borwein"
 hasprecon(::BB) = NoPrecon()
 update!(scheme::BB{<:Direct}, B, s, y) = _bb(scheme, B, s, y)
 update(scheme::BB{<:Direct}, B, s, y) = _bb(scheme, B, s, y)
