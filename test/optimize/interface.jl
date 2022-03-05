@@ -206,6 +206,11 @@ x0 = copy(OPT_PROBS["exponential"]["array"]["x0"])
 res = solve(prob, x0, TrustRegion(Newton(), NWI()), OptimizationOptions())
 @test res.info.minimum == 2.0
 
+using GenericLinearAlgebra
+x0 = big.(copy(OPT_PROBS["exponential"]["array"]["x0"]))
+res = solve(prob, x0, TrustRegion(Newton(), NWI()), OptimizationOptions())
+
+
 x0 = copy(OPT_PROBS["exponential"]["array"]["x0"])
 res = solve(prob, x0, TrustRegion(SR1(), NTR()), OptimizationOptions())
 @test res.info.minimum == 2.0

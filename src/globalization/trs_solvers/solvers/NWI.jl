@@ -1,4 +1,6 @@
 """
+    NWI(eigen=LinearAlgebra.eigen)
+
   NWI (Nocedal Wright Iterative) is a trust region sub-problem solver that sol-
   ves the quadratic programming problem subject to the solution being in a
   Euclidean ball. It is appropriate for all types of Hessians. It solves the
@@ -11,11 +13,17 @@
 
   NWI accepts all Hessians and is therefore well-suited for Newton's method for
   any vexity. It is expensive for very large problems, and uses the direct
-  eigensolution. This could potentially be useful for problems with simple 
+  eigensolution. This could potentially be useful for problems with simple
   structure of the eigenproblem, but I suspect NWI is superior in most cases.
+
+  A custom `eigen` solver can be used either by providing a special matrix class
+  for the Hessian, or by passing in a function to the NWI constructor. This function
+  must follow the same input/output patterns as LinearAlgebra.eigen.
 """
-struct NWI <: NearlyExactTRSP
+struct NWI{T} <: NearlyExactTRSP
+    eigen::T
 end
+NWI() = NWI(eigen)
 summary(::NWI) = "Trust Region (Newton, eigen)"
 
 """
@@ -149,9 +157,9 @@ function (ms::NWI)(∇f, H, Δ, p, scheme; abstol=1e-10, maxiter=50)
     # Note that currently the eigenvalues are only sorted if H is perfectly
     # symmetric.  (Julia issue #17093)
     if H isa Diagonal
-        QΛQ = eigen(H; sortby=identity)
+        QΛQ = ms.eigen(H; sortby=identity)
     else
-        QΛQ = eigen(Symmetric(H))
+        QΛQ = ms.eigen(Hermitian(H))
     end
 
     Q, Λ = QΛQ.vectors, QΛQ.values
