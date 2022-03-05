@@ -93,23 +93,18 @@ function solve(prob::OptimizationProblem, x0, scheme::ActiveBox, options::Optimi
         ∇fx = copy(∇fz)
         ϵ = min(norm(clamp.(x.-∇fx, lower, upper).-x), ϵbounds) # Kelley 5.41 and just after (83) in [1]
         activeset = is_ϵ_active.(x, lower, upper, ∇fx, ϵ)
-
         Hhat = diagrestrict.(B, activeset, activeset', Ix)
-
         # Update current gradient and calculate the search direction
         HhatFact = factorize(scheme, Hhat)
-        d = clamp.(x .- (HhatFact\∇fx), lower, upper).-x # use find_direction here
-        φ = _lineobjective(mstyle, prob, ∇fz, z, x, d, fz, dot(∇fz, d))
+        d = -(HhatFact\∇fx) # use find_direction here
+
+        φ = (; prob, ∇fz, z, x, p=d, φ0=fz, dφ0=dot(∇fz, d))
 
         # Perform line search along d
         # Also returns final step vector and update the state
-        α, f_α, ls_success = find_steplength(mstyle, linesearch, φ, Tf(1), ∇fz, activeset, lower, upper, x, d, ∇fx, activeset)
+        α, f_α, ls_success, z = find_steplength(mstyle, linesearch, φ, Tf(1), ∇fz, activeset, lower, upper, x, d, ∇fx, activeset)
         # # Calculate final step vector and update the state
-        s = @. α * d
-        z = @. x + s
-
-        s = clamp.(z, lower, upper) - x
-        z = x + s
+        s = @. x - z
 
         # Update approximation
         fz, ∇fz, B, s, y = update_obj(prob.objective, s, ∇fx, z, ∇fz, B, Newton(), is_first)
@@ -155,19 +150,22 @@ function find_steplength(mstyle, ls::ArmijoBertsekas, φ::T, λ, ∇fx, Ibool, l
     #== factor in Armijo condition ==#
     t0 = decrease*dφ0 # dphi0 should take into account the active set
     iter, α, β = 0, λ, λ # iteration variables
-    f_α = φ(α)   # initial function value
     x⁺ = box_retract.(lower, upper, x, p, α)
+    f_α = (;ϕ=φ.prob.objective.f(x⁺) )  # initial function value
 
     if verbose
         println("Entering line search with step size: ", λ)
         println("Initial value: ", φ0)
         println("Value at first step: ", f_α)
     end
+
     is_solved = isfinite(f_α.ϕ) && f_α.ϕ <= φ0 - decrease*sum(bertsekas_R.(x, x⁺, g, p, α, activeset))
     while !is_solved && iter <= maxiter
         iter += 1
-        β, α, f_α = interpolate(ls.interp, φ, φ0, dφ0, α, f_α.ϕ, ratio)
+        β, α = α, α/2
         x⁺ = box_retract.(lower, upper, x, p, α)
+        f_α = (;ϕ=φ.prob.objective.f(x⁺) )  # initial function value
+#        β, α, f_α = interpolate(ls.interp, x->φ, φ0, dφ0, α, f_α.ϕ, ratio)
         is_solved = isfinite(f_α.ϕ) && f_α.ϕ <= φ0 - decrease*sum(bertsekas_R.(x, x⁺, g, p, α, activeset))
     end
 
@@ -178,10 +176,10 @@ function find_steplength(mstyle, ls::ArmijoBertsekas, φ::T, λ, ∇fx, Ibool, l
         println("Exiting line search with step size: ", α)
         println("Exiting line search with value: ", f_α)
     end
-    return α, f_α, ls_success
+    return α, f_α, ls_success, x⁺
 end
 
 bertsekas_R(x, x⁺, g, p, α, i) = i ? g*(x-x⁺) : α*p*g
 # defined univariately
 # should be a "manifodl"
-box_retract(lower, upper, x, p, α) = min(upper, max(lower, x-α*p))
+box_retract(lower, upper, x, p, α) = min(upper, max(lower, x+α*p))

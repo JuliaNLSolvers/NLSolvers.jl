@@ -67,7 +67,7 @@ res = solve(prob_bounds, x0, ParticleSwarm(), OptimizationOptions())
 x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"]).+1
 res = solve(prob_on_bounds_oop, x0, ActiveBox(), OptimizationOptions())
 @test_broken all(x0 .== [3.0,1.0])
-xbounds = [ 3.5, 1.6165968467447174]
+xbounds = [3.5, 1.616596846883819]
 @test res.info.minimum == NLSolvers.value(prob_on_bounds, xbounds)
 
 x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
