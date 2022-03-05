@@ -166,6 +166,9 @@ Results of minimization
 
 So numbers, mutating array code and non-mutating array code is supported depending on the input to the problem type and initial `x` or state in general.
 
+## BigFloat `eigen`
+To use the `NWI` algorithm in a `TrustRegion` algorithm, it is necessary to first `using GenericLinearAlgebra`.
+
 ## Systems of Nonlinear Equations `NEqProblem`
 
 To solve a system of non-linear equations you should use the `NEqProblem` type. First,
