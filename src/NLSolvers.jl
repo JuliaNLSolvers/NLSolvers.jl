@@ -23,34 +23,34 @@ using Statistics # for var in statistics... probably not worth it
  ============================ LinearAlgebra ===========================#
 
 using LinearAlgebra:
-    dot,
-    I,
+    dot,  # used everywhere in updates, convergence, etc
+    I,    # used everywhere in updates, convergence, etc
     norm, # used everywhere in updates, convergence, etc
-    mul!,
-    rmul!,
+    mul!,  # quasi-newton updates, apply factorizations, etc
+    rmul!, # quasi-newton updates, apply factorizations, etc
     ldiv!, # quasi-newton updates, apply factorizations, etc
-    cholesky,
-    cholesky!,
-    factorize,
-    issuccess,
-    Cholesky, # very useful in trust region solvers
-    UniformScaling,
+    cholesky,  # very useful in trust region solvers
+    cholesky!, # very useful in trust region solvers
+    factorize, # very useful in trust region solvers
+    issuccess, # very useful in trust region solvers
+    Cholesky,  # very useful in trust region solvers
+    UniformScaling, # simple matrices
     Diagonal, # simple matrices
-    Symmetric,
+    Symmetric, # wrap before factorizations or eigensystems to avoid checks
     Hermitian, # wrap before factorizations or eigensystems to avoid checks
     diag, # mostly for trust region diagonal manipulation
     eigen, # for the direct subproblem solver
     opnorm, # for NWI safe guards
-    checksquare,
-    UpperTriangular,
-    givens,
-    lmul!,
+    checksquare,  # For QR update
+    UpperTriangular,  # For QR update
+    givens,  # For QR update
+    lmul!,  # For QR update
     cond, # For QR update
     axpy! # for Anderson
 
 
 import LinearAlgebra:
-    mul!,
+    mul!, # need to extend for preconditioners
     dot, # need to extend for preconditioners
     factorize # for ActiveBox
 
