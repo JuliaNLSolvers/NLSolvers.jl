@@ -4,7 +4,7 @@ function (::ShannoPhua)(s, y)
     real(dot(s, s)) / sum(abs2, s)
 end
 struct InitialScaling{S} <: QNScaling
-	scaling::S
+    scaling::S
 end
 (is::InitialScaling)(s, y) = is.scaling(s, y)
 next(qns::QNScaling) = qns

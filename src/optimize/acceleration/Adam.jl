@@ -11,12 +11,13 @@ Adam is a gradient based optimizer that choses its search direction by building 
 [1] https://arxiv.org/abs/1412.6980
 """
 struct Adam{T}
-  α::T
-  β₁::T
-  β₂::T
-  ϵ::T
+    α::T
+    β₁::T
+    β₂::T
+    ϵ::T
 end
-Adam(;alpha=0.0001, beta_mean=0.9, beta_var=0.999, epsilon=1e-8) = Adam(alpha, beta_mean, beta_var, epsilon)
+Adam(; alpha = 0.0001, beta_mean = 0.9, beta_var = 0.999, epsilon = 1e-8) =
+    Adam(alpha, beta_mean, beta_var, epsilon)
 summary(::Adam) = "Adam"
 
 """
@@ -33,68 +34,93 @@ AdaMax is a gradient based optimizer that choses its search direction by buildin
 [1] https://arxiv.org/abs/1412.6980
 """
 struct AdaMax{T}
-  α::T
-  β₁::T
-  β₂::T
+    α::T
+    β₁::T
+    β₂::T
 end
-AdaMax(;alpha=0.002, beta_mean=0.9, beta_var=0.999) = AdaMax(alpha, beta_mean, beta_var)
+AdaMax(; alpha = 0.002, beta_mean = 0.9, beta_var = 0.999) =
+    AdaMax(alpha, beta_mean, beta_var)
 summary(::AdaMax) = "AdaMax"
 
 function solve(problem::OptimizationProblem, x0, adam::Adam, options::OptimizationOptions)
-  α, β₁, β₂, ϵ = adam.α, adam.β₁, adam.β₂, adam.ϵ
-  t0 = time()
+    α, β₁, β₂, ϵ = adam.α, adam.β₁, adam.β₂, adam.ϵ
+    t0 = time()
 
-  fz, ∇fz = upto_gradient(problem, copy(x0), x0)
-  f0, ∇f0 = fz, norm(∇fz, Inf)
+    fz, ∇fz = upto_gradient(problem, copy(x0), x0)
+    f0, ∇f0 = fz, norm(∇fz, Inf)
 
-  z = copy(x0)
-  m = copy(∇fz)
-  v = fill(zero(∇fz[1]^2), length(m))
-  a = 1 - β₁
-  b = 1 - β₂
+    z = copy(x0)
+    m = copy(∇fz)
+    v = fill(zero(∇fz[1]^2), length(m))
+    a = 1 - β₁
+    b = 1 - β₂
 
-  iter = 0
-  is_converged = false
+    iter = 0
+    is_converged = false
 
-  while !is_converged
-    iter = iter + 1
-    m = β₁.*m .+ a.*∇fz
-    v = β₂.*v .+ b.*∇fz.^2
-    # m̂ = m./(1-β₁^t)
-    # v̂ = v./(1-β₂^t)
-    # x = x .- α*m̂/(sqrt.(v̂+ϵ))
-    αₜ = α * sqrt(1 - β₂^iter)/(1 - β₁^iter)
-    z = z .- αₜ .* m ./ (sqrt.(v) .+ ϵ)
+    while !is_converged
+        iter = iter + 1
+        m = β₁ .* m .+ a .* ∇fz
+        v = β₂ .* v .+ b .* ∇fz .^ 2
+        # m̂ = m./(1-β₁^t)
+        # v̂ = v./(1-β₂^t)
+        # x = x .- α*m̂/(sqrt.(v̂+ϵ))
+        αₜ = α * sqrt(1 - β₂^iter) / (1 - β₁^iter)
+        z = z .- αₜ .* m ./ (sqrt.(v) .+ ϵ)
 
-    # ∇fz = gradient!(mp, x, ∇fz)
-    fz, ∇fz = upto_gradient(problem, ∇fz, z)
-    is_converged = iter >= options.maxiter
-  end
-  ConvergenceInfo(adam, (solution=z, minimum=fz, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=iter, time=time()-t0), options)
+        # ∇fz = gradient!(mp, x, ∇fz)
+        fz, ∇fz = upto_gradient(problem, ∇fz, z)
+        is_converged = iter >= options.maxiter
+    end
+    ConvergenceInfo(
+        adam,
+        (
+            solution = z,
+            minimum = fz,
+            ∇fz = ∇fz,
+            f0 = f0,
+            ∇f0 = ∇f0,
+            iter = iter,
+            time = time() - t0,
+        ),
+        options,
+    )
 end
 function solve(problem::OptimizationProblem, x0, adam::AdaMax, options::OptimizationOptions)
-  α, β₁, β₂ = adam.α, adam.β₁, adam.β₂
-  t0 = time()
+    α, β₁, β₂ = adam.α, adam.β₁, adam.β₂
+    t0 = time()
 
-  fz, ∇fz = upto_gradient(problem, copy(x0), x0)
-  f0, ∇f0 = fz, norm(∇fz, Inf) 
- 
-  z = copy(x0)
-  m = copy(∇fz)
-  u = fill(zero(∇fz[1]^2), length(m))
-  a = 1 - β₁
+    fz, ∇fz = upto_gradient(problem, copy(x0), x0)
+    f0, ∇f0 = fz, norm(∇fz, Inf)
 
-  iter = 0
-  is_converged = false
+    z = copy(x0)
+    m = copy(∇fz)
+    u = fill(zero(∇fz[1]^2), length(m))
+    a = 1 - β₁
 
-  while !is_converged
-    iter = iter+1
-    m = β₁.*m .+ a.*∇fz
-    u = max.(β₂.*u, abs.(∇fz))
-    z = z .- (α ./ (1 - β₁^iter)) .* m ./ u
+    iter = 0
+    is_converged = false
 
-    fz, ∇fz = upto_gradient(problem, ∇fz, z)
-    is_converged = iter >= options.maxiter
-  end
-  ConvergenceInfo(adam, (solution=z, minimum=fz, ∇fz=∇fz, f0=f0, ∇f0=∇f0, iter=iter, time=time()-t0), options)
+    while !is_converged
+        iter = iter + 1
+        m = β₁ .* m .+ a .* ∇fz
+        u = max.(β₂ .* u, abs.(∇fz))
+        z = z .- (α ./ (1 - β₁^iter)) .* m ./ u
+
+        fz, ∇fz = upto_gradient(problem, ∇fz, z)
+        is_converged = iter >= options.maxiter
+    end
+    ConvergenceInfo(
+        adam,
+        (
+            solution = z,
+            minimum = fz,
+            ∇fz = ∇fz,
+            f0 = f0,
+            ∇f0 = ∇f0,
+            iter = iter,
+            time = time() - t0,
+        ),
+        options,
+    )
 end

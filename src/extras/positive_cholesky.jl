@@ -1,17 +1,18 @@
 using PositiveFactorizations
 
-function positive_linsolve(d,B,∇f)
+function positive_linsolve(d, B, ∇f)
     cholesky!(Positive, B)
-    Bchol = Cholesky(B,'L',0)
-    d .=  Bchol\∇f
+    Bchol = Cholesky(B, 'L', 0)
+    d .= Bchol \ ∇f
 end
-function positive_linsolve(B,∇f)
+function positive_linsolve(B, ∇f)
     Bchol = cholesky(Positive, B)
-    Bchol\∇f
+    Bchol \ ∇f
 end
 function positive_factorize(B)
     cholesky!(Positive, B)
-    Cholesky(B,'L',0)
+    Cholesky(B, 'L', 0)
 end
 
-Base.summary(::NLSolvers.Newton{<:Direct, typeof(positive_linsolve)}) = "Newton's method with PositiveFactorizations.jl linsolve"
+Base.summary(::NLSolvers.Newton{<:Direct,typeof(positive_linsolve)}) =
+    "Newton's method with PositiveFactorizations.jl linsolve"

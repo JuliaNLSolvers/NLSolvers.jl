@@ -15,19 +15,25 @@ struct ScalarObjective{Tf, Tg, Tfg, Tfgh, Th, Thv, Tbf, P}
 end
 =#
 abstract type AutoAD end
-struct ForwadDiffAD <: AutoAD
-end
+struct ForwadDiffAD <: AutoAD end
 import NLSolvers: ScalarObjective
-function ScalarObjective(autodiff::ForwadDiffAD, f, x, g=copy(x), h=x*x'; param=nothing)
-    chunksize=4
+function ScalarObjective(
+    autodiff::ForwadDiffAD,
+    f,
+    x,
+    g = copy(x),
+    h = x * x';
+    param = nothing,
+)
+    chunksize = 4
     # g
     gradcfg = ForwardDiff.GradientConfig(f, x, ForwardDiff.Chunk{chunksize}())
     grad = (res, z) -> ForwardDiff.gradient!(res, f, z, gradcfg, Val{false}())
 
     # fg
     function fg(G, x)
-      G = grad(G, x)
-      f(x), G
+        G = grad(G, x)
+        f(x), G
     end
 
     # h
@@ -36,25 +42,28 @@ function ScalarObjective(autodiff::ForwadDiffAD, f, x, g=copy(x), h=x*x'; param=
 
     # fgh
     function fgh(G, H, x)
-      G = grad(G, x)
-      H = hess(H, x)
-      f(x), G, H
+        G = grad(G, x)
+        H = hess(H, x)
+        f(x), G, H
     end
 
     # hv
 
-    return ScalarObjective(f,
-                           grad,
-                           fg,
-                           fgh,
-                           hess,
-                           nothing, #hv,
-                           nothing,
-                           param)
+    return ScalarObjective(
+        f,
+        grad,
+        fg,
+        fgh,
+        hess,
+        nothing, #hv,
+        nothing,
+        param,
+    )
 end
 
 
-OPT_PROBS["himmelblau"]["array"]["mutating2"] = ScalarObjective(ForwadDiffAD(), himmelblau!, x0)
+OPT_PROBS["himmelblau"]["array"]["mutating2"] =
+    ScalarObjective(ForwadDiffAD(), himmelblau!, x0)
 f2 = OPT_PROBS["himmelblau"]["array"]["mutating2"]
 prob2 = OptimizationProblem(f)
 

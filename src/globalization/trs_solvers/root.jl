@@ -10,18 +10,26 @@ include("solvers/NTR.jl")
 include("solvers/TCG.jl")
 #include("subproblemsolvers/TRS.jl") just make an example instead of relying onTRS.jl
 
-function tr_return(;λ, ∇f, H, s, interior, solved, hard_case, Δ, m=nothing)
-	m = m isa Nothing ? dot(∇f, s) + dot(s, H * s)/2 : m
-	(p=s, mz=m, interior=interior, λ=λ, hard_case=hard_case, solved=solved, Δ=Δ)
+function tr_return(; λ, ∇f, H, s, interior, solved, hard_case, Δ, m = nothing)
+    m = m isa Nothing ? dot(∇f, s) + dot(s, H * s) / 2 : m
+    (
+        p = s,
+        mz = m,
+        interior = interior,
+        λ = λ,
+        hard_case = hard_case,
+        solved = solved,
+        Δ = Δ,
+    )
 end
 
-function update_H!(H, h, λ=nothing)
-  T = eltype(h)
-  n = length(h)
-  if !(λ ==T(0))
-    for i = 1:n
-      @inbounds H[i, i] = λ isa Nothing ? h[i] : h[i] + λ
+function update_H!(H, h, λ = nothing)
+    T = eltype(h)
+    n = length(h)
+    if !(λ == T(0))
+        for i = 1:n
+            @inbounds H[i, i] = λ isa Nothing ? h[i] : h[i] + λ
+        end
     end
-  end
-  H
+    H
 end

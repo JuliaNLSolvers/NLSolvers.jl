@@ -4,14 +4,14 @@ using NLSolvers
 #ScalarLsqObjective
 #VectorLsqObjective
 
-@. model(x, p) = p[1]*exp(-x*p[2])
-xdata = range(0, stop=10, length=20)
-ydata = model(xdata, [1.0 2.0]) + 0.01*randn(length(xdata))
+@. model(x, p) = p[1] * exp(-x * p[2])
+xdata = range(0, stop = 10, length = 20)
+ydata = model(xdata, [1.0 2.0]) + 0.01 * randn(length(xdata))
 p0 = [0.5, 0.5]
 
 function f(x)
     mod = model(xdata, x)
-    return sum(abs2, mod.-ydata)/2
+    return sum(abs2, mod .- ydata) / 2
 end
 x0 = copy(p0)
 function g!(G, x)
@@ -34,7 +34,7 @@ function fgh!(G, H, x)
     return fx, G, H
 end
 obj = ScalarObjective(f, g!, fg, fgh!, h!, nothing, nothing, nothing)
-prob = OptimizationProblem(obj, ([0.0,0.0],[3.0,3.0]))
+prob = OptimizationProblem(obj, ([0.0, 0.0], [3.0, 3.0]))
 res = solve(prob, copy(p0), LineSearch(BFGS()), OptimizationOptions())
 res = solve(prob, copy(p0), NelderMead(), OptimizationOptions())
 res = solve(prob, copy(p0), SimulatedAnnealing(), OptimizationOptions())
@@ -75,9 +75,9 @@ end
 x0 = [-1.2, 1.0]
 
 # Use y-data to setup Fx (and Jx) correctly
-vectorobj = LeastSquaresObjective(copy(ydata), ydata*x0', F!, FJ!, ydata)
+vectorobj = LeastSquaresObjective(copy(ydata), ydata * x0', F!, FJ!, ydata)
 
-prob=LeastSquaresProblem(vectorobj, ([0.0,0.0],[1.0,1.0]))
+prob = LeastSquaresProblem(vectorobj, ([0.0, 0.0], [1.0, 1.0]))
 res = solve(prob, copy(p0), LineSearch(SR1()), LeastSquaresOptions(40))
 res = solve(prob, copy(p0), LineSearch(DFP()), LeastSquaresOptions(40))
 res = solve(prob, copy(p0), LineSearch(BFGS()), LeastSquaresOptions(40))
@@ -114,15 +114,15 @@ function LeastSquaresModel(model, xdata, ydata)
         h!(H, x)
         return fx, G, H
     end
-    obj = ScalarObjective(f, g!, fg, fgh!, h!, nothing, nothing, nothing)        
+    obj = ScalarObjective(f, g!, fg, fgh!, h!, nothing, nothing, nothing)
 end
 
-unimodel(x, p) = p[1]*exp(-x[1]*p[2])
-xdata = range(0, stop=10, length=20)
-ydata = unimodel.(xdata, Ref([1.0 2.0])) + 0.01*randn(length(xdata))
+unimodel(x, p) = p[1] * exp(-x[1] * p[2])
+xdata = range(0, stop = 10, length = 20)
+ydata = unimodel.(xdata, Ref([1.0 2.0])) + 0.01 * randn(length(xdata))
 p0 = [0.5, 0.5]
 obj = LeastSquaresModel(unimodel, xdata, ydata)
-prob = OptimizationProblem(obj, ([0.0,0.0],[3.0,3.0]))
+prob = OptimizationProblem(obj, ([0.0, 0.0], [3.0, 3.0]))
 res = solve(prob, copy(p0), LineSearch(BFGS()), OptimizationOptions())
 res = solve(prob, copy(p0), NelderMead(), OptimizationOptions())
 res = solve(prob, copy(p0), SimulatedAnnealing(), OptimizationOptions())
@@ -132,7 +132,7 @@ res = solve(prob, copy(p0), ParticleSwarm(), OptimizationOptions())
 
 function f(x)
     mod = model(xdata, x)
-    return sum(abs2, mod.-ydata)/2
+    return sum(abs2, mod .- ydata) / 2
 end
 x0 = copy(p0)
 function g!(G, x)

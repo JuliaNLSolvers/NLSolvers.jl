@@ -16,53 +16,71 @@
 # TODO allow passing in a lambda and previous cholesky if the
 # solution was not accepted
 # As described in Algorith, 7.3.4 in [CGTBOOK]
-struct NTR <: TRSPSolver
-end
+struct NTR <: TRSPSolver end
 summary(::NTR) = "Trust Region (Newton, cholesky)"
 
 function initial_λs(∇f, H, Δ)
     n = length(∇f)
     T = eltype(∇f)
     Hfrob = norm(H, 2)
-    Hinf  = norm(H, Inf)
+    Hinf = norm(H, Inf)
     max_h = maximum(diag(H))
 
-    norm_to_Δ = norm(∇f)/Δ
+    norm_to_Δ = norm(∇f) / Δ
 
     sumabs_j = sum(abs, view(H, 2:n, 1))
-    max_i_p = +H[1, 1] + sumabs_j
-    max_i_m = -H[1, 1] + sumabs_j
+    max_i_p = H[1, 1] + sumabs_j + max_i_m = -H[1, 1] + sumabs_j
     for j = 2:n
         sumabs_j = T(0)
         for i = 1:n-1
             i == j && continue
             sumabs_j += abs(H[i, j])
         end
-        max_i_p = max(max_i_p, +H[j, j] + sumabs_j)
-        max_i_m = max(max_i_m, -H[j, j] + sumabs_j)
+        max_i_p = max(max_i_p, sumabs_j + H[j, j])
+        max_i_m = max(max_i_m, sumabs_j - H[j, j])
     end
-    λL = max(T(0), norm_to_Δ - min(max_i_p, Hfrob, Hinf), - max_h)
+    λL = max(T(0), norm_to_Δ - min(max_i_p, Hfrob, Hinf), -max_h)
     λU = max(T(0), norm_to_Δ + min(max_i_m, Hfrob, Hinf))
-    λL, λU
+    return λL, λU
 end
-λ⁺_newton(λ, w, Δ) = λ + (s₂^2/dot(w,w))*(s₂ - Δ)/Δ
-function (ms::NTR)(∇f, H, Δ::T, s, scheme, λ0=0; abstol=1e-10, maxiter=50, κeasy=T(1)/10, κhard=T(2)/10) where T
+λ⁺_newton(λ, w, Δ) = λ + (s₂^2 / dot(w, w)) * (s₂ - Δ) / Δ
+function (ms::NTR)(
+    ∇f,
+    H,
+    Δ::T,
+    s,
+    scheme,
+    λ0 = 0;
+    abstol = 1e-10,
+    maxiter = 50,
+    κeasy = T(1) / 10,
+    κhard = T(2) / 10,
+) where {T}
     # λ0 might not be 0 if we come from a failed TRS solve
     λ = T(λ0)
-    θ = T(1)/2
+    θ = T(1) / 2
     n = length(∇f)
-    h = H isa UniformScaling ? copy(∇f).*0 .+ 1 : diag(H)
-    H = H isa UniformScaling ? Diagonal(copy(∇f).*0 .+ 1) : H
+    h = H isa UniformScaling ? copy(∇f) .* 0 .+ 1 : diag(H)
+    H = H isa UniformScaling ? Diagonal(copy(∇f) .* 0 .+ 1) : H
 
     # Check for interior convergence
     if λ == T(0)
-        F = cholesky(Symmetric(H); check=false)
+        F = cholesky(Symmetric(H); check = false)
         s .= -∇f
-        s .= F\s
+        s .= F \ s
         s₂ = norm(s, 2)
         if issuccess(F) && s₂ < Δ
             H = update_H!(H, h)
-            return tr_return(;λ=λ, ∇f=∇f, H=H, s=s, interior=true, solved=true, hard_case=false, Δ=Δ)
+            return tr_return(;
+                λ = λ,
+                ∇f = ∇f,
+                H = H,
+                s = s,
+                interior = true,
+                solved = true,
+                hard_case = false,
+                Δ = Δ,
+            )
         end
     end
 
@@ -74,7 +92,7 @@ function (ms::NTR)(∇f, H, Δ::T, s, scheme, λ0=0; abstol=1e-10, maxiter=50, �
 
     for iter = 1:maxiter
         H = update_H!(H, h, λ)
-        F = cholesky(Symmetric(H); check=false)
+        F = cholesky(Symmetric(H); check = false)
         in𝓖, linpack = false, false
         #===========================================================================
          If F is successful, then H is positive definite, and we can safely look
@@ -89,13 +107,22 @@ function (ms::NTR)(∇f, H, Δ::T, s, scheme, λ0=0; abstol=1e-10, maxiter=50, �
             # Step 1 was factorizing
             # Step 2
             s .= -∇f
-            s .= F\s
+            s .= F \ s
 
             # Check if step is approximately equal to the radius
             s₂ = norm(s, 2)
             if s₂ ≈ Δ
                 H = update_H!(H, h)
-                return tr_return(; λ=λ, ∇f=∇f, H=H, s=s, interior=false, solved=true, hard_case=false, Δ=Δ)
+                return tr_return(;
+                    λ = λ,
+                    ∇f = ∇f,
+                    H = H,
+                    s = s,
+                    interior = false,
+                    solved = true,
+                    hard_case = false,
+                    Δ = Δ,
+                )
             end
             if s₂ < Δ # in 𝓖 because we're in 𝓕, but curve below Δ
                 # we're in 𝓖 so λ is a new upper bound; λᴹ < λ
@@ -103,36 +130,46 @@ function (ms::NTR)(∇f, H, Δ::T, s, scheme, λ0=0; abstol=1e-10, maxiter=50, �
                 λU = λ
             else # λ ∈ 𝓛
                 # in 𝓛 λ is a *lower* bound instead
-               λL = λ
+                λL = λ
             end
 
             # Step 3
-            w = F.U'\s
+            w = F.U' \ s
 
             # Step 4
             # Newton trial step
-            λ⁺ = λ + ((s₂ - Δ)/Δ)*(s₂^2/dot(w, w))
+            λ⁺ = λ + ((s₂ - Δ) / Δ) * (s₂^2 / dot(w, w))
             if in𝓖
                 linpack = true
                 w, u = λL_with_linpack(F)
-                λL = max(λL, λ - dot(u, H*u))
+                λL = max(λL, λ - dot(u, H * u))
 
                 α, s_g, m_g = 𝓖_root(u, s, Δ, ∇f, H)
                 s .= s_g
 
                 s₂ = norm(s)
                 # check hard case convergnce
-                if α^2*dot(u, H*u) ≤ κhard*(dot(s, H*s)+λ*Δ^2)
+                if α^2 * dot(u, H * u) ≤ κhard * (dot(s, H * s) + λ * Δ^2)
                     H = update_H!(H, h)
-                    return tr_return(;λ=λ, ∇f=∇f, H=H, s=s, interior=false, solved=true, hard_case=true, Δ=Δ, m = m_g)
+                    return tr_return(;
+                        λ = λ,
+                        ∇f = ∇f,
+                        H = H,
+                        s = s,
+                        interior = false,
+                        solved = true,
+                        hard_case = true,
+                        Δ = Δ,
+                        m = m_g,
+                    )
                 end
                 # If not the hard case solution, try to factorize H(λ⁺)
                 H = update_H!(H, h, λ⁺)
-                F = cholesky(H; check=false)
+                F = cholesky(H; check = false)
                 if issuccess(F) # Then we're in L, great! lemma 7.3.2
                     λ = λ⁺
                 else # we landed in N, this is bad, so use bounds to approach L
-                    λ = max(sqrt(λL*λU), λL + θ*(λU - λL))
+                    λ = max(sqrt(λL * λU), λL + θ * (λU - λL))
                 end
             else # in L, we can safely step
                 λ = λ⁺
@@ -141,14 +178,32 @@ function (ms::NTR)(∇f, H, Δ::T, s, scheme, λ0=0; abstol=1e-10, maxiter=50, �
             # check for convergence
             if in𝓖 && abs(s₂ - Δ) ≤ κeasy * Δ
                 H = update_H!(H, h)
-                return tr_return(;λ=λ, ∇f=∇f, H=H, s=s, interior=false, solved=true, hard_case=false, Δ=Δ)
+                return tr_return(;
+                    λ = λ,
+                    ∇f = ∇f,
+                    H = H,
+                    s = s,
+                    interior = false,
+                    solved = true,
+                    hard_case = false,
+                    Δ = Δ,
+                )
             elseif abs(s₂ - Δ) ≤ κeasy * Δ # implicitly "if in 𝓕" since we're in that branch
                 # u and α comes from linpack
                 if linpack
-                    if α^2*dot(u, H*u) ≤ κhard*(dot(sλ, H*sλ)*Δ^2)
-                        s .= s .+ α*u
+                    if α^2 * dot(u, H * u) ≤ κhard * (dot(sλ, H * sλ) * Δ^2)
+                        s .= s .+ α * u
                         H = update_H!(H, h)
-                        return tr_return(;λ=λ, ∇f=∇f, H=H, s=s, interior=false, solved=true, hard_case=false, Δ=Δ)
+                        return tr_return(;
+                            λ = λ,
+                            ∇f = ∇f,
+                            H = H,
+                            s = s,
+                            interior = false,
+                            solved = true,
+                            hard_case = false,
+                            Δ = Δ,
+                        )
                     end
                 end
             end
@@ -157,26 +212,35 @@ function (ms::NTR)(∇f, H, Δ::T, s, scheme, λ0=0; abstol=1e-10, maxiter=50, �
             # H(λ) + δ*e*e' = 0. All we can do here is to find a better
             # lower bound, we cannot apply the Newton step here.
             δ, v = λL_in_𝓝(H, F)
-            λL = max(λL, λ + δ/dot(v, v)) # update lower bound
-            λ = max(sqrt(λL*λU), λL + θ*(λU - λL)) # no converence possible, so step in bracket
+            λL = max(λL, λ + δ / dot(v, v)) # update lower bound
+            λ = max(sqrt(λL * λU), λL + θ * (λU - λL)) # no converence possible, so step in bracket
         end
     end
     H = update_H!(H, h)
-    tr_return(;λ=λ, ∇f=∇f, H=H, s=s, interior=true, solved=false, hard_case=false, Δ=Δ)
+    tr_return(;
+        λ = λ,
+        ∇f = ∇f,
+        H = H,
+        s = s,
+        interior = true,
+        solved = false,
+        hard_case = false,
+        Δ = Δ,
+    )
 end
 
 function λL_in_𝓝(H, F)
     T = eltype(F)
     n = first(size(F))
-    δ = sum(abs2, view(F.factors, 1:(F.info - 1), F.info)) - H[F.info, F.info]
+    δ = sum(abs2, view(F.factors, 1:(F.info-1), F.info)) - H[F.info, F.info]
     v = zeros(T, n)
     v[F.info] = 1
-    for j in (F.info - 1):-1:1
+    for j = (F.info-1):-1:1
         vj = zero(T)
-        for i in (j + 1):F.info
-            vj += F.factors[j,i]*v[i]
+        for i = (j+1):F.info
+            vj += F.factors[j, i] * v[i]
         end
-        v[j] = -vj/F.factors[j, j]
+        v[j] = -vj / F.factors[j, j]
     end
     return δ, v
 end
@@ -189,25 +253,25 @@ function λL_with_linpack(F)
     num_m1 = -inv(F.factors[end, end])
     w[end] = max(num_p1, num_m1)
     for k = n-1:-1:1
-      ukk = F.factors[k, k]
-      num = sum(abs2, view(F.factors, 1:(k - 1), k))
-      w[k] = max((1-num)/ukk, (-1-num)/ukk)
+        ukk = F.factors[k, k]
+        num = sum(abs2, view(F.factors, 1:(k-1), k))
+        w[k] = max((1 - num) / ukk, (-1 - num) / ukk)
     end
-    sol = F.factors\w
-    w, sol./norm(sol)
+    sol = F.factors \ w
+    w, sol ./ norm(sol)
 end
 
 function 𝓖_root(u, s, Δ, ∇f, H)
     pa = sum(abs2, u)
-    pb = 2*dot(u, s)
-    pd = sqrt(4*pb^2-pa*(sum(abs2, s)-Δ^2))
-    α₁ = (-pb + pd)/2pa
-    α₂ = (-pb - pd)/2pa
+    pb = 2 * dot(u, s)
+    pd = sqrt(4 * pb^2 - pa * (sum(abs2, s) - Δ^2))
+    α₁ = (-pb + pd) / 2pa
+    α₂ = (-pb - pd) / 2pa
 
-    s₁ = s + α₁*u
-    m₁ = dot(∇f, s₁) + dot(s₁, H * s₁)/2
-    s₂ = s + α₂*u
-    m₂ = dot(∇f, s₂) + dot(s₂, H * s₂)/2
+    s₁ = s + α₁ * u
+    m₁ = dot(∇f, s₁) + dot(s₁, H * s₁) / 2
+    s₂ = s + α₂ * u
+    m₂ = dot(∇f, s₂) + dot(s₂, H * s₂) / 2
     α, s, m = m₁ ≤ m₂ ? (α₁, s₁, m₁) : (α₂, s₂, m₂)
     α, s, m
 end

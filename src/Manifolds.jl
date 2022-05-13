@@ -26,9 +26,10 @@ retract!(M::Manifold, y, x, v, method::ExponentialRetraction) = exp!(M, y, x, v)
 
 retract!(M::Manifold, y, x, v) = retract!(M, y, x, v, ExponentialRetraction())
 
-retract!(M::Manifold, y, x, v, t::Real) = retract!(M, y, x, t*v)
+retract!(M::Manifold, y, x, v, t::Real) = retract!(M, y, x, t * v)
 
-retract!(M::Manifold, y, x, v, t::Real, method::AbstractRetractionMethod) = retract!(M, y, x, t*v, method)
+retract!(M::Manifold, y, x, v, t::Real, method::AbstractRetractionMethod) =
+    retract!(M, y, x, t * v, method)
 struct Euclidean{T<:Tuple} <: Manifold where {T} end
 
 Euclidean(n::Int) = Euclidean{Tuple{n}}()
@@ -39,7 +40,7 @@ function representation_size(::Euclidean{Tuple{n}}) where {n}
 end
 
 function representation_size(::Euclidean{Tuple{m,n}}) where {m,n}
-    return (m,n)
+    return (m, n)
 end
 
 @generated manifold_dimension(::Euclidean{T}) where {T} = *(T.parameters...)
@@ -59,7 +60,7 @@ function project_tangent!(M::Euclidean, w, x, v)
     w .= v
     return w
 end
-retract(M::Euclidean, x, v, t::Real) = x+t*v
+retract(M::Euclidean, x, v, t::Real) = x + t * v
 
 function retract(M::Manifold, x, v, method::AbstractRetractionMethod)
     xr = copy(x)
@@ -73,6 +74,7 @@ function retract(M::Manifold, x, v)
     return xr
 end
 
-retract(M::Manifold, x, v, t::Real) = retract(M, x, t*v)
+retract(M::Manifold, x, v, t::Real) = retract(M, x, t * v)
 
-retract(M::Manifold, x, v, t::Real, method::AbstractRetractionMethod) = retract(M, x, t*v, method)
+retract(M::Manifold, x, v, t::Real, method::AbstractRetractionMethod) =
+    retract(M, x, t * v, method)

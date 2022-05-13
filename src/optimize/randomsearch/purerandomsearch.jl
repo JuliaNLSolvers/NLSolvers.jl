@@ -19,15 +19,19 @@ struct PureRandomSearch{T}
     draw::T
 end
 
-function PureRandomSearch(; draw=nothing, lb=nothing, ub=nothing)
+function PureRandomSearch(; draw = nothing, lb = nothing, ub = nothing)
     if isa(draw, Nothing)
         if isa(lb, Nothing) || isa(ub, Nothing)
-            throw(ArgumentError("If you do not provide a draw, you need to provide lower and upper bounds. See ?PureRandomSearch for more details."))
+            throw(
+                ArgumentError(
+                    "If you do not provide a draw, you need to provide lower and upper bounds. See ?PureRandomSearch for more details.",
+                ),
+            )
         end
         width = ub .- lb
         T = eltype(width)
         N = length(width)
-        _draw(xbest=nothing) = width .* rand(T, N) .+ lb
+        _draw(xbest = nothing) = width .* rand(T, N) .+ lb
     else
         _draw = draw
     end

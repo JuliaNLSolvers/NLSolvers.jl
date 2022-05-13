@@ -20,18 +20,18 @@ struct Dogleg{T} <: TRSPSolver
 end
 Dogleg() = Dogleg(nothing)
 
-function (dogleg::Dogleg)(∇f, H, Δ, p, scheme; abstol=1e-10, maxiter=50)
+function (dogleg::Dogleg)(∇f, H, Δ, p, scheme; abstol = 1e-10, maxiter = 50)
     T = eltype(p)
     n = length(∇f)
 
     # find the Cauchy point; assumes ∇f is not ≈ 0
-    d_cauchy = - ∇f*norm(∇f)^2/(∇f'*H*∇f)
+    d_cauchy = -∇f * norm(∇f)^2 / (∇f' * H * ∇f)
 
     # If it lies outside of the trust region, accept the Cauchy point and
     # move on
     norm_d_cauchy = norm(d_cauchy)
     if norm_d_cauchy ≥ Δ
-        shrink = Δ/norm_d_cauchy # inv(Δ/norm_d_cauchy) puts it on the border
+        shrink = Δ / norm_d_cauchy # inv(Δ/norm_d_cauchy) puts it on the border
         p .= d_cauchy .* shrink
         interior = false
     else
@@ -56,10 +56,10 @@ function (dogleg::Dogleg)(∇f, H, Δ, p, scheme; abstol=1e-10, maxiter=50)
             dot_cachy_p = dot(d_cauchy, p)
 
             # a is ||d_c - d_n||^2 expanded into scalar operations
-            a = norm_d_cauchy^2 + norm_p^2 - 2*dot_cachy_p
+            a = norm_d_cauchy^2 + norm_p^2 - 2 * dot_cachy_p
             b = -dot_cachy_p * norm_d_cauchy^2
             c = norm_d_cauchy^2 - Δ^2 # move the rhs over
-            q = -(b + sign(b)*√(b^2-4*a*c))/2
+            q = -(b + sign(b) * √(b^2 - 4 * a * c)) / 2
 
             # since we know that c is necessarily negative (since d_cauchy was
             # not at the border) the discriminant is positive, and there are two
@@ -79,7 +79,15 @@ function (dogleg::Dogleg)(∇f, H, Δ, p, scheme; abstol=1e-10, maxiter=50)
             interior = false
         end
     end
-    m = dot(∇f, p) + dot(p, H * p)/2
+    m = dot(∇f, p) + dot(p, H * p) / 2
 
-    return (p=p, mz=m, interior=interior, λ=nothing, hard_case=nothing, solved=true, Δ=Δ)
+    return (
+        p = p,
+        mz = m,
+        interior = interior,
+        λ = nothing,
+        hard_case = nothing,
+        solved = true,
+        Δ = Δ,
+    )
 end

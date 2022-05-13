@@ -40,10 +40,10 @@ function initial_safeguards(B, h, g, Δ)
     # they state on the first page that ||⋅|| is the Euclidean norm
     gnorm = norm(g)
     Bnorm = opnorm(B, 1)
-    λL = max(T(0), λS, gnorm/Δ - Bnorm)
-    λU = gnorm/Δ + Bnorm
+    λL = max(T(0), λS, gnorm / Δ - Bnorm)
+    λU = gnorm / Δ + Bnorm
 
-    return (L=λL, U=λU, S=λS)
+    return (L = λL, U = λU, S = λS)
 end
 
 """
@@ -53,10 +53,10 @@ Returns a tuple of initial safeguarding values for λ. Newton's method might not
 work well without these safeguards when the Hessian is not positive definite.
 The equations are found in p. 558 of [MoreSorensen1983]
 """
-function safeguard_λ(λ::T, λsg) where T
+function safeguard_λ(λ::T, λsg) where {T}
     λ = min(max(λ, λsg.L), λsg.U)
     if λ ≤ λsg.S
-        λ = max(T(1)/1000*λsg.U, sqrt(λsg.L*λsg.U))
+        λ = max(T(1) / 1000 * λsg.U, sqrt(λsg.L * λsg.U))
     end
     λ
 end
@@ -71,7 +71,7 @@ to the smallest eigenvalue. `QΛQ.values` holds the eigenvalues of H sorted low
 to high, `Qt∇f` is a vector of the inner products between the eigenvectors and the
 gradient.
 """
-function is_maybe_hard_case(QΛQ, Qt∇f::AbstractVector{T}) where T
+function is_maybe_hard_case(QΛQ, Qt∇f::AbstractVector{T}) where {T}
     # If the solution to the trust region sub-problem is on the boundary of the
     # trust region, {w : ||w|| ≤ Δk}, then the solution is usually found by
     # finding a λ ≥ 0 such that ||(B + λI)⁻¹g|| = Δ and x'(B + λI)x > 0, x≠0.
@@ -115,7 +115,7 @@ end
 calc_p!(p, Qt∇f, QΛQ, λ) = calc_p!(p, Qt∇f, QΛQ, λ, 1)
 
 # Equation 4.45 in N&W (2006) since we allow for first_j > 1
-function calc_p!(p, Qt∇f, QΛQ, λ::T, first_j) where T
+function calc_p!(p, Qt∇f, QΛQ, λ::T, first_j) where {T}
     # Reset search direction to 0
     fill!(p, T(0))
 
@@ -124,7 +124,7 @@ function calc_p!(p, Qt∇f, QΛQ, λ::T, first_j) where T
     Q = QΛQ.vectors
     for j = first_j:length(Λ)
         κ = Qt∇f[j] / (Λ[j] + λ)
-        @. p = p - κ*Q[:, j]
+        @. p = p - κ * Q[:, j]
     end
     p
 end
@@ -148,16 +148,16 @@ Returns:
     solved - Whether or not a solution was reached (as opposed to
       terminating early due to maxiter)
 """
-function (ms::NWI)(∇f, H, Δ, p, scheme; abstol=1e-10, maxiter=50)
+function (ms::NWI)(∇f, H, Δ, p, scheme; abstol = 1e-10, maxiter = 50)
     T = eltype(p)
     n = length(∇f)
-    H = H isa UniformScaling ? Diagonal(copy(∇f).*0 .+ 1) : H
+    H = H isa UniformScaling ? Diagonal(copy(∇f) .* 0 .+ 1) : H
     h = diag(H)
 
     # Note that currently the eigenvalues are only sorted if H is perfectly
     # symmetric.  (Julia issue #17093)
     if H isa Diagonal
-        QΛQ = ms.eigen(H; sortby=identity)
+        QΛQ = ms.eigen(H; sortby = identity)
     else
         QΛQ = ms.eigen(Hermitian(H))
     end
@@ -183,9 +183,17 @@ function (ms::NWI)(∇f, H, Δ, p, scheme; abstol=1e-10, maxiter=50)
             solved = true
             hard_case = false
 
-            m = dot(∇f, p) + dot(p, H * p)/2
+            m = dot(∇f, p) + dot(p, H * p) / 2
 
-            return (p=p, mz=m, interior=interior, λ=λ, hard_case=hard_case, solved=solved, Δ=Δ)
+            return (
+                p = p,
+                mz = m,
+                interior = interior,
+                λ = λ,
+                hard_case = hard_case,
+                solved = solved,
+                Δ = Δ,
+            )
         end
     end
 
@@ -222,9 +230,17 @@ function (ms::NWI)(∇f, H, Δ, p, scheme; abstol=1e-10, maxiter=50)
 
             @. p = -pλ + tau * Q[:, 1]
 
-            m = dot(∇f, p) + dot(p, H * p)/2
+            m = dot(∇f, p) + dot(p, H * p) / 2
 
-            return (p=p, mz=m, interior=interior, λ=λ, hard_case=hard_case, solved=solved, Δ=Δ)
+            return (
+                p = p,
+                mz = m,
+                interior = interior,
+                λ = λ,
+                hard_case = hard_case,
+                solved = solved,
+                Δ = Δ,
+            )
         end
     end
     # If this is reached, we cannot be in the hard case after all, and we
@@ -239,16 +255,18 @@ function (ms::NWI)(∇f, H, Δ, p, scheme; abstol=1e-10, maxiter=50)
     λ = λ + sqrt(eps(T))
     isg = initial_safeguards(H, h, ∇f, Δ)
     λ = safeguard_λ(λ, isg)
-    for iter in 1:maxiter
+    for iter = 1:maxiter
         λ_previous = λ
         H = update_H!(H, h, λ)
 
-        F = H isa Diagonal ? cholesky(H; check=false) : cholesky(Hermitian(H); check=false)
+        F =
+            H isa Diagonal ? cholesky(H; check = false) :
+            cholesky(Hermitian(H); check = false)
         if !issuccess(F)
             # We should not be here, but the lower bound might fail for
             # numerical reasons.
             if λ < λ_lb
-                λ = T(1)/2 * (λ_previous - λ_lb) + λ_lb
+                λ = T(1) / 2 * (λ_previous - λ_lb) + λ_lb
             end
             continue
         end
@@ -263,7 +281,7 @@ function (ms::NWI)(∇f, H, Δ, p, scheme; abstol=1e-10, maxiter=50)
         # Check that λ is not less than λ_lb, and if so, go
         # half the way to λ_lb. (This should be geometric mean)
         if λ < λ_lb
-            λ = T(1)/2 * (λ_previous - λ_lb) + λ_lb
+            λ = T(1) / 2 * (λ_previous - λ_lb) + λ_lb
         end
         if abs(λ - λ_previous) ≤ abstol
             solved = true
@@ -272,6 +290,14 @@ function (ms::NWI)(∇f, H, Δ, p, scheme; abstol=1e-10, maxiter=50)
     end
 
     H = update_H!(H, h)
-    m = dot(∇f, p) + dot(p, H * p)/2
-    return (p=p, mz=m, interior=interior, λ=λ, hard_case=hard_case, solved=solved, Δ=Δ)
+    m = dot(∇f, p) + dot(p, H * p) / 2
+    return (
+        p = p,
+        mz = m,
+        interior = interior,
+        λ = λ,
+        hard_case = hard_case,
+        solved = solved,
+        Δ = Δ,
+    )
 end
