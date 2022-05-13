@@ -20,18 +20,18 @@ abstract type AbstractBacktracking end
 abstract type BacktrackingInterp end
 
 """
-  _safe_α(α_cand, α_curr, c, ratio)
+  _safe_α(α_candidate, α_curr, c, ratio)
 
 Returns the safeguarded value of α in a Amijo
 backtracking line search.
 
 σ restriction 0 < c < ratio < 1
 """
-function _safe_α(α_cand, α_curr, decrease = 0.1, ratio = 0.5)
-    α_cand < decrease * α_curr && return decrease * α_curr
-    α_cand > ratio * α_curr && return ratio * α_curr
+function _safe_α(α_candidate, α_current, decrease = 0.1, ratio = 0.5)
+    α_candidate < decrease * α_current && return decrease * α_current
+    α_candidate > ratio * α_current && return ratio * α_current
 
-    α_cand # if the candidate is in the interval, just return it
+    return α_candidate # if the candidate is in the interval, just return it
 end
 
 """
