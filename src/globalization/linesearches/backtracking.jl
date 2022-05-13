@@ -20,18 +20,18 @@ abstract type AbstractBacktracking end
 abstract type BacktrackingInterp end
 
 """
-  _safe_α(α_cand, α_curr, c, ratio)
+  _safe_α(α_candidate, α_curr, c, ratio)
 
 Returns the safeguarded value of α in a Amijo
 backtracking line search.
 
 σ restriction 0 < c < ratio < 1
 """
-function _safe_α(α_cand, α_curr, decrease=0.1, ratio=0.5)
-  α_cand < decrease*α_curr && return decrease*α_curr
-  α_cand > ratio*α_curr    && return ratio*α_curr
-  
-  α_cand # if the candidate is in the interval, just return it
+function _safe_α(α_candidate, α_current, decrease=0.1, ratio=0.5)
+  α_candidate < decrease*α_current && return decrease*α_current
+  α_candidate > ratio*α_current    && return ratio*α_current
+
+  α_candidate # if the candidate is in the interval, just return it
 end
 
 """
@@ -64,7 +64,7 @@ value as appropriate.
 
 """
 struct Backtracking{T1, T2, T3, TR} <: LineSearcher
-    ratio::T1
+  ratio::T1
 	decrease::T1
 	maxiter::T2
 	interp::T3
@@ -156,7 +156,7 @@ function find_steplength(mstyle, ls::Backtracking, φ::T, λ) where T
 
     iter, α, β = 0, λ, λ # iteration variables
 	f_α = φ(α) # initial function value
-	
+
 	if verbose
 		println("Entering line search with step size: ", λ)
 		println("Initial value: ", φ0)
