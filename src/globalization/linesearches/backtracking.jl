@@ -64,7 +64,7 @@ value as appropriate.
 
 """
 struct Backtracking{T1, T2, T3, TR} <: LineSearcher
-  ratio::T1
+    ratio::T1
 	decrease::T1
 	maxiter::T2
 	interp::T3
