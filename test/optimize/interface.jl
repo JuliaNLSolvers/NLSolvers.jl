@@ -533,9 +533,10 @@ solve(static_prob_qn, rand(3), AdaMax(), OptimizationOptions(maxiter = 1000))
     res_con = solve(prob_on_bounds, copy(start), ActiveBox(), OptimizationOptions())
     @test res_con.info.solution ≈ [3.5, 1.6165968467448326]
 
-    res_con = solve(prob_on_bounds, (copy(start), [1.0 0.0;0.0 1.0]) , ActiveBox(), OptimizationOptions())
-    res_con = solve(prob_on_bounds, (copy(start), @MMatrix([1.0 0.0;0.0 1.0])) , ActiveBox(), OptimizationOptions())
-    @test res_con.info.B isa MMatrix
+    res_con_matrix = solve(prob_on_bounds, (copy(start), [1.0 0.0;0.0 1.0]) , ActiveBox(), OptimizationOptions())
+    @test res_con_matrix.info.B isa Matrix
+    res_con_mmatrix = solve(prob_on_bounds, (copy(start), @MMatrix([1.0 0.0;0.0 1.0])) , ActiveBox(), OptimizationOptions())
+    @test res_con_mmatrix.info.B isa MMatrix
 end
 
 function fourth_f(x)
