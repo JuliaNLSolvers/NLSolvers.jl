@@ -61,16 +61,33 @@ end
 isbinding(i, j) = i & j
 
 factorize(ab::ActiveBox, M) = ab.factorize(M)
-
 function solve(
-    prob::OptimizationProblem,
+    problem::OptimizationProblem,
     x0,
+    approach::ActiveBox,
+    options::OptimizationOptions,
+)
+    B0 = false * x0 * x0' + I
+    s0 = (x0, B0)
+    _solve(problem, s0, approach, options)
+end
+function solve(
+    problem::OptimizationProblem,
+    s0::Tuple,
+    approach::ActiveBox,
+    options::OptimizationOptions,
+)
+    _solve(problem, s0, approach, options)
+end
+
+function _solve(
+    prob::OptimizationProblem,
+    s0::Tuple,
     scheme::ActiveBox,
     options::OptimizationOptions,
 )
     t0 = time()
-
-    x0, B0 = x0, (false * x0 * x0' + I)
+    x0, B0 = s0
 
     lower, upper = bounds(prob)
     if isnothing(scheme.ϵ)

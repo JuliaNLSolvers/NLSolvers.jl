@@ -14,6 +14,7 @@ function solve(
 end
 
 function _solve(prob, bm::BrentMin, options)
+    time0 = time()
     a, b = bounds(prob)
     T = typeof(a)
     t = 1e-8
@@ -22,10 +23,11 @@ function _solve(prob, bm::BrentMin, options)
 
     e = d = 0 * x
 
-    fv = fw = fx = value(prob, x)
+    f0 = fv = fw = fx = value(prob, x)
     p = q = r = 0 * x
-
-    for i = 1:options.maxiter
+    brent_iter = 0
+    while brent_iter < options.maxiter
+        brent_iter += 1
         m = (a + b) / 2
         tol = eps(T) * abs(x) + t
         if abs(x - m) > 2 * tol - (b - a) / 2 # stopping crit
@@ -45,15 +47,11 @@ function _solve(prob, bm::BrentMin, options)
             end
 
             if abs(p) < abs(q * r / 2) && p < q * (a - x) && p < q * (b - x)
-                # the do the parapolic interpolation
+                # then do the parapolic interpolation
                 d = p / q
                 u = x + d
                 if u - a < 2 * tol || b - u < 2 * tol
-                    if x < m # this should just use sign
-                        d = tol
-                    else
-                        d = -tol
-                    end
+                    d = sign(m-x)*tol
                 end
             else
                 # do golden section
@@ -104,12 +102,6 @@ function _solve(prob, bm::BrentMin, options)
             break
         end
     end
-    return x, fx
+
+    return ConvergenceInfo(bm, (;x, f0, minimum=fx, time=time()-time0, iter=brent_iter), options)
 end
-
-
-#=
-prob = OptimizationProblem(ScalarObjective(;f=x->sign(x)), (-2.0,2.0))
-@time solve(prob, 0.0, BrentMin(), OptimizationOptions())
-
-=#
