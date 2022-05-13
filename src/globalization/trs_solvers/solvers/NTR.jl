@@ -29,7 +29,8 @@ function initial_λs(∇f, H, Δ)
     norm_to_Δ = norm(∇f) / Δ
 
     sumabs_j = sum(abs, view(H, 2:n, 1))
-    max_i_p = H[1, 1] + sumabs_j + max_i_m = -H[1, 1] + sumabs_j
+    max_i_p = sumabs_j + H[1, 1]
+    max_i_m = sumabs_j - H[1, 1]
     for j = 2:n
         sumabs_j = T(0)
         for i = 1:n-1
