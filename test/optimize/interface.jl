@@ -250,12 +250,21 @@ const brent_prob = OptimizationProblem(brent_scalar, (-2.0, 2.0))
     @test alloc == 0
 end
 
+const f3(x) = abs(x)
+const obj3 = ScalarObjective(; f=f3)
+const prob3 = OptimizationProblem(obj3, (-10.1, 9.0))
 @testset "brentmin" begin
     f(x) = (5.0 + x)^2.0
     obj = ScalarObjective(; f)
     prob = OptimizationProblem(obj, (-10.1, 9.0))
 
-    @test all(abs.(solve(prob, BrentMin(), OptimizationOptions()) .- (-5.0, 0.0)) .< 1e-8)
+    f2(x) = abs(x)
+    obj2 = ScalarObjective(; f=f2)
+    prob2 = OptimizationProblem(obj2, (-10.1, 9.0))
+
+    @test all(abs.(solve(prob, BrentMin(), OptimizationOptions()).info.minimum) .< 1e-8)
+    @test all(abs.(solve(prob2, BrentMin(), OptimizationOptions()).info.minimum) .< 1e-8)
+    @test all(abs.(solve(prob3, BrentMin(), OptimizationOptions()).info.minimum) .< 1e-8)
 end
 
 
@@ -523,6 +532,11 @@ solve(static_prob_qn, rand(3), AdaMax(), OptimizationOptions(maxiter = 1000))
     @test res_unc.info.solution ≈ [3.0, 2.0]
     res_con = solve(prob_on_bounds, copy(start), ActiveBox(), OptimizationOptions())
     @test res_con.info.solution ≈ [3.5, 1.6165968467448326]
+
+    res_con_matrix = solve(prob_on_bounds, (copy(start), [1.0 0.0;0.0 1.0]) , ActiveBox(), OptimizationOptions())
+    @test res_con_matrix.info.B isa Matrix
+    res_con_mmatrix = solve(prob_on_bounds, (copy(start), @MMatrix([1.0 0.0;0.0 1.0])) , ActiveBox(), OptimizationOptions())
+    @test res_con_mmatrix.info.B isa MMatrix
 end
 
 function fourth_f(x)
