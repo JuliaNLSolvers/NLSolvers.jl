@@ -7,9 +7,9 @@
 #  B = B = yy'/y's-Bss'B'/s'B*s
 
 struct BFGS{T1} <: QuasiNewton{T1}
-   approx::T1
+    approx::T1
 end
-BFGS(;inverse=true) = BFGS(inverse ? Inverse() : Direct())
+BFGS(; inverse = true) = BFGS(inverse ? Inverse() : Direct())
 hasprecon(::BFGS{<:Any}) = NoPrecon()
 
 summary(bfgs::BFGS{Inverse}) = "Inverse BFGS"
@@ -28,27 +28,27 @@ function update!(scheme::BFGS{<:Direct}, B, s, y)
     σ = dot(s, y)
     ρ = inv(σ) # scalar
     # Then calculate the vector b
-    b = B*s # vector temporary
+    b = B * s # vector temporary
     sBs = dot(s, b)
     # Calculate one vector divided by dot(s, b)
-    ρbb = inv(sBs)*b
+    ρbb = inv(sBs) * b
     # And calculate
-    B .+= (ρ*y)*y' .- ρbb*b'
+    B .+= (ρ * y) * y' .- ρbb * b'
 end
 function update(scheme::BFGS{<:Direct}, B, s, y)
-   # As above, but out of place
-   σ = dot(s, y)
-   ρ = inv(σ)
-   b = B*s
-   ρbb = inv(dot(s,b))*b
-   B + (ρ*y)*y' - ρbb*b'
+    # As above, but out of place
+    σ = dot(s, y)
+    ρ = inv(σ)
+    b = B * s
+    ρbb = inv(dot(s, b)) * b
+    B + (ρ * y) * y' - ρbb * b'
 end
 function update(scheme::BFGS{<:Inverse}, H, s, y)
     σ = dot(s, y)
     ρ = inv(σ)
-    C = (I - ρ*s*y')
-    H = C*H*C' + ρ*s*s'
-   
+    C = (I - ρ * s * y')
+    H = C * H * C' + ρ * s * s'
+
     H
 end
 function update!(scheme::BFGS{<:Inverse}, H, s, y)
@@ -57,18 +57,18 @@ function update!(scheme::BFGS{<:Inverse}, H, s, y)
     ρ = inv(σ)
     s, y = vec(s), vec(y)
     if isfinite(ρ)
-       Hy = H*y
-       κ = (σ + dot(y', Hy)) / (σ * σ)
-       for i = 1:n, j = 1:n
-            H[i,j] += κ * s[i] * s[j]' - ρ * (Hy[i] * s[j]' + Hy[j]' * s[i])
-       end
+        Hy = H * y
+        κ = (σ + dot(y', Hy)) / (σ * σ)
+        for i = 1:n, j = 1:n
+            H[i, j] += κ * s[i] * s[j]' - ρ * (Hy[i] * s[j]' + Hy[j]' * s[i])
+        end
     end
     H
 end
 
 function update!(scheme::BFGS{<:Inverse}, A::UniformScaling, s, y)
-   update(scheme, A, s, y)
+    update(scheme, A, s, y)
 end
 function update!(scheme::BFGS{<:Direct}, A::UniformScaling, s, y)
-   update(scheme, A, s, y)
+    update(scheme, A, s, y)
 end

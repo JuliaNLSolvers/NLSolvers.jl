@@ -1,21 +1,30 @@
 using NLSolvers, LinearAlgebra
 n = 4
-A = randn(n,n) + im*randn(n,n)
+A = randn(n, n) + im * randn(n, n)
 A = A'A + I
-b = randn(n) + im*randn(n)
+b = randn(n) + im * randn(n)
 μ = 1.0
 
-fcomplex(x) = real(dot(x,A*x)/2 - dot(b,x)) + μ*sum(abs.(x).^4)
-gcomplex(x) = A*x-b + 4μ*(abs.(x).^2).*x
-gcomplex!(stor,x) = copyto!(stor,gcomplex(x))
-function fgcomplex!(stor,x)
-copyto!(stor,gcomplex(x))
-fcomplex(x), stor
+fcomplex(x) = real(dot(x, A * x) / 2 - dot(b, x)) + μ * sum(abs.(x) .^ 4)
+gcomplex(x) = A * x - b + 4μ * (abs.(x) .^ 2) .* x
+gcomplex!(stor, x) = copyto!(stor, gcomplex(x))
+function fgcomplex!(stor, x)
+    copyto!(stor, gcomplex(x))
+    fcomplex(x), stor
 end
-obj = ScalarObjective(fcomplex, gcomplex!, fgcomplex!, nothing, nothing, nothing,nothing, nothing)
+obj = ScalarObjective(
+    fcomplex,
+    gcomplex!,
+    fgcomplex!,
+    nothing,
+    nothing,
+    nothing,
+    nothing,
+    nothing,
+)
 prob = OptimizationProblem(obj)
-prob_oop = OptimizationProblem(obj; inplace=false)
-x0 = randn(n)+im*randn(n)
+prob_oop = OptimizationProblem(obj; inplace = false)
+x0 = randn(n) + im * randn(n)
 
 
 
@@ -23,18 +32,43 @@ x0 = randn(n)+im*randn(n)
 # solve(prob, x0, ParticleSwarm(), OptimizationOptions()) # fails
 solve(prob, x0, SimulatedAnnealing(), OptimizationOptions())
 solve(prob, copy(x0), LineSearch(LBFGS(), Backtracking()), OptimizationOptions()) # fails due to bounds
-solve(prob, copy(x0), LineSearch(LBFGS(), Backtracking()), OptimizationOptions(g_abstol=1e-6)) # fails due to bounds
-solve(prob, copy(x0), LineSearch(LBFGS()), OptimizationOptions(g_abstol=1e-6)) # fails due to bounds
-solve(prob, copy(x0), LineSearch(LBFGS(), HZAW()), OptimizationOptions(g_abstol=1e-6)) # fails due to bounds
-solve(prob, copy(x0), LineSearch(BFGS(), Backtracking()), OptimizationOptions(g_abstol=1e-6)) # fails due to bounds
-solve(prob, copy(x0), LineSearch(BFGS()), OptimizationOptions(g_abstol=1e-6)) # fails due to bounds
-solve(prob, copy(x0), LineSearch(BFGS(), HZAW()), OptimizationOptions(g_abstol=1e-6)) # fails due to bounds
-solve(prob_oop, x0, LineSearch(BFGS(), Backtracking()), OptimizationOptions(g_abstol=1e-6)) # fails due to bounds
-solve(prob_oop, x0, LineSearch(BFGS()), OptimizationOptions(g_abstol=1e-6)) # fails due to bounds
-solve(prob_oop, x0, LineSearch(BFGS(), HZAW()), OptimizationOptions(g_abstol=1e-6)) # fails due to bounds
+solve(
+    prob,
+    copy(x0),
+    LineSearch(LBFGS(), Backtracking()),
+    OptimizationOptions(g_abstol = 1e-6),
+) # fails due to bounds
+solve(prob, copy(x0), LineSearch(LBFGS()), OptimizationOptions(g_abstol = 1e-6)) # fails due to bounds
+solve(prob, copy(x0), LineSearch(LBFGS(), HZAW()), OptimizationOptions(g_abstol = 1e-6)) # fails due to bounds
+solve(
+    prob,
+    copy(x0),
+    LineSearch(BFGS(), Backtracking()),
+    OptimizationOptions(g_abstol = 1e-6),
+) # fails due to bounds
+solve(prob, copy(x0), LineSearch(BFGS()), OptimizationOptions(g_abstol = 1e-6)) # fails due to bounds
+solve(prob, copy(x0), LineSearch(BFGS(), HZAW()), OptimizationOptions(g_abstol = 1e-6)) # fails due to bounds
+solve(
+    prob_oop,
+    x0,
+    LineSearch(BFGS(), Backtracking()),
+    OptimizationOptions(g_abstol = 1e-6),
+) # fails due to bounds
+solve(prob_oop, x0, LineSearch(BFGS()), OptimizationOptions(g_abstol = 1e-6)) # fails due to bounds
+solve(prob_oop, x0, LineSearch(BFGS(), HZAW()), OptimizationOptions(g_abstol = 1e-6)) # fails due to bounds
 
-solve(prob, copy(x0), LineSearch(BFGS(), Backtracking()), OptimizationOptions(g_abstol=1e-6)) # fails due to bounds
-solve(prob_oop, x0, LineSearch(BFGS(), Backtracking()), OptimizationOptions(g_abstol=1e-6)) # fails due to bounds
+solve(
+    prob,
+    copy(x0),
+    LineSearch(BFGS(), Backtracking()),
+    OptimizationOptions(g_abstol = 1e-6),
+) # fails due to bounds
+solve(
+    prob_oop,
+    x0,
+    LineSearch(BFGS(), Backtracking()),
+    OptimizationOptions(g_abstol = 1e-6),
+) # fails due to bounds
 #=
 
 @testset "Finite difference setup" begin

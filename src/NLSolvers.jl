@@ -22,20 +22,37 @@ using Statistics # for var in statistics... probably not worth it
   the estimate on lambda
  ============================ LinearAlgebra ===========================#
 
-using LinearAlgebra:  dot, I, norm, # used everywhere in updates, convergence, etc
-                      mul!, rmul!, ldiv!, # quasi-newton updates, apply factorizations, etc
-                      cholesky, cholesky!, factorize, issuccess, Cholesky, # very useful in trust region solvers
-                      UniformScaling, Diagonal, # simple matrices
-                      Symmetric, Hermitian, # wrap before factorizations or eigensystems to avoid checks
-                      diag, # mostly for trust region diagonal manipulation
-                      eigen, # for the direct subproblem solver
-                      opnorm, # for NWI safe guards
-                      checksquare, UpperTriangular, givens, lmul!, cond, # For QR update
-                      axpy! # for Anderson
+using LinearAlgebra:
+    dot,
+    I,
+    norm, # used everywhere in updates, convergence, etc
+    mul!,
+    rmul!,
+    ldiv!, # quasi-newton updates, apply factorizations, etc
+    cholesky,
+    cholesky!,
+    factorize,
+    issuccess,
+    Cholesky, # very useful in trust region solvers
+    UniformScaling,
+    Diagonal, # simple matrices
+    Symmetric,
+    Hermitian, # wrap before factorizations or eigensystems to avoid checks
+    diag, # mostly for trust region diagonal manipulation
+    eigen, # for the direct subproblem solver
+    opnorm, # for NWI safe guards
+    checksquare,
+    UpperTriangular,
+    givens,
+    lmul!,
+    cond, # For QR update
+    axpy! # for Anderson
 
 
-import LinearAlgebra: mul!, dot, # need to extend for preconditioners
-                      factorize # for ActiveBox
+import LinearAlgebra:
+    mul!,
+    dot, # need to extend for preconditioners
+    factorize # for ActiveBox
 
 using Printf
 
@@ -44,14 +61,14 @@ export solve
 """
 
 """
-function objective_return(f, g, H=nothing)
-  if g isa Nothing && H isa Nothing
-    return f
-  elseif !(g isa Nothing) && H isa Nothing
-    return f, g
-  elseif !(g isa Nothing) && !(H isa Nothing)
-    return f, g, H
-  end
+function objective_return(f, g, H = nothing)
+    if g isa Nothing && H isa Nothing
+        return f
+    elseif !(g isa Nothing) && H isa Nothing
+        return f, g
+    elseif !(g isa Nothing) && !(H isa Nothing)
+        return f, g, H
+    end
 end
 export objective_return
 isallfinite(x) = mapreduce(isfinite, *, x)
@@ -62,7 +79,7 @@ abstract type AbstractProblem end
 abstract type AbstractOptions end
 
 struct InPlace <: MutateStyle end
-struct OutOfPlace <:MutateStyle end
+struct OutOfPlace <: MutateStyle end
 include("precondition.jl")
 include("Manifolds.jl")
 include("objectives.jl")
@@ -141,11 +158,11 @@ function negate(problem::AbstractProblem, A)
 
 end
 function negate(::InPlace, A::AbstractArray)
-  A .= .-A
-  return A
+    A .= .-A
+    return A
 end
 function negate(::OutOfPlace, A::AbstractArray)
-  -A
+    -A
 end
 
 mstyle(problem::AbstractProblem) = problem.mstyle
@@ -167,17 +184,17 @@ function _retract(::OutOfPlace, manifold::Manifold, z, x, p)
 end
 # shouldn't have those here
 function _retract(::InPlace, manifold::Euclidean, z, x, p, α)
-    @. z = x + α*p
+    @. z = x + α * p
     return z
-  end
+end
 function _retract(::OutOfPlace, manifold::Euclidean, z, x, p, α)
-    z = @. x + α*p
+    z = @. x + α * p
     return z
 end
 function _retract(::InPlace, manifold::Euclidean, z, x, p)
     @. z = x + p
     return z
-  end
+end
 function _retract(::OutOfPlace, manifold::Euclidean, z, x, p)
     z = @. x + p
     return z
@@ -189,7 +206,7 @@ end
 Project g on the tangent space to the manifold (stored in `problem`) at x and store the result in `w` if the problem is specified as inplace. If the problem is inplace and updated `w` is returned, else a new vector is returned.
 """
 function project_tangent(problem::OptimizationProblem, w, x, v)
-    project_tanget(mstyle(problem), problem, w, x, v)    
+    project_tanget(mstyle(problem), problem, w, x, v)
 end
 project_tanget(::InPlace, problem, w, x, v) = copyto!(w, v)
 project_tanget(::OutOfPlace, problem, w, x, v) = v

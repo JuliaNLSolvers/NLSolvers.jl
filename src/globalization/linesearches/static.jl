@@ -1,5 +1,5 @@
 struct Static{T} <: LineSearcher
-  α::T
+    α::T
 end
 
-find_steplength(mstyle, ls::Static, φ, λ::T) where T = T(ls.α), φ(T(ls.α)), true
+find_steplength(mstyle, ls::Static, φ, λ::T) where {T} = T(ls.α), φ(T(ls.α)), true

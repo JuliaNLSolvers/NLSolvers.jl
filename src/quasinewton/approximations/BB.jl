@@ -1,9 +1,9 @@
 struct BB{T1} <: QuasiNewton{T1}
- approx::T1
+    approx::T1
 end
-BB(;inverse=false) = BB(inverse ? Inverse() : Direct())
+BB(; inverse = false) = BB(inverse ? Inverse() : Direct())
 summary(::BB) = "Barzilai-Borwein"
 hasprecon(::BB) = NoPrecon()
 update!(scheme::BB{<:Direct}, B, s, y) = _bb(scheme, B, s, y)
 update(scheme::BB{<:Direct}, B, s, y) = _bb(scheme, B, s, y)
-_bb(scheme::BB{<:Direct}, M, s, y) = dot(s, y)/dot(s, s)
+_bb(scheme::BB{<:Direct}, M, s, y) = dot(s, y) / dot(s, s)

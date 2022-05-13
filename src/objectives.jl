@@ -4,7 +4,7 @@ abstract type ObjWrapper end
     ScalarObjective
 
 """
-struct ScalarObjective{Tf, Tg, Tfg, Tfgh, Th, Thv, Tbf, P}
+struct ScalarObjective{Tf,Tg,Tfg,Tfgh,Th,Thv,Tbf,P}
     f::Tf
     g::Tg
     fg::Tfg
@@ -14,7 +14,8 @@ struct ScalarObjective{Tf, Tg, Tfg, Tfgh, Th, Thv, Tbf, P}
     batched_f::Tbf
     param::P
 end
-ScalarObjective(;f=nothing, g=nothing, fg=nothing, fgh=nothing, h=nothing) = ScalarObjective(f, g, fg, fgh, h, nothing, nothing, nothing)
+ScalarObjective(; f = nothing, g = nothing, fg = nothing, fgh = nothing, h = nothing) =
+    ScalarObjective(f, g, fg, fgh, h, nothing, nothing, nothing)
 has_param(so::ScalarObjective) = so.param === nothing ? false : true
 function value(so::ScalarObjective, x)
     if has_param(so)
@@ -82,7 +83,7 @@ end
 
 ## If prob is a NEqProblem, then we can just dispatch to least squares MeritObjective
 # if fast JacVec exists then maybe even line searches that updates the gradient can be used??? 
-struct LineObjective!{TP, T1, T2, T3}
+struct LineObjective!{TP,T1,T2,T3}
     prob::TP
     ∇fz::T1
     z::T2
@@ -94,13 +95,13 @@ end
 function (le::LineObjective!)(λ)
     z = retract!(_manifold(le.prob), le.z, le.x, le.d, λ)
     ϕ = value(le.prob, z)
-    (ϕ=ϕ, z=z)
+    (ϕ = ϕ, z = z)
 end
 function (le::LineObjective!)(λ, calc_grad::Bool)
     f, g = upto_gradient(le.prob, le.∇fz, retract!(_manifold(le.prob), le.z, le.x, le.d, λ))
-    (ϕ=f, dϕ=real(dot(g, le.d))) # because complex dot might not have exactly zero im part and it's the wrong type
+    (ϕ = f, dϕ = real(dot(g, le.d))) # because complex dot might not have exactly zero im part and it's the wrong type
 end
-struct LineObjective{TP, T1, T2, T3}
+struct LineObjective{TP,T1,T2,T3}
     prob::TP
     ∇fz::T1
     z::T2
@@ -119,42 +120,44 @@ function (le::LineObjective)(λ)
 end
 function (le::LineObjective)(λ, calc_grad::Bool)
     f, g = upto_gradient(le.prob, le.∇fz, retract(_manifold(le.prob), le.x, le.d, λ))
-    (ϕ=f, dϕ=real(dot(g, le.d))) # because complex dot might not have exactly zero im part and it's the wrong type
+    (ϕ = f, dϕ = real(dot(g, le.d))) # because complex dot might not have exactly zero im part and it's the wrong type
 end
 
 # We call real on dφ0 because x and df might be complex
-_lineobjective(mstyle::InPlace, prob::AbstractProblem, ∇fz, z, x, d, φ0, dφ0) = LineObjective!(prob, ∇fz, z, x, d, φ0, real(dφ0))
-_lineobjective(mstyle::OutOfPlace, prob::AbstractProblem, ∇fz, z, x, d, φ0, dφ0) = LineObjective(prob, ∇fz, z, x, d, φ0, real(dφ0))
+_lineobjective(mstyle::InPlace, prob::AbstractProblem, ∇fz, z, x, d, φ0, dφ0) =
+    LineObjective!(prob, ∇fz, z, x, d, φ0, real(dφ0))
+_lineobjective(mstyle::OutOfPlace, prob::AbstractProblem, ∇fz, z, x, d, φ0, dφ0) =
+    LineObjective(prob, ∇fz, z, x, d, φ0, real(dφ0))
 
-struct MeritObjective{TP, T1, T2, T3, T4, T5}
-  prob::TP
-  F::T1
-  FJ::T2
-  Fx::T3
-  Jx::T4
-  d::T5
+struct MeritObjective{TP,T1,T2,T3,T4,T5}
+    prob::TP
+    F::T1
+    FJ::T2
+    Fx::T3
+    Jx::T4
+    d::T5
 end
 function value(mo::MeritObjective, x)
-  Fx = mo.F(mo.Fx, x)
-  (ϕ=(norm(Fx)^2)/2, Fx = Fx)
+    Fx = mo.F(mo.Fx, x)
+    (ϕ = (norm(Fx)^2) / 2, Fx = Fx)
 end
 
-struct LsqWrapper{Tobj, TF, TJ} <: ObjWrapper
-  R::Tobj
-  F::TF
-  J::TJ
+struct LsqWrapper{Tobj,TF,TJ} <: ObjWrapper
+    R::Tobj
+    F::TF
+    J::TJ
 end
 function (lw::LsqWrapper)(x)
-  F = lw.R(lw.F, x)
-  sum(abs2, F)/2
+    F = lw.R(lw.F, x)
+    sum(abs2, F) / 2
 end
 function (lw::LsqWrapper)(∇f, x)
-  _F, _J = lw.R(lw.F, lw.J, x)
-  copyto!(∇f, sum(_J; dims=1))
-  sum(abs2, _F), ∇f
+    _F, _J = lw.R(lw.F, lw.J, x)
+    copyto!(∇f, sum(_J; dims = 1))
+    sum(abs2, _F), ∇f
 end
 
-struct LeastSquaresObjective{TFx, TJx, Tf, Tfj, Td}
+struct LeastSquaresObjective{TFx,TJx,Tf,Tfj,Td}
     Fx::TFx
     Jx::TJx
     F::Tf
@@ -173,16 +176,16 @@ function value(lsq::LeastSquaresObjective, x)
     lsq.Fx .= Fx
 
     # Least Squares
-    f = (norm(Fx)^2)/2
+    f = (norm(Fx)^2) / 2
     return f
 end
 function batched_value(lsq::LeastSquaresObjective, F, X)
-   F .= value.(Ref(lsq), X)
+    F .= value.(Ref(lsq), X)
 end
 function upto_gradient(lsq::LeastSquaresObjective, Fx, x)
     # Evaluate the residual system or the "predicted" value for LeastSquares
     # and the Jacobian of either one
-    Fx_sq, Jx_sq = lsq.FJ(lsq.Fx, lsq.Fx*x', x)
+    Fx_sq, Jx_sq = lsq.FJ(lsq.Fx, lsq.Fx * x', x)
 
     # If this comes from a LeastSquaresProblem there will be a lhs to subtract
     if has_ydata(lsq)
@@ -191,17 +194,17 @@ function upto_gradient(lsq::LeastSquaresObjective, Fx, x)
     lsq.Fx .= Fx_sq
 
     # Least Squares
-    f = (norm(Fx_sq)^2)/2
-    Fx .= Jx_sq'*Fx_sq
-   return f, Fx
+    f = (norm(Fx_sq)^2) / 2
+    Fx .= Jx_sq' * Fx_sq
+    return f, Fx
 end
 function upto_hessian(lsq::LeastSquaresObjective, Fx, Jx, x)  #Fx is the gradient and Jx is the Hessian
     Fx_sq, Jx_sq = lsq.FJ(lsq.Fx, lsq.Jx, x)
 
     lsq.Fx .= Fx_sq
-    f = (norm(Fx)^2)/2
+    f = (norm(Fx)^2) / 2
     # this is the gradient
-    Fx .= Jx_sq'*Fx_sq
+    Fx .= Jx_sq' * Fx_sq
     # As you may notice, this can be expensive... Because the gradient
     # is going to be very simple. May want to create a
     # special type or way to hook into trust regions here. We can exploit
@@ -209,6 +212,6 @@ function upto_hessian(lsq::LeastSquaresObjective, Fx, Jx, x)  #Fx is the gradien
     # systems. There is no need to get the full hessian. because these two
     # steps are don't need these multiplies
     # This is the Hessian
-    Jx .= Jx_sq'*Jx_sq
+    Jx .= Jx_sq' * Jx_sq
     return f, Fx, Jx
 end

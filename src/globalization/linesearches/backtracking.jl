@@ -27,11 +27,11 @@ backtracking line search.
 
 σ restriction 0 < c < ratio < 1
 """
-function _safe_α(α_candidate, α_current, decrease=0.1, ratio=0.5)
-  α_candidate < decrease*α_current && return decrease*α_current
-  α_candidate > ratio*α_current    && return ratio*α_current
+function _safe_α(α_candidate, α_current, decrease = 0.1, ratio = 0.5)
+    α_candidate < decrease * α_current && return decrease * α_current
+    α_candidate > ratio * α_current && return ratio * α_current
 
-  α_candidate # if the candidate is in the interval, just return it
+    return α_candidate # if the candidate is in the interval, just return it
 end
 
 """
@@ -63,19 +63,23 @@ value as appropriate.
 
 
 """
-struct Backtracking{T1, T2, T3, TR} <: LineSearcher
+struct Backtracking{T1,T2,T3,TR} <: LineSearcher
     ratio::T1
-	decrease::T1
-	maxiter::T2
-	interp::T3
-	steprange::TR
-	verbose::Bool
+    decrease::T1
+    maxiter::T2
+    interp::T3
+    steprange::TR
+    verbose::Bool
 end
-summary(bt::Backtracking) = "backtracking ("*summary(bt.interp)*")"
-Backtracking(; ratio=0.5, decrease=1e-4, maxiter=26,
-	           steprange=(lower=0, upper=Inf), interp=FixedInterp(),
-	           verbose=false) =
- Backtracking(ratio, decrease, maxiter, interp, steprange, verbose)
+summary(bt::Backtracking) = "backtracking (" * summary(bt.interp) * ")"
+Backtracking(;
+    ratio = 0.5,
+    decrease = 1e-4,
+    maxiter = 26,
+    steprange = (lower = 0, upper = Inf),
+    interp = FixedInterp(),
+    verbose = false,
+) = Backtracking(ratio, decrease, maxiter, interp, steprange, verbose)
 
 struct FixedInterp <: BacktrackingInterp end
 summary(fi::FixedInterp) = ("no interp")
@@ -91,10 +95,10 @@ Calculates the minimizer of a polynomial approximation to the line restricted
 objective function.
 """
 function interpolate(itp::FixedInterp, φ, φ0, dφ0, α, f_α, ratio)
-	β = α
-	α = ratio*α
-	φ_α = φ(α)
-	β, α, φ_α
+    β = α
+    α = ratio * α
+    φ_α = φ(α)
+    β, α, φ_α
 end
 
 # There are many ways to come up with the next step length trial value.
@@ -118,25 +122,25 @@ end
 # at α = 0 we know f and f' from F and J as written above
 # at αc define
 function twopoint(f, f_0, df_0, α, f_α, ratio)
-	ρ_lo, ρ_hi = 0.1, ratio
+    ρ_lo, ρ_hi = 0.1, ratio
     # get the minimum (requires df0 < 0)
-	c = (f_α - f_0 - df_0*α)/α^2
+    c = (f_α - f_0 - df_0 * α) / α^2
 
-	# p(α) = f0 + df_0*α + c*α^2 is the function
-	# we have df_0 < 0. Then if  f_α > f(0) then c > 0
-	# by the expression above, and p is convex. Then,
-	# we have a minimum between 0 and α at
+    # p(α) = f0 + df_0*α + c*α^2 is the function
+    # we have df_0 < 0. Then if  f_α > f(0) then c > 0
+    # by the expression above, and p is convex. Then,
+    # we have a minimum between 0 and α at
 
-	γ = -df_0/(2*c) # > 0 by df0 < 0 and c > 0
+    γ = -df_0 / (2 * c) # > 0 by df0 < 0 and c > 0
     # safeguard α
-    return max(min(γ, α*ρ_hi), α*ρ_lo) # σs
+    return max(min(γ, α * ρ_hi), α * ρ_lo) # σs
 end
 
 function interpolate(itp::FFQuadInterp, φ, φ0, dφ0, α, f_α, ratio)
-	β = α
-	α = twopoint(φ, φ0, dφ0, α, f_α, ratio)
-	φ_α = φ(α)
-	β, α, φ_α
+    β = α
+    α = twopoint(φ, φ0, dφ0, α, f_α, ratio)
+    φ_α = φ(α)
+    β, α, φ_α
 end
 
 
@@ -145,34 +149,35 @@ end
 
 Returns a step length, (merit) function value at step length and success flag.
 """
-function find_steplength(mstyle, ls::Backtracking, φ::T, λ) where T
- 	#== unpack ==#
-	φ0, dφ0 = φ.φ0, φ.dφ0
-	Tf = typeof(φ0)
-	ratio, decrease, maxiter, verbose = Tf(ls.ratio), Tf(ls.decrease), ls.maxiter, ls.verbose
+function find_steplength(mstyle, ls::Backtracking, φ::T, λ) where {T}
+    #== unpack ==#
+    φ0, dφ0 = φ.φ0, φ.dφ0
+    Tf = typeof(φ0)
+    ratio, decrease, maxiter, verbose =
+        Tf(ls.ratio), Tf(ls.decrease), ls.maxiter, ls.verbose
 
-	#== factor in Armijo condition ==#
-    t = -decrease*dφ0
+    #== factor in Armijo condition ==#
+    t = -decrease * dφ0
 
     iter, α, β = 0, λ, λ # iteration variables
-	f_α = φ(α) # initial function value
+    f_α = φ(α) # initial function value
 
-	if verbose
-		println("Entering line search with step size: ", λ)
-		println("Initial value: ", φ0)
-		println("Value at first step: ", f_α)
-	end
-	is_solved = isfinite(f_α.ϕ) && f_α.ϕ <= φ0 + α*t
+    if verbose
+        println("Entering line search with step size: ", λ)
+        println("Initial value: ", φ0)
+        println("Value at first step: ", f_α)
+    end
+    is_solved = isfinite(f_α.ϕ) && f_α.ϕ <= φ0 + α * t
     while !is_solved && iter <= maxiter
         iter += 1
         β, α, f_α = interpolate(ls.interp, φ, φ0, dφ0, α, f_α.ϕ, ratio)
-		is_solved = isfinite(f_α.ϕ) && f_α.ϕ <= φ0 + α*t
+        is_solved = isfinite(f_α.ϕ) && f_α.ϕ <= φ0 + α * t
     end
 
-	ls_success = iter >= maxiter ? false : true
+    ls_success = iter >= maxiter ? false : true
 
     if verbose
-		!ls_success && println("maxiter exceeded in backtracking")
+        !ls_success && println("maxiter exceeded in backtracking")
         println("Exiting line search with step size: ", α)
         println("Exiting line search with value: ", f_α.ϕ)
     end

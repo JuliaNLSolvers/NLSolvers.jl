@@ -1,7 +1,13 @@
 # make this keyworded?
-init(::NEqProblem, ::LineSearch, x) = (z=copy(x), d=copy(x), Fx=copy(x), Jx=x*x')
+init(::NEqProblem, ::LineSearch, x) = (z = copy(x), d = copy(x), Fx = copy(x), Jx = x * x')
 # the bang is just potentially inplace x and state. nonbang copies these
-function solve(problem::NEqProblem, x, method::LineSearch=LineSearch(Newton(), Static(1)), options=NEqOptions(), state=init(problem, method, x))
+function solve(
+    problem::NEqProblem,
+    x,
+    method::LineSearch = LineSearch(Newton(), Static(1)),
+    options = NEqOptions(),
+    state = init(problem, method, x),
+)
     t0 = time()
 
     # Unpack
@@ -18,7 +24,8 @@ function solve(problem::NEqProblem, x, method::LineSearch=LineSearch(Newton(), S
     # Set up MeritObjective. This defines the least squares
     # objective for the line search.
     merit = MeritObjective(problem, F, FJ, Fx, Jx, d)
-    meritproblem = OptimizationProblem(merit, nothing, Euclidean(0), nothing, mstyle(problem), nothing)
+    meritproblem =
+        OptimizationProblem(merit, nothing, Euclidean(0), nothing, mstyle(problem), nothing)
 
     # Evaluate the residual and Jacobian
     Fx, Jx = FJ(Fx, Jx, x)
@@ -27,12 +34,24 @@ function solve(problem::NEqProblem, x, method::LineSearch=LineSearch(Newton(), S
     else
         JFx = nothing
     end
-    ρF0, ρ2F0 = norm(Fx, Inf),  norm(Fx, 2)
+    ρF0, ρ2F0 = norm(Fx, Inf), norm(Fx, 2)
     age, force_update = 1, false
 
     stoptol = T(options.f_abstol)# T(options.f_reltol)*ρF0 + T(options.f_abstol)
     if ρF0 < stoptol
-        return ConvergenceInfo(method, (solution=x, best_residual=Fx, ρF0=ρF0, ρ2F0=ρ2F0, ρs=T(NaN), iter=0, time=time()-t0), options)
+        return ConvergenceInfo(
+            method,
+            (
+                solution = x,
+                best_residual = Fx,
+                ρF0 = ρF0,
+                ρ2F0 = ρ2F0,
+                ρs = T(NaN),
+                iter = 0,
+                time = time() - t0,
+            ),
+            options,
+        )
     end
 
     # Create variable for norms but keep the first ones for printing purposes.
@@ -54,7 +73,7 @@ function solve(problem::NEqProblem, x, method::LineSearch=LineSearch(Newton(), S
                 d = scheme.linsolve(Jx, -Fx)
             end
         else
-            d = JFx\-Fx
+            d = JFx \ -Fx
         end
 
         # Need to restrict to static and backtracking here because we don't allow
@@ -74,7 +93,7 @@ function solve(problem::NEqProblem, x, method::LineSearch=LineSearch(Newton(), S
         # ∇_df = -F(x)'*F(x) = -f(x)*2
         #
         # φ = LineObjective!(F,        ∇fz, z, x, d, fx,        dot(∇fx, d))
-        φ = LineObjective(meritproblem, Fx, z, x, d, (ρ2F^2)/2, -ρ2F^2)
+        φ = LineObjective(meritproblem, Fx, z, x, d, (ρ2F^2) / 2, -ρ2F^2)
 
         # Perform line search along d
         α, ϕ_out, ls_success = find_steplength(mstyle, linesearch, φ, T(1))
@@ -82,24 +101,58 @@ function solve(problem::NEqProblem, x, method::LineSearch=LineSearch(Newton(), S
         z = retract(problem, z, x, d, α)
 
         # Update residual and jacobian
-        Fx, Jx, JFx, age = update_model(problem, scheme, Fx, Jx, JFx, z, age, ϕ_out, ls_success, force_update)
+        Fx, Jx, JFx, age = update_model(
+            problem,
+            scheme,
+            Fx,
+            Jx,
+            JFx,
+            z,
+            age,
+            ϕ_out,
+            ls_success,
+            force_update,
+        )
 
         # Update 2-norm for line search conditions: ϕ(0) and ϕ'(0)
         ρ2F = norm(Fx, 2)
-        ρF  = norm(Fx, Inf)
+        ρF = norm(Fx, Inf)
 
         # Update the largest successive change in the iterate
-        ρs = mapreduce(x->abs(x[1]-x[2]), max, zip(x,z)) # norm(x.-z, Inf)
+        ρs = mapreduce(x -> abs(x[1] - x[2]), max, zip(x, z)) # norm(x.-z, Inf)
 
         if ρF < stoptol #|| ρs <= 1e-12
             break
         end
         iter += 1
     end
-    return ConvergenceInfo(method, (solution=z, best_residual=Fx, ρF0=ρF0, ρ2F0=ρ2F0, ρs=ρs, iter=iter, time=time()-t0), options)
+    return ConvergenceInfo(
+        method,
+        (
+            solution = z,
+            best_residual = Fx,
+            ρF0 = ρF0,
+            ρ2F0 = ρ2F0,
+            ρs = ρs,
+            iter = iter,
+            time = time() - t0,
+        ),
+        options,
+    )
 end
 
-function update_model(problem::NEqProblem, scheme::Newton, F, J, JF, z, age, ϕ_out, ls_success, force_update)
+function update_model(
+    problem::NEqProblem,
+    scheme::Newton,
+    F,
+    J,
+    JF,
+    z,
+    age,
+    ϕ_out,
+    ls_success,
+    force_update,
+)
     # Update F, J, JF, and age as necessary
     if scheme.reset_age === nothing
         F, J = problem.R.FJ(F, J, z)
@@ -114,7 +167,7 @@ function update_model(problem::NEqProblem, scheme::Newton, F, J, JF, z, age, ϕ_
             if ls_success
                 F = ϕ_out.Fx
                 J = problem.R.J(J, z)
-            else                
+            else
                 F, J = problem.R.FJ(F, J, z)
             end
             if scheme.factorizer === nothing

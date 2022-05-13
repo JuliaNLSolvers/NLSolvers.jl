@@ -1,7 +1,7 @@
 struct DFP{T1} <: QuasiNewton{T1}
-   approx::T1
+    approx::T1
 end
-DFP(;inverse=true) = DFP(inverse ? Inverse() : Direct())
+DFP(; inverse = true) = DFP(inverse ? Inverse() : Direct())
 hasprecon(::DFP) = NoPrecon()
 
 summary(dfp::DFP{Inverse}) = "Inverse DFP"
@@ -17,32 +17,32 @@ summary(dfp::DFP{Direct}) = "Direct DFP"
 function update(scheme::DFP{<:Inverse}, H, s, y)
     σ = dot(s, y)
     ρ = inv(σ)
-    H = H + ρ*s*s' - H*(y*y')*H/(y'*H*y)
+    H = H + ρ * s * s' - H * (y * y') * H / (y' * H * y)
     H
 end
 function update(scheme::DFP{<:Direct}, B, s, y)
     σ = dot(s, y)
     ρ = inv(σ)
 
-    C = (I - ρ*y*s')
-    B = C*B*C' + ρ*y*y'
+    C = (I - ρ * y * s')
+    B = C * B * C' + ρ * y * y'
     B
 end
 function update!(scheme::DFP{<:Inverse}, H, s, y)
     σ = dot(s, y)
     ρ = inv(σ)
 
-    H .+= ρ*s*s' - H*(y*y')*H/(y'*H*y)
+    H .+= ρ * s * s' - H * (y * y') * H / (y' * H * y)
     H
 end
 function update!(scheme::DFP{<:Direct}, B, s, y)
     σ = dot(s, y)
     ρ = inv(σ)
 
-    C = (I - ρ*y*s')
-    B .= C*B*C' + ρ*y*y'
+    C = (I - ρ * y * s')
+    B .= C * B * C' + ρ * y * y'
 
     B
 end
 update!(scheme::DFP{<:Inverse}, A::UniformScaling, s, y) = update(scheme, A, s, y)
-update!(scheme::DFP{<:Direct},  A::UniformScaling, s, y) = update(scheme, A, s, y)
+update!(scheme::DFP{<:Direct}, A::UniformScaling, s, y) = update(scheme, A, s, y)

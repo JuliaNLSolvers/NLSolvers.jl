@@ -8,221 +8,242 @@ using Test
 # include("problems.jl")
 
 @testset "optimization interface" begin
-# TODO
-# Make a more efficient MeritObjective that returns something that acts as the actual thing if requested (mostly for debug)
-# but can also be efficiently used to get cauchy and newton
-#
-# Make DOGLEG work also with BFGS (why is convergence so slow?)
-# # Look into what caches are created
-#
-# NelderMead
-# time limit not enforced in @show solve(NelderMead)
-# no convergence crit either
-#
-# ParticleSwarm
-# no @show solve
-#
-# PureRandom search. wrong return type and move bounds to problem
-#
-# Does not have a ! method, this should be documented. Maybe add it for consistency?
-# If the sampler is empty and there are bounds, draw uniformly there in stead of specifying lb and ub in PureRandomSearch
-#
-# really need a QNmodel for model vars that creates nothing or don't populate fields of a named tuple for Newton for example
-# LineObjective and  LineObjective! should just dispatch on the caceh being nothing or not
-#
-# ConjgtaeGraduent with HZAW fails because it overwrites Py into P∇fz which seems to alias P∇fz. That alias needs to be checked
-# and a CGModelVars type should allocate Py where appropriate - could y be overwitten with Py and then recalcualte y afterwards?
-#
-#
-# ADAM needs @show solve and AdaMax
-#
-# TODO: LineObjetive doesn't need ! when we have problem in there and mstyle
+    # TODO
+    # Make a more efficient MeritObjective that returns something that acts as the actual thing if requested (mostly for debug)
+    # but can also be efficiently used to get cauchy and newton
+    #
+    # Make DOGLEG work also with BFGS (why is convergence so slow?)
+    # # Look into what caches are created
+    #
+    # NelderMead
+    # time limit not enforced in @show solve(NelderMead)
+    # no convergence crit either
+    #
+    # ParticleSwarm
+    # no @show solve
+    #
+    # PureRandom search. wrong return type and move bounds to problem
+    #
+    # Does not have a ! method, this should be documented. Maybe add it for consistency?
+    # If the sampler is empty and there are bounds, draw uniformly there in stead of specifying lb and ub in PureRandomSearch
+    #
+    # really need a QNmodel for model vars that creates nothing or don't populate fields of a named tuple for Newton for example
+    # LineObjective and  LineObjective! should just dispatch on the caceh being nothing or not
+    #
+    # ConjgtaeGraduent with HZAW fails because it overwrites Py into P∇fz which seems to alias P∇fz. That alias needs to be checked
+    # and a CGModelVars type should allocate Py where appropriate - could y be overwitten with Py and then recalcualte y afterwards?
+    #
+    #
+    # ADAM needs @show solve and AdaMax
+    #
+    # TODO: LineObjetive doesn't need ! when we have problem in there and mstyle
 
-# Todo Normed residuals doesn't have batched. Try ParticleSwarm on equations
-#### OPTIMIZATION
-f = OPT_PROBS["himmelblau"]["array"]["mutating"]
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-prob = OptimizationProblem(f)
-prob_oop = OptimizationProblem(f; inplace=false)
-prob_bounds = OptimizationProblem(obj=f, bounds=([-5.0,-9.0],[13.0,4.0]))
-prob_bounds_oop = OptimizationProblem(obj=f, bounds=([-5.0,-9.0],[13.0,4.0]); inplace=false)
-prob_on_bounds = OptimizationProblem(obj=f, bounds=([3.5,-9.0],[13.0,4.0]))
-prob_on_bounds_oop = OptimizationProblem(obj=f, bounds=([3.5,-9.0],[13.0,4.0]); inplace=false)
+    # Todo Normed residuals doesn't have batched. Try ParticleSwarm on equations
+    #### OPTIMIZATION
+    f = OPT_PROBS["himmelblau"]["array"]["mutating"]
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    prob = OptimizationProblem(f)
+    prob_oop = OptimizationProblem(f; inplace = false)
+    prob_bounds = OptimizationProblem(obj = f, bounds = ([-5.0, -9.0], [13.0, 4.0]))
+    prob_bounds_oop =
+        OptimizationProblem(obj = f, bounds = ([-5.0, -9.0], [13.0, 4.0]); inplace = false)
+    prob_on_bounds = OptimizationProblem(obj = f, bounds = ([3.5, -9.0], [13.0, 4.0]))
+    prob_on_bounds_oop =
+        OptimizationProblem(obj = f, bounds = ([3.5, -9.0], [13.0, 4.0]); inplace = false)
 
-res = solve(prob, x0, NelderMead(), OptimizationOptions())
-@test all(x0 .== [3.0,2.0])
-@test res.info.minimum == 0.0
-@test all(solution(res) .== [3.0, 2.0])
+    res = solve(prob, x0, NelderMead(), OptimizationOptions())
+    @test all(x0 .== [3.0, 2.0])
+    @test res.info.minimum == 0.0
+    @test all(solution(res) .== [3.0, 2.0])
 
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob_oop, x0, NelderMead(), OptimizationOptions())
-@test all(x0 .== [3.0,1.0])
-@test res.info.minimum == 0.0
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(prob_oop, x0, NelderMead(), OptimizationOptions())
+    @test all(x0 .== [3.0, 1.0])
+    @test res.info.minimum == 0.0
 
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob_bounds, x0, ParticleSwarm(), OptimizationOptions())
-@test_broken all(x0 .== [3.0,2.0])
-@test res.info.minimum == 0.0
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(prob_bounds, x0, ParticleSwarm(), OptimizationOptions())
+    @test_broken all(x0 .== [3.0, 2.0])
+    @test res.info.minimum == 0.0
 
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"]).+1
-res = solve(prob_on_bounds_oop, x0, ActiveBox(), OptimizationOptions())
-@test_broken all(x0 .== [3.0,1.0])
-xbounds = [3.5, 1.616596846883819]
-@test res.info.minimum == NLSolvers.value(prob_on_bounds, xbounds)
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"]) .+ 1
+    res = solve(prob_on_bounds_oop, x0, ActiveBox(), OptimizationOptions())
+    @test_broken all(x0 .== [3.0, 1.0])
+    xbounds = [3.5, 1.616596846883819]
+    @test res.info.minimum == NLSolvers.value(prob_on_bounds, xbounds)
 
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob_bounds, x0, SimulatedAnnealing(), OptimizationOptions())
-@test_broken all(x0 .== [3.0,2.0])
-@test res.info.minimum < 1e-1
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(prob_bounds, x0, SimulatedAnnealing(), OptimizationOptions())
+    @test_broken all(x0 .== [3.0, 2.0])
+    @test res.info.minimum < 1e-1
 
-solve(prob, PureRandomSearch(lb=[0.0,0.0], ub=[4.0,4.0]), OptimizationOptions())
-solve(prob_oop, PureRandomSearch(lb=[0.0,0.0], ub=[4.0,4.0]), OptimizationOptions())
+    solve(prob, PureRandomSearch(lb = [0.0, 0.0], ub = [4.0, 4.0]), OptimizationOptions())
+    solve(
+        prob_oop,
+        PureRandomSearch(lb = [0.0, 0.0], ub = [4.0, 4.0]),
+        OptimizationOptions(),
+    )
 
-solve(prob, [0.0,0.0], SimulatedAnnealing(), OptimizationOptions())
-solve(prob_oop, [0.0,0.0], SimulatedAnnealing(), OptimizationOptions())
-
-
-#x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-#@show solve(prob_bounds, x0, SIMAN(), OptimizationOptions())
-#@test all(x0 .== [3.0,1.0])
-
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob, x0, LineSearch(), OptimizationOptions())
-#@test all(x0 .== [3.0,2.0])
-@test res.info.minimum < 1e-12
-
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob, x0, LineSearch(SR1()), OptimizationOptions())
-@test res.info.minimum < 1e-12
-
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob, x0, LineSearch(DFP()), OptimizationOptions())
-@test res.info.minimum < 1e-12
-
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob, x0, LineSearch(BFGS()), OptimizationOptions())
-@test res.info.minimum < 1e-12
-
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob, x0, LineSearch(LBFGS()), OptimizationOptions())
-@test res.info.minimum < 1e-12
-
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob, x0, LineSearch(LBFGS(), HZAW()), OptimizationOptions())
-@test res.info.minimum < 1e-12
-
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob, x0, LineSearch(LBFGS(), Backtracking()), OptimizationOptions())
-@test res.info.minimum < 1e-12
-
-#@test all(x0 .== [3.0,2.0])
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob, x0, LineSearch(ConjugateGradient(), HZAW()), OptimizationOptions())
-@test res.info.minimum < 1e-12
-
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob_oop, x0, LineSearch(ConjugateGradient(), HZAW()), OptimizationOptions())
-@test res.info.minimum < 1e-12
-
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob, x0, LineSearch(ConjugateGradient(update=HS()), HZAW()), OptimizationOptions())
-@test res.info.minimum < 1e-12
-
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob_oop, x0, LineSearch(ConjugateGradient(update=HS()), HZAW()), OptimizationOptions())
-@test res.info.minimum < 1e-12
-
-# Stalls at [3, 1] with default @show solve
-x0 = 1.0.+copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob, x0, LineSearch(Newton()), OptimizationOptions())
-@test res.info.minimum < 1e-12
-
-#@test all(x0 .== [3.0,2.0])
-x0 = 1.0.+copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob, x0, LineSearch(Newton(), HZAW()), OptimizationOptions())
-@test res.info.minimum < 1e-12
-#@test all(x0 .== [3.0,2.0])
-
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob, x0, TrustRegion(), OptimizationOptions())
-@test_broken all(x0 .== [3.0,2.0])
-@test res.info.minimum < 1e-16
-
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob, x0, TrustRegion(DBFGS(), Dogleg()), OptimizationOptions())
-@test res.info.minimum < 1e-16
-
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob, x0, TrustRegion(BFGS(), Dogleg()), OptimizationOptions())
-@test res.info.minimum < 1e-16
-
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob, x0, TrustRegion(SR1(), NTR()), OptimizationOptions())
-@test res.info.minimum < 1e-16
-
-# not PSD
-#x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-#res = solve(prob, x0, TrustRegion(Newton(), Dogleg()), OptimizationOptions())
-#@test res.info.minimum < 1e-16
-
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob, x0, TrustRegion(BFGS(), Dogleg()), OptimizationOptions())
-@test res.info.minimum < 1e-16
-
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob, x0, TrustRegion(DBFGS(), Dogleg()), OptimizationOptions())
-@test res.info.minimum < 1e-16
-
-x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-res = solve(prob, x0, Adam(), OptimizationOptions(maxiter=20000))
-@test res.info.minimum < 1e-16
-
-## Notice that prob is only used for value so this should be extremely generic! It does need a comparison though.
-res = solve(prob, PureRandomSearch(lb=[0.0,0.0], ub=[4.0,4.0]), OptimizationOptions())
-
-f = OPT_PROBS["exponential"]["array"]["mutating"]
-x0 = copy(OPT_PROBS["exponential"]["array"]["x0"])
-prob = OptimizationProblem(f)
-prob_bounds = OptimizationProblem(obj=f, bounds=([-5.0,-9.0],[13.0,4.0]))
-prob_on_bounds = OptimizationProblem(obj=f, bounds=([3.5,-9.0],[13.0,4.0]))
-
-x0 = copy(OPT_PROBS["exponential"]["array"]["x0"])
-res = solve(prob, x0, TrustRegion(DBFGS(), Dogleg()), OptimizationOptions())
-@test res.info.minimum == 2.0
-
-x0 = copy(OPT_PROBS["exponential"]["array"]["x0"])
-res = solve(prob, x0, TrustRegion(BFGS(), Dogleg()), OptimizationOptions())
-@test res.info.minimum == 2.0
-
-x0 = copy(OPT_PROBS["exponential"]["array"]["x0"])
-res = solve(prob, x0, TrustRegion(Newton(), Dogleg()), OptimizationOptions())
-@test res.info.minimum == 2.0
-
-x0 = copy(OPT_PROBS["exponential"]["array"]["x0"])
-res = solve(prob, x0, TrustRegion(Newton(), NTR()), OptimizationOptions())
-@test res.info.minimum == 2.0
-
-x0 = copy(OPT_PROBS["exponential"]["array"]["x0"])
-res = solve(prob, x0, TrustRegion(Newton(), NWI()), OptimizationOptions())
-@test res.info.minimum == 2.0
-
-using GenericLinearAlgebra
-x0 = big.(copy(OPT_PROBS["exponential"]["array"]["x0"]))
-res = solve(prob, x0, TrustRegion(Newton(), NWI()), OptimizationOptions())
+    solve(prob, [0.0, 0.0], SimulatedAnnealing(), OptimizationOptions())
+    solve(prob_oop, [0.0, 0.0], SimulatedAnnealing(), OptimizationOptions())
 
 
-x0 = copy(OPT_PROBS["exponential"]["array"]["x0"])
-res = solve(prob, x0, TrustRegion(SR1(), NTR()), OptimizationOptions())
-@test res.info.minimum == 2.0
+    #x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    #@show solve(prob_bounds, x0, SIMAN(), OptimizationOptions())
+    #@test all(x0 .== [3.0,1.0])
 
-x0 = copy(OPT_PROBS["exponential"]["array"]["x0"])
-res = solve(prob, x0, TrustRegion(SR1(Inverse()), NTR()), OptimizationOptions())
-@test res.info.minimum == 2.0
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(prob, x0, LineSearch(), OptimizationOptions())
+    #@test all(x0 .== [3.0,2.0])
+    @test res.info.minimum < 1e-12
+
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(prob, x0, LineSearch(SR1()), OptimizationOptions())
+    @test res.info.minimum < 1e-12
+
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(prob, x0, LineSearch(DFP()), OptimizationOptions())
+    @test res.info.minimum < 1e-12
+
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(prob, x0, LineSearch(BFGS()), OptimizationOptions())
+    @test res.info.minimum < 1e-12
+
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(prob, x0, LineSearch(LBFGS()), OptimizationOptions())
+    @test res.info.minimum < 1e-12
+
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(prob, x0, LineSearch(LBFGS(), HZAW()), OptimizationOptions())
+    @test res.info.minimum < 1e-12
+
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(prob, x0, LineSearch(LBFGS(), Backtracking()), OptimizationOptions())
+    @test res.info.minimum < 1e-12
+
+    #@test all(x0 .== [3.0,2.0])
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(prob, x0, LineSearch(ConjugateGradient(), HZAW()), OptimizationOptions())
+    @test res.info.minimum < 1e-12
+
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res =
+        solve(prob_oop, x0, LineSearch(ConjugateGradient(), HZAW()), OptimizationOptions())
+    @test res.info.minimum < 1e-12
+
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(
+        prob,
+        x0,
+        LineSearch(ConjugateGradient(update = HS()), HZAW()),
+        OptimizationOptions(),
+    )
+    @test res.info.minimum < 1e-12
+
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(
+        prob_oop,
+        x0,
+        LineSearch(ConjugateGradient(update = HS()), HZAW()),
+        OptimizationOptions(),
+    )
+    @test res.info.minimum < 1e-12
+
+    # Stalls at [3, 1] with default @show solve
+    x0 = 1.0 .+ copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(prob, x0, LineSearch(Newton()), OptimizationOptions())
+    @test res.info.minimum < 1e-12
+
+    #@test all(x0 .== [3.0,2.0])
+    x0 = 1.0 .+ copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(prob, x0, LineSearch(Newton(), HZAW()), OptimizationOptions())
+    @test res.info.minimum < 1e-12
+    #@test all(x0 .== [3.0,2.0])
+
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(prob, x0, TrustRegion(), OptimizationOptions())
+    @test_broken all(x0 .== [3.0, 2.0])
+    @test res.info.minimum < 1e-16
+
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(prob, x0, TrustRegion(DBFGS(), Dogleg()), OptimizationOptions())
+    @test res.info.minimum < 1e-16
+
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(prob, x0, TrustRegion(BFGS(), Dogleg()), OptimizationOptions())
+    @test res.info.minimum < 1e-16
+
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(prob, x0, TrustRegion(SR1(), NTR()), OptimizationOptions())
+    @test res.info.minimum < 1e-16
+
+    # not PSD
+    #x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    #res = solve(prob, x0, TrustRegion(Newton(), Dogleg()), OptimizationOptions())
+    #@test res.info.minimum < 1e-16
+
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(prob, x0, TrustRegion(BFGS(), Dogleg()), OptimizationOptions())
+    @test res.info.minimum < 1e-16
+
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(prob, x0, TrustRegion(DBFGS(), Dogleg()), OptimizationOptions())
+    @test res.info.minimum < 1e-16
+
+    x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+    res = solve(prob, x0, Adam(), OptimizationOptions(maxiter = 20000))
+    @test res.info.minimum < 1e-16
+
+    ## Notice that prob is only used for value so this should be extremely generic! It does need a comparison though.
+    res = solve(
+        prob,
+        PureRandomSearch(lb = [0.0, 0.0], ub = [4.0, 4.0]),
+        OptimizationOptions(),
+    )
+
+    f = OPT_PROBS["exponential"]["array"]["mutating"]
+    x0 = copy(OPT_PROBS["exponential"]["array"]["x0"])
+    prob = OptimizationProblem(f)
+    prob_bounds = OptimizationProblem(obj = f, bounds = ([-5.0, -9.0], [13.0, 4.0]))
+    prob_on_bounds = OptimizationProblem(obj = f, bounds = ([3.5, -9.0], [13.0, 4.0]))
+
+    x0 = copy(OPT_PROBS["exponential"]["array"]["x0"])
+    res = solve(prob, x0, TrustRegion(DBFGS(), Dogleg()), OptimizationOptions())
+    @test res.info.minimum == 2.0
+
+    x0 = copy(OPT_PROBS["exponential"]["array"]["x0"])
+    res = solve(prob, x0, TrustRegion(BFGS(), Dogleg()), OptimizationOptions())
+    @test res.info.minimum == 2.0
+
+    x0 = copy(OPT_PROBS["exponential"]["array"]["x0"])
+    res = solve(prob, x0, TrustRegion(Newton(), Dogleg()), OptimizationOptions())
+    @test res.info.minimum == 2.0
+
+    x0 = copy(OPT_PROBS["exponential"]["array"]["x0"])
+    res = solve(prob, x0, TrustRegion(Newton(), NTR()), OptimizationOptions())
+    @test res.info.minimum == 2.0
+
+    x0 = copy(OPT_PROBS["exponential"]["array"]["x0"])
+    res = solve(prob, x0, TrustRegion(Newton(), NWI()), OptimizationOptions())
+    @test res.info.minimum == 2.0
+
+    using GenericLinearAlgebra
+    x0 = big.(copy(OPT_PROBS["exponential"]["array"]["x0"]))
+    res = solve(prob, x0, TrustRegion(Newton(), NWI()), OptimizationOptions())
+
+
+    x0 = copy(OPT_PROBS["exponential"]["array"]["x0"])
+    res = solve(prob, x0, TrustRegion(SR1(), NTR()), OptimizationOptions())
+    @test res.info.minimum == 2.0
+
+    x0 = copy(OPT_PROBS["exponential"]["array"]["x0"])
+    res = solve(prob, x0, TrustRegion(SR1(Inverse()), NTR()), OptimizationOptions())
+    @test res.info.minimum == 2.0
 end
 
 const brent_f(x) = sign(x)
-const brent_scalar = ScalarObjective(;f=brent_f)
-const brent_prob = OptimizationProblem(brent_scalar, (-2.0,2.0))
+const brent_scalar = ScalarObjective(; f = brent_f)
+const brent_prob = OptimizationProblem(brent_scalar, (-2.0, 2.0))
 @testset "univariate nonalloc" begin
     @allocated solve(brent_prob, BrentMin(), OptimizationOptions())
     alloc = @allocated solve(brent_prob, BrentMin(), OptimizationOptions())
@@ -230,67 +251,131 @@ const brent_prob = OptimizationProblem(brent_scalar, (-2.0,2.0))
 end
 
 @testset "brentmin" begin
-    f(x)= (5.0 + x)^2.0
-    obj=ScalarObjective(;f)
-    prob=OptimizationProblem(obj, (-10.1,9.0))
+    f(x) = (5.0 + x)^2.0
+    obj = ScalarObjective(; f)
+    prob = OptimizationProblem(obj, (-10.1, 9.0))
 
-    @test all(abs.(solve(prob, BrentMin(), OptimizationOptions()).-(-5.0,0.0)) .< 1e-8)
+    @test all(abs.(solve(prob, BrentMin(), OptimizationOptions()) .- (-5.0, 0.0)) .< 1e-8)
 end
 
 
 const statictest_s0 = OPT_PROBS["himmelblau"]["staticarray"]["state0"]
-const statictest_prob = OptimizationProblem(OPT_PROBS["himmelblau"]["staticarray"]["static"]; inplace=false)
+const statictest_prob =
+    OptimizationProblem(OPT_PROBS["himmelblau"]["staticarray"]["static"]; inplace = false)
 @testset "staticopt" begin
     res = solve(statictest_prob, statictest_s0, LineSearch(Newton()), OptimizationOptions())
-    @allocated solve(statictest_prob, statictest_s0, LineSearch(Newton()), OptimizationOptions())
-    alloc = @allocated solve(statictest_prob, statictest_s0, LineSearch(Newton()), OptimizationOptions())
+    @allocated solve(
+        statictest_prob,
+        statictest_s0,
+        LineSearch(Newton()),
+        OptimizationOptions(),
+    )
+    alloc = @allocated solve(
+        statictest_prob,
+        statictest_s0,
+        LineSearch(Newton()),
+        OptimizationOptions(),
+    )
     @test alloc == 0
 
-    _res = solve(statictest_prob, statictest_s0, LineSearch(Newton()), OptimizationOptions())
-    _alloc = @allocated solve(statictest_prob, statictest_s0, LineSearch(Newton()), OptimizationOptions())
+    _res =
+        solve(statictest_prob, statictest_s0, LineSearch(Newton()), OptimizationOptions())
+    _alloc = @allocated solve(
+        statictest_prob,
+        statictest_s0,
+        LineSearch(Newton()),
+        OptimizationOptions(),
+    )
     @test _alloc == 0
     @test norm(_res.info.∇fz, Inf) < 1e-8
 
-    _res = solve(statictest_prob, statictest_s0, LineSearch(Newton(), Backtracking()), OptimizationOptions())
-    _alloc = @allocated solve(statictest_prob, statictest_s0, LineSearch(Newton(), Backtracking()), OptimizationOptions())
+    _res = solve(
+        statictest_prob,
+        statictest_s0,
+        LineSearch(Newton(), Backtracking()),
+        OptimizationOptions(),
+    )
+    _alloc = @allocated solve(
+        statictest_prob,
+        statictest_s0,
+        LineSearch(Newton(), Backtracking()),
+        OptimizationOptions(),
+    )
     @test _alloc == 0
     @test norm(_res.info.∇fz, Inf) < 1e-8
 end
 
 @testset "newton" begin
     test_x0 = [2.0, 2.0]
-    test_prob = OptimizationProblem(OPT_PROBS["himmelblau"]["array"]["mutating"]; inplace=true)
+    test_prob =
+        OptimizationProblem(OPT_PROBS["himmelblau"]["array"]["mutating"]; inplace = true)
     res = solve(test_prob, copy(test_x0), LineSearch(Newton()), OptimizationOptions())
     @test norm(res.info.∇fz, Inf) < 1e-8
 
     test_x0 = [2.0, 2.0]
-    test_prob = OptimizationProblem(OPT_PROBS["himmelblau"]["array"]["mutating"]; inplace=false)
+    test_prob =
+        OptimizationProblem(OPT_PROBS["himmelblau"]["array"]["mutating"]; inplace = false)
     res = solve(test_prob, test_x0, LineSearch(Newton()), OptimizationOptions())
     @test norm(res.info.∇fz, Inf) < 1e-8
 
 
     test_x0 = [2.0, 2.0]
-    test_prob = OptimizationProblem(OPT_PROBS["himmelblau"]["array"]["mutating"]; inplace=true)
-    res = solve(test_prob, copy(test_x0), LineSearch(Newton(;linsolve=positive_linsolve)), OptimizationOptions())
+    test_prob =
+        OptimizationProblem(OPT_PROBS["himmelblau"]["array"]["mutating"]; inplace = true)
+    res = solve(
+        test_prob,
+        copy(test_x0),
+        LineSearch(Newton(; linsolve = positive_linsolve)),
+        OptimizationOptions(),
+    )
     @test norm(res.info.∇fz, Inf) < 1e-8
 
     test_x0 = [2.0, 2.0]
-    test_prob = OptimizationProblem(OPT_PROBS["himmelblau"]["array"]["mutating"]; inplace=false)
-    res = solve(test_prob, test_x0, LineSearch(Newton(;linsolve=positive_linsolve)), OptimizationOptions())
+    test_prob =
+        OptimizationProblem(OPT_PROBS["himmelblau"]["array"]["mutating"]; inplace = false)
+    res = solve(
+        test_prob,
+        test_x0,
+        LineSearch(Newton(; linsolve = positive_linsolve)),
+        OptimizationOptions(),
+    )
     @test norm(res.info.∇fz, Inf) < 1e-8
 end
 @testset "Newton linsolve" begin
-    test_prob = OptimizationProblem(OPT_PROBS["himmelblau"]["array"]["mutating"]; inplace=true)
-    res_lu = solve(test_prob, (copy([2.0,2.0]), [0.0 0.0;0.0 0.0]), LineSearch(Newton(; linsolve=(d, B, g)->ldiv!(d, lu(B), g))), OptimizationOptions())
+    test_prob =
+        OptimizationProblem(OPT_PROBS["himmelblau"]["array"]["mutating"]; inplace = true)
+    res_lu = solve(
+        test_prob,
+        (copy([2.0, 2.0]), [0.0 0.0; 0.0 0.0]),
+        LineSearch(Newton(; linsolve = (d, B, g) -> ldiv!(d, lu(B), g))),
+        OptimizationOptions(),
+    )
     @test norm(res_lu.info.∇fz, Inf) < 1e-8
-    res_qr = solve(test_prob, (copy([2.0,2.0]), [0.0 0.0;0.0 0.0]), LineSearch(Newton(; linsolve=(d, B, g)->ldiv!(d, qr(B), g))), OptimizationOptions())
+    res_qr = solve(
+        test_prob,
+        (copy([2.0, 2.0]), [0.0 0.0; 0.0 0.0]),
+        LineSearch(Newton(; linsolve = (d, B, g) -> ldiv!(d, qr(B), g))),
+        OptimizationOptions(),
+    )
     @test norm(res_qr.info.∇fz, Inf) < 1e-8
-  
-    test_prob = OptimizationProblem(OPT_PROBS["himmelblau"]["array"]["mutating"]; inplace=false)
-    res_qr = solve(test_prob, (copy([2.0,2.0]), [0.0 0.0;0.0 0.0]), LineSearch(Newton(; linsolve=(B, g)->qr(B)\g)), OptimizationOptions())
+
+    test_prob =
+        OptimizationProblem(OPT_PROBS["himmelblau"]["array"]["mutating"]; inplace = false)
+    res_qr = solve(
+        test_prob,
+        (copy([2.0, 2.0]), [0.0 0.0; 0.0 0.0]),
+        LineSearch(Newton(; linsolve = (B, g) -> qr(B) \ g)),
+        OptimizationOptions(),
+    )
     @test norm(res_qr.info.∇fz, Inf) < 1e-8
-    test_prob = OptimizationProblem(OPT_PROBS["himmelblau"]["array"]["mutating"]; inplace=false)
-    res_lu = solve(test_prob, (copy([2.0,2.0]), [0.0 0.0;0.0 0.0]), LineSearch(Newton(; linsolve=(B, g)->lu(B)\g)), OptimizationOptions())
+    test_prob =
+        OptimizationProblem(OPT_PROBS["himmelblau"]["array"]["mutating"]; inplace = false)
+    res_lu = solve(
+        test_prob,
+        (copy([2.0, 2.0]), [0.0 0.0; 0.0 0.0]),
+        LineSearch(Newton(; linsolve = (B, g) -> lu(B) \ g)),
+        OptimizationOptions(),
+    )
     @test norm(res_lu.info.∇fz, Inf) < 1e-8
 end
 
@@ -313,35 +398,95 @@ const static_prob_qn = OPT_PROBS["fletcher_powell"]["staticarray"]["static"]
 @testset "no alloc static" begin
 
     @testset "no alloc" begin
-        @allocated solve(static_prob_qn, static_x0, LineSearch(BFGS(Inverse()), Backtracking()), OptimizationOptions())
-        _alloc = @allocated solve(static_prob_qn, static_x0, LineSearch(BFGS(Inverse()), Backtracking()), OptimizationOptions())
+        @allocated solve(
+            static_prob_qn,
+            static_x0,
+            LineSearch(BFGS(Inverse()), Backtracking()),
+            OptimizationOptions(),
+        )
+        _alloc = @allocated solve(
+            static_prob_qn,
+            static_x0,
+            LineSearch(BFGS(Inverse()), Backtracking()),
+            OptimizationOptions(),
+        )
         @test _alloc == 0
 
-        solve(static_prob_qn, static_x0, LineSearch(BFGS(Direct()), Backtracking()), OptimizationOptions())
-        _alloc = @allocated solve(static_prob_qn, static_x0, LineSearch(BFGS(Direct()), Backtracking()), OptimizationOptions())
+        solve(
+            static_prob_qn,
+            static_x0,
+            LineSearch(BFGS(Direct()), Backtracking()),
+            OptimizationOptions(),
+        )
+        _alloc = @allocated solve(
+            static_prob_qn,
+            static_x0,
+            LineSearch(BFGS(Direct()), Backtracking()),
+            OptimizationOptions(),
+        )
         @test _alloc == 0
 
-        solve(static_prob_qn, static_x0, LineSearch(DFP(Inverse()), Backtracking()), OptimizationOptions())
-        _alloc = @allocated solve(static_prob_qn, static_x0, LineSearch(DFP(Inverse()), Backtracking()), OptimizationOptions())
+        solve(
+            static_prob_qn,
+            static_x0,
+            LineSearch(DFP(Inverse()), Backtracking()),
+            OptimizationOptions(),
+        )
+        _alloc = @allocated solve(
+            static_prob_qn,
+            static_x0,
+            LineSearch(DFP(Inverse()), Backtracking()),
+            OptimizationOptions(),
+        )
         @test _alloc == 0
 
-        solve(static_prob_qn, static_x0, LineSearch(DFP(Direct()), Backtracking()), OptimizationOptions())
-        _alloc = @allocated solve(static_prob_qn, static_x0, LineSearch(DFP(Direct()), Backtracking()), OptimizationOptions())
+        solve(
+            static_prob_qn,
+            static_x0,
+            LineSearch(DFP(Direct()), Backtracking()),
+            OptimizationOptions(),
+        )
+        _alloc = @allocated solve(
+            static_prob_qn,
+            static_x0,
+            LineSearch(DFP(Direct()), Backtracking()),
+            OptimizationOptions(),
+        )
         @test _alloc == 0
 
-        solve(static_prob_qn, static_x0, LineSearch(SR1(Inverse()), Backtracking()), OptimizationOptions())
-        _alloc = @allocated solve(static_prob_qn, static_x0, LineSearch(SR1(Inverse()), Backtracking()), OptimizationOptions())
+        solve(
+            static_prob_qn,
+            static_x0,
+            LineSearch(SR1(Inverse()), Backtracking()),
+            OptimizationOptions(),
+        )
+        _alloc = @allocated solve(
+            static_prob_qn,
+            static_x0,
+            LineSearch(SR1(Inverse()), Backtracking()),
+            OptimizationOptions(),
+        )
         @test _alloc == 0
 
-        solve(static_prob_qn, static_x0, LineSearch(SR1(Direct()), Backtracking()), OptimizationOptions())
-        _alloc = @allocated solve(static_prob_qn, static_x0, LineSearch(SR1(Direct()), Backtracking()), OptimizationOptions())
+        solve(
+            static_prob_qn,
+            static_x0,
+            LineSearch(SR1(Direct()), Backtracking()),
+            OptimizationOptions(),
+        )
+        _alloc = @allocated solve(
+            static_prob_qn,
+            static_x0,
+            LineSearch(SR1(Direct()), Backtracking()),
+            OptimizationOptions(),
+        )
         @test _alloc == 0
     end
 end
 
 Random.seed!(4568532)
-solve(static_prob_qn, rand(3), Adam(), OptimizationOptions(maxiter=1000))
-solve(static_prob_qn, rand(3), AdaMax(), OptimizationOptions(maxiter=1000))
+solve(static_prob_qn, rand(3), Adam(), OptimizationOptions(maxiter = 1000))
+solve(static_prob_qn, rand(3), AdaMax(), OptimizationOptions(maxiter = 1000))
 
 
 
@@ -350,19 +495,31 @@ solve(static_prob_qn, rand(3), AdaMax(), OptimizationOptions(maxiter=1000))
     f = OPT_PROBS["himmelblau"]["array"]["mutating"]
     x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
     prob = OptimizationProblem(f)
-    prob_oop = OptimizationProblem(f; inplace=false)
-    prob_bounds = OptimizationProblem(obj=f, bounds=([-5.0,-9.0],[13.0,4.0]))
-    prob_bounds_oop = OptimizationProblem(obj=f, bounds=([-5.0,-9.0],[13.0,4.0]); inplace=false)
-    prob_on_bounds = OptimizationProblem(obj=f, bounds=([3.5,-9.0],[13.0,4.0]))
-    prob_on_bounds_oop = OptimizationProblem(obj=f, bounds=([3.5,-9.0],[13.0,4.0]); inplace=false)
+    prob_oop = OptimizationProblem(f; inplace = false)
+    prob_bounds = OptimizationProblem(obj = f, bounds = ([-5.0, -9.0], [13.0, 4.0]))
+    prob_bounds_oop =
+        OptimizationProblem(obj = f, bounds = ([-5.0, -9.0], [13.0, 4.0]); inplace = false)
+    prob_on_bounds = OptimizationProblem(obj = f, bounds = ([3.5, -9.0], [13.0, 4.0]))
+    prob_on_bounds_oop =
+        OptimizationProblem(obj = f, bounds = ([3.5, -9.0], [13.0, 4.0]); inplace = false)
 
-    start = [3.7,2.0]
+    start = [3.7, 2.0]
 
-    res_unc = solve(prob_bounds, copy(start), LineSearch(Newton(), Backtracking()), OptimizationOptions())
+    res_unc = solve(
+        prob_bounds,
+        copy(start),
+        LineSearch(Newton(), Backtracking()),
+        OptimizationOptions(),
+    )
     @test res_unc.info.solution ≈ [3.0, 2.0]
     res_con = solve(prob_bounds, copy(start), ActiveBox(), OptimizationOptions())
     @test res_con.info.solution ≈ [3.0, 2.0]
-    res_unc = solve(prob_on_bounds, copy(start), LineSearch(Newton(), Backtracking()), OptimizationOptions())
+    res_unc = solve(
+        prob_on_bounds,
+        copy(start),
+        LineSearch(Newton(), Backtracking()),
+        OptimizationOptions(),
+    )
     @test res_unc.info.solution ≈ [3.0, 2.0]
     res_con = solve(prob_on_bounds, copy(start), ActiveBox(), OptimizationOptions())
     @test res_con.info.solution ≈ [3.5, 1.6165968467448326]
@@ -387,67 +544,148 @@ function fourth_fgh(∇f, ∇²fx, x)
     return fx, ∇f, ∇²f
 end
 
-const scalar_prob_oop = OptimizationProblem(ScalarObjective(fourth_f, nothing, fourth_fg, fourth_fgh, nothing, nothing, nothing, nothing); inplace=false)
+const scalar_prob_oop = OptimizationProblem(
+    ScalarObjective(
+        fourth_f,
+        nothing,
+        fourth_fg,
+        fourth_fgh,
+        nothing,
+        nothing,
+        nothing,
+        nothing,
+    );
+    inplace = false,
+)
 @testset "scalar no-alloc" begin
-    _alloc = @allocated solve(scalar_prob_oop, 4.0, LineSearch(SR1(Direct())), OptimizationOptions())
-    _alloc = @allocated solve(scalar_prob_oop, 4.0, LineSearch(SR1(Direct())), OptimizationOptions())
+    _alloc = @allocated solve(
+        scalar_prob_oop,
+        4.0,
+        LineSearch(SR1(Direct())),
+        OptimizationOptions(),
+    )
+    _alloc = @allocated solve(
+        scalar_prob_oop,
+        4.0,
+        LineSearch(SR1(Direct())),
+        OptimizationOptions(),
+    )
     @test _alloc == 0
 
-    _alloc = @allocated solve(scalar_prob_oop, 4.0, LineSearch(BFGS(Direct())), OptimizationOptions())
-    _alloc = @allocated solve(scalar_prob_oop, 4.0, LineSearch(BFGS(Direct())), OptimizationOptions())
+    _alloc = @allocated solve(
+        scalar_prob_oop,
+        4.0,
+        LineSearch(BFGS(Direct())),
+        OptimizationOptions(),
+    )
+    _alloc = @allocated solve(
+        scalar_prob_oop,
+        4.0,
+        LineSearch(BFGS(Direct())),
+        OptimizationOptions(),
+    )
     @test _alloc == 0
 
-    _alloc = @allocated solve(scalar_prob_oop, 4.0, LineSearch(DFP(Direct())), OptimizationOptions())
-    _alloc = @allocated solve(scalar_prob_oop, 4.0, LineSearch(DFP(Direct())), OptimizationOptions())
+    _alloc = @allocated solve(
+        scalar_prob_oop,
+        4.0,
+        LineSearch(DFP(Direct())),
+        OptimizationOptions(),
+    )
+    _alloc = @allocated solve(
+        scalar_prob_oop,
+        4.0,
+        LineSearch(DFP(Direct())),
+        OptimizationOptions(),
+    )
     @test _alloc == 0
 
-    _alloc = @allocated solve(scalar_prob_oop, 4.0, LineSearch(Newton()), OptimizationOptions())
-    _alloc = @allocated solve(scalar_prob_oop, 4.0, LineSearch(Newton()), OptimizationOptions())
+    _alloc =
+        @allocated solve(scalar_prob_oop, 4.0, LineSearch(Newton()), OptimizationOptions())
+    _alloc =
+        @allocated solve(scalar_prob_oop, 4.0, LineSearch(Newton()), OptimizationOptions())
     @test _alloc == 0
 
-    _alloc = @allocated solve(scalar_prob_oop, 4.0, LineSearch(Newton()), OptimizationOptions())
-    _alloc = @allocated solve(scalar_prob_oop, 4.0, LineSearch(Newton()), OptimizationOptions())
+    _alloc =
+        @allocated solve(scalar_prob_oop, 4.0, LineSearch(Newton()), OptimizationOptions())
+    _alloc =
+        @allocated solve(scalar_prob_oop, 4.0, LineSearch(Newton()), OptimizationOptions())
     @test _alloc == 0
 end
 
 
 using DoubleFloats
 @testset "Test double floats" begin
-	function fdouble(x)
-	    fx = (1 - x[1])^2 + 100 * (x[2] - x[1]^2)^2
-	    return fx
-	end
-	function fgdouble(G, x)
-	    fx = (1 - x[1])^2 + 100 * (x[2] - x[1]^2)^2
+    function fdouble(x)
+        fx = (1 - x[1])^2 + 100 * (x[2] - x[1]^2)^2
+        return fx
+    end
+    function fgdouble(G, x)
+        fx = (1 - x[1])^2 + 100 * (x[2] - x[1]^2)^2
 
         G1 = -2 * (1 - x[1]) - 400 * (x[2] - x[1]^2) * x[1]
         G2 = 200 * (x[2] - x[1]^2)
-        G = [G1,G2]
-	    return fx, G
-	end
-	f_obj = OptimizationProblem(ScalarObjective(fdouble, nothing, fgdouble, nothing, nothing, nothing, nothing, nothing))
-	res = res = solve(f_obj, Double64.([1,2]), LineSearch(GradientDescent(Inverse())), OptimizationOptions(;g_abstol=1e-32, maxiter=100000))
+        G = [G1, G2]
+        return fx, G
+    end
+    f_obj = OptimizationProblem(
+        ScalarObjective(
+            fdouble,
+            nothing,
+            fgdouble,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+        ),
+    )
+    res =
+        res = solve(
+            f_obj,
+            Double64.([1, 2]),
+            LineSearch(GradientDescent(Inverse())),
+            OptimizationOptions(; g_abstol = 1e-32, maxiter = 100000),
+        )
     @test res.info.minimum < 1e-45
-    res = res = solve(f_obj, Double64.([1,2]), LineSearch(BFGS(Inverse())), OptimizationOptions(;g_abstol=1e-32))
+    res =
+        res = solve(
+            f_obj,
+            Double64.([1, 2]),
+            LineSearch(BFGS(Inverse())),
+            OptimizationOptions(; g_abstol = 1e-32),
+        )
     @test res.info.minimum < 1e-45
-	res = res = solve(f_obj, Double64.([1,2]), LineSearch(DFP(Inverse())), OptimizationOptions(;g_abstol=1e-32))
+    res =
+        res = solve(
+            f_obj,
+            Double64.([1, 2]),
+            LineSearch(DFP(Inverse())),
+            OptimizationOptions(; g_abstol = 1e-32),
+        )
     @test res.info.minimum < 1e-45
-	res = res = solve(f_obj, Double64.([1,2]), LineSearch(SR1(Inverse())), OptimizationOptions(;g_abstol=1e-32))
+    res =
+        res = solve(
+            f_obj,
+            Double64.([1, 2]),
+            LineSearch(SR1(Inverse())),
+            OptimizationOptions(; g_abstol = 1e-32),
+        )
     @test res.info.minimum < 1e-45
 end
 
 
-function myfun(x::T) where T
+function myfun(x::T) where {T}
     fx = T(x^4 + sin(x))
     return fx
 end
-function myfun(∇f, x::T) where T
-    ∇f = T(4*x^3 + cos(x))
+function myfun(∇f, x::T) where {T}
+    ∇f = T(4 * x^3 + cos(x))
     fx = myfun(x)
     fx, ∇f
 end
-function myfun(∇f, ∇²f, x::T) where T<:Real
-    ∇²f = T(12*x^2 - sin(x))
+function myfun(∇f, ∇²f, x::T) where {T<:Real}
+    ∇²f = T(12 * x^2 - sin(x))
     fx, ∇f = myfun(∇f, x)
     T(fx), ∇f, ∇²f
 end
@@ -456,15 +694,39 @@ end
         if T == Rational{BigInt}
             options = OptimizationOptions()
         else
-            options = OptimizationOptions(g_abstol=eps(T), g_reltol=T(0))
+            options = OptimizationOptions(g_abstol = eps(T), g_reltol = T(0))
         end
         for M in (SR1, BFGS, DFP, Newton)
             if M == Newton
-                obj = OptimizationProblem(ScalarObjective(myfun, nothing, myfun, myfun, nothing, nothing, nothing, nothing); inplace=false)
+                obj = OptimizationProblem(
+                    ScalarObjective(
+                        myfun,
+                        nothing,
+                        myfun,
+                        myfun,
+                        nothing,
+                        nothing,
+                        nothing,
+                        nothing,
+                    );
+                    inplace = false,
+                )
                 res = solve(obj, T(3.1), LineSearch(M()), options)
                 @test all(isa.([res.info.minimum, res.info.∇fz, res.info.solution], T))
             else
-                obj = OptimizationProblem(ScalarObjective(myfun, nothing, myfun, myfun, nothing, nothing, nothing, nothing); inplace=false)
+                obj = OptimizationProblem(
+                    ScalarObjective(
+                        myfun,
+                        nothing,
+                        myfun,
+                        myfun,
+                        nothing,
+                        nothing,
+                        nothing,
+                        nothing,
+                    );
+                    inplace = false,
+                )
                 res = solve(obj, T(3.1), LineSearch(M(Direct())), options)
                 @test all(isa.([res.info.minimum, res.info.∇fz, res.info.solution], T))
                 res = solve(obj, T(3.1), LineSearch(M(Inverse())), options)
@@ -484,31 +746,44 @@ using GeometryTypes
         if !(G == nothing)
             G1 = -2.0 * (1.0 - x[1]) - 400.0 * (x[2] - x[1]^2) * x[1]
             G2 = 200.0 * (x[2] - x[1]^2)
-            gx = Point(G1,G2)
+            gx = Point(G1, G2)
 
             return fx, gx
         else
             return fx
         end
     end
-    fu(x) =  (1.0 - x[1])^2 + 100.0 * (x[2] - x[1]^2)^2
-    f_obj = OptimizationProblem(ScalarObjective(fu, nothing, fu, nothing, nothing, nothing, nothing, nothing); inplace=false)
-    res = solve(f_obj, Point(1.3,1.3), LineSearch(GradientDescent(Inverse())), OptimizationOptions())
+    fu(x) = (1.0 - x[1])^2 + 100.0 * (x[2] - x[1]^2)^2
+    f_obj = OptimizationProblem(
+        ScalarObjective(fu, nothing, fu, nothing, nothing, nothing, nothing, nothing);
+        inplace = false,
+    )
+    res = solve(
+        f_obj,
+        Point(1.3, 1.3),
+        LineSearch(GradientDescent(Inverse())),
+        OptimizationOptions(),
+    )
     @test res.info.minimum < 1e-9
-    res = solve(f_obj, Point(1.3,1.3), LineSearch(BFGS(Inverse())), OptimizationOptions())
+    res = solve(f_obj, Point(1.3, 1.3), LineSearch(BFGS(Inverse())), OptimizationOptions())
     @test res.info.minimum < 1e-10
-    res = solve(f_obj, Point(1.3,1.3), LineSearch(DFP(Inverse())), OptimizationOptions())
+    res = solve(f_obj, Point(1.3, 1.3), LineSearch(DFP(Inverse())), OptimizationOptions())
     @test res.info.minimum < 1e-10
-    res = solve(f_obj, Point(1.3,1.3), LineSearch(SR1(Inverse())), OptimizationOptions())
+    res = solve(f_obj, Point(1.3, 1.3), LineSearch(SR1(Inverse())), OptimizationOptions())
     @test res.info.minimum < 1e-10
-    
-    res = solve(f_obj, Point(1.3,1.3), LineSearch(GradientDescent(Direct())), OptimizationOptions())
+
+    res = solve(
+        f_obj,
+        Point(1.3, 1.3),
+        LineSearch(GradientDescent(Direct())),
+        OptimizationOptions(),
+    )
     @test res.info.minimum < 1e-9
-    res = solve(f_obj, Point(1.3,1.3), LineSearch(BFGS(Direct())), OptimizationOptions())
+    res = solve(f_obj, Point(1.3, 1.3), LineSearch(BFGS(Direct())), OptimizationOptions())
     @test res.info.minimum < 1e-10
-    res = solve(f_obj, Point(1.3,1.3), LineSearch(DFP(Direct())), OptimizationOptions())
+    res = solve(f_obj, Point(1.3, 1.3), LineSearch(DFP(Direct())), OptimizationOptions())
     @test res.info.minimum < 1e-10
-    res = solve(f_obj, Point(1.3,1.3), LineSearch(SR1(Direct())), OptimizationOptions())
+    res = solve(f_obj, Point(1.3, 1.3), LineSearch(SR1(Direct())), OptimizationOptions())
     @test res.info.minimum < 1e-10
 end
 
@@ -516,16 +791,16 @@ end
 
 
 @testset "quadratics" begin
-    A = rand(2,2)
+    A = rand(2, 2)
     A = abs.(A)
-    A = Symmetric(A*A')
+    A = Symmetric(A * A')
     x = rand(2)
-    b = A*x
+    b = A * x
 
 
-    quadf(x) = -dot(b, x) + dot(x, A*x)/2
+    quadf(x) = -dot(b, x) + dot(x, A * x) / 2
     function quadfg(G, x)
-        G.=A*x-b
+        G .= A * x - b
         quadf(x), G
     end
     function quadfgh(G, H, x)
@@ -534,15 +809,46 @@ end
         f, G, H
     end
 
-    quadprob = OptimizationProblem(ScalarObjective(quadf, nothing, quadfg, quadfgh, nothing, nothing, nothing, nothing); inplace=true)
+    quadprob = OptimizationProblem(
+        ScalarObjective(
+            quadf,
+            nothing,
+            quadfg,
+            quadfgh,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+        );
+        inplace = true,
+    )
 
-    for approx in (GradientDescent(), BFGS(Inverse()), BFGS(Direct()), DBFGS(), SR1(Inverse()), SR1(Direct()), DFP(), Newton(), BB(), LBFGS()) # CBB
-        lsres =  solve(quadprob, zeros(2), LineSearch(approx, Backtracking()), OptimizationOptions(maxiter=20000))
-        println(rpad(summary(approx), 40), "   ||   $(rpad(lsres.info.iter, 5))   ||   $(lsres.info.∇fz)")
+    for approx in (
+        GradientDescent(),
+        BFGS(Inverse()),
+        BFGS(Direct()),
+        DBFGS(),
+        SR1(Inverse()),
+        SR1(Direct()),
+        DFP(),
+        Newton(),
+        BB(),
+        LBFGS(),
+    ) # CBB
+        lsres = solve(
+            quadprob,
+            zeros(2),
+            LineSearch(approx, Backtracking()),
+            OptimizationOptions(maxiter = 20000),
+        )
+        println(
+            rpad(summary(approx), 40),
+            "   ||   $(rpad(lsres.info.iter, 5))   ||   $(lsres.info.∇fz)",
+        )
     end
 end
 @testset "batched" begin
-    
+
 
 end
 
@@ -553,15 +859,27 @@ end
 
     x0m = @MVector [-1.0, 0.0, 0.0]
     x0 = [-1.0, 0.0, 0.0]
-    @time res = solve(prob, copy(x0m), ConjugateGradient(update=VPRP()), OptimizationOptions());
-    @time res = solve(prob, copy(x0), ConjugateGradient(update=VPRP()), OptimizationOptions());
+    @time res =
+        solve(prob, copy(x0m), ConjugateGradient(update = VPRP()), OptimizationOptions())
+    @time res =
+        solve(prob, copy(x0), ConjugateGradient(update = VPRP()), OptimizationOptions())
     # workaround for https://github.com/JuliaArrays/StaticArrays.jl/issues/828
-    @time res = solve(prob, (copy(x0m), MArray(I+x0m*x0m')), LineSearch(BFGS()), OptimizationOptions());
-    @time res = solve(prob, copy(x0), LineSearch(BFGS()), OptimizationOptions());
-    @time res = solve(prob, (copy(x0m), MArray(I+x0m*x0m')), LineSearch(SR1()), OptimizationOptions());
-    @time res = solve(prob, copy(x0), LineSearch(SR1()), OptimizationOptions());
-#    @time res = solve(prob, (copy(x0m), MArray(I+x0m*x0m')), TrustRegion(DBFGS(), Dogleg()), OptimizationOptions());
-    @time res = solve(prob, copy(x0), TrustRegion(DBFGS(), Dogleg()), OptimizationOptions());
+    @time res = solve(
+        prob,
+        (copy(x0m), MArray(I + x0m * x0m')),
+        LineSearch(BFGS()),
+        OptimizationOptions(),
+    )
+    @time res = solve(prob, copy(x0), LineSearch(BFGS()), OptimizationOptions())
+    @time res = solve(
+        prob,
+        (copy(x0m), MArray(I + x0m * x0m')),
+        LineSearch(SR1()),
+        OptimizationOptions(),
+    )
+    @time res = solve(prob, copy(x0), LineSearch(SR1()), OptimizationOptions())
+    #    @time res = solve(prob, (copy(x0m), MArray(I+x0m*x0m')), TrustRegion(DBFGS(), Dogleg()), OptimizationOptions());
+    @time res = solve(prob, copy(x0), TrustRegion(DBFGS(), Dogleg()), OptimizationOptions())
 end
 
 

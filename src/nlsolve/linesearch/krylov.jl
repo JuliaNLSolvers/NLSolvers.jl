@@ -13,9 +13,8 @@ end
 
 # Truncated-Newton algorithms for large-scale unconstrained optimization
 # https://link.springer.com/article/10.1007/BF02592055
-struct DemboSteihaug <: ForcingSequence
-end
-η(fft::DemboSteihaug, info) = min(1/(info.k+2), info.ρFz)
+struct DemboSteihaug <: ForcingSequence end
+η(fft::DemboSteihaug, info) = min(1 / (info.k + 2), info.ρFz)
 
 # See page 19 https://epubs.siam.org/doi/abs/10.1137/0917003
 # Choice 1 (2.2) - it appears that the extra F'(x)s evaluation would
@@ -28,8 +27,8 @@ struct EisenstatWalkerA{T} <: ForcingSequence
 end
 EisenstatWalkerA() = EisenstatWalkerA(0.1, 0.9999)
 function η(fft::EisenstatWalkerA, info)
-    η = (info.ρFz - info.residual_old)/info.ρFx
-    β = info.η_old^(1+sqrt(5)/2)
+    η = (info.ρFz - info.residual_old) / info.ρFx
+    β = info.η_old^(1 + sqrt(5) / 2)
     if β ≥ fft.s
         η = max(η, β)
     end
@@ -49,7 +48,7 @@ struct EisenstatWalkerB{T} <: ForcingSequence
     γ::T
     ηmax::T
 end
-EisenstatWalkerB() = EisenstatWalkerB(0.1, 1+sqrt(5)/2, 1.0, 100.0)
+EisenstatWalkerB() = EisenstatWalkerB(0.1, 1 + sqrt(5) / 2, 1.0, 100.0)
 
 struct BrownSaad{T}
 
@@ -60,9 +59,9 @@ function η(fft::EisenstatWalkerB, info)
 
     ηx = info.η_old
 
-    ρ = info.ρFz/info.ρFx
-    η = γ*ρ^α
-    β = γ*ηx^α
+    ρ = info.ρFz / info.ρFx
+    η = γ * ρ^α
+    β = γ * ηx^α
     if β ≥ fft.s
         η = max(η, β)
     end
@@ -80,13 +79,14 @@ end
 Constructs a method type for the Inexact Newton's method with Linesearch.
 
 """
-struct InexactNewton{LinSolve, ForcingType<:ForcingSequence, Tη}
+struct InexactNewton{LinSolve,ForcingType<:ForcingSequence,Tη}
     linsolve::LinSolve
     force_seq::ForcingType
     η₀::Tη
     maxiter::Int
 end
-InexactNewton(; linsolve, force_seq=DemboSteihaug(), eta0 = 1e-4, maxiter=300)=InexactNewton(linsolve, force_seq, eta0, maxiter)
+InexactNewton(; linsolve, force_seq = DemboSteihaug(), eta0 = 1e-4, maxiter = 300) =
+    InexactNewton(linsolve, force_seq, eta0, maxiter)
 # map from method to forcing sequence
 η(fft::InexactNewton, info) = η(fft.force_seq, info)
 
@@ -110,9 +110,9 @@ function solve(problem::NEqProblem, x, method::InexactNewton, options::NEqOption
     ρF0 = norm(Fx, Inf)
     ρs = norm(x, 2)
     z = copy(x)
-    stoptol = Tx(options.f_reltol)*ρFz + Tx(options.f_abstol)
+    stoptol = Tx(options.f_reltol) * ρFz + Tx(options.f_abstol)
 
-    force_info = (k = 1, ρFz=ρFz, ρFx=nothing, η_old=nothing)
+    force_info = (k = 1, ρFz = ρFz, ρFx = nothing, η_old = nothing)
 
     iter = 0
 
@@ -120,9 +120,9 @@ function solve(problem::NEqProblem, x, method::InexactNewton, options::NEqOption
         iter += 1
         x .= z
         # Refactor this
-        if iter == 1 && !isa(method.force_seq, FixedForceTerm) 
+        if iter == 1 && !isa(method.force_seq, FixedForceTerm)
             ηₖ = method.η₀
-        else 
+        else
             ηₖ = η(method, force_info)
         end
         JvOp = JvGen(x)
@@ -144,14 +144,26 @@ function solve(problem::NEqProblem, x, method::InexactNewton, options::NEqOption
             z = retract(problem, z, x, xp, -1)
 
             Fx = problem.R.F(Fx, z)
-            btk_conv = norm(Fx, 2) ≤ (1-t*(1-ηₖ))*ρFx || it > 20
+            btk_conv = norm(Fx, 2) ≤ (1 - t * (1 - ηₖ)) * ρFx || it > 20
         end
         if norm(Fx, 2) < stoptol
             break
         end
         η_old = ηₖ
         ρFz = norm(Fx, 2)
-        force_info = (k = iter, ρFz=ρFz, ρFx=ρFx, η_old=η_old, residual_old=res)
+        force_info = (k = iter, ρFz = ρFz, ρFx = ρFx, η_old = η_old, residual_old = res)
     end
-    return ConvergenceInfo(method, (solution=x, best_residual=Fx, ρF0=ρF0, ρ2F0=ρ2F0, ρs=ρs, iter=iter, time=time()-t0), options)
+    return ConvergenceInfo(
+        method,
+        (
+            solution = x,
+            best_residual = Fx,
+            ρF0 = ρF0,
+            ρ2F0 = ρ2F0,
+            ρs = ρs,
+            iter = iter,
+            time = time() - t0,
+        ),
+        options,
+    )
 end
