@@ -59,7 +59,7 @@ Results of minimization
   Initial objective value:  3.04e-01
   Initial gradient norm:    1.06e+00
 
-* Convergence measures
+* Stopping criteria
   |x - x'|              = 6.39e-07 <= 0.00e+00 (false)
   |x - x'|/|x|          = 1.08e-06 <= 0.00e+00 (false)
   |f(x) - f(x')|        = 9.71e-13 <= 0.00e+00 (false)
@@ -118,7 +118,7 @@ Results of minimization
   Initial objective value:  3.04e-01
   Initial gradient norm:    1.06e+00
 
-* Convergence measures
+* Stopping criteria
   |x - x'|              = 6.39e-07 <= 0.00e+00 (false)
   |x - x'|/|x|          = 1.08e-06 <= 0.00e+00 (false)
   |f(x) - f(x')|        = 9.71e-13 <= 0.00e+00 (false)
@@ -151,7 +151,7 @@ Results of minimization
   Initial objective value:  3.04e-01
   Initial gradient norm:    1.06e+00
 
-* Convergence measures
+* Stopping criteria
   |x - x'|              = 6.39e-07 <= 0.00e+00 (false)
   |x - x'|/|x|          = 1.08e-06 <= 0.00e+00 (false)
   |f(x) - f(x')|        = 9.71e-13 <= 0.00e+00 (false)
@@ -222,7 +222,7 @@ Results of solving non-linear equations
   Initial residual 2-norm:    6.25e+04
   Initial residual Inf-norm:  2.50e+02
 
-* Convergence measures
+* Stopping criteria
   |F(x')|               = 5.24e-14 <= 0.00e+00 (false)
 
 * Work counters
@@ -243,7 +243,7 @@ Results of solving non-linear equations
   Initial residual 2-norm:    2.50e+02
   Initial residual Inf-norm:  2.50e+02
 
-* Convergence measures
+* Stopping criteria
   |F(x')|               = 0.00e+00 <= 0.00e+00 (true)
 
 * Work counters
