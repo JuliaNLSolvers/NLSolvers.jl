@@ -114,7 +114,7 @@ function solve(
     method::NelderMead,
     options::OptimizationOptions,
 )
-    solve(mstyle(prob), prob, x0, method, ABA(x0 .* 0 .+ 1), options)
+    _solve(mstyle(prob), prob, x0, method, ABA(x0 .* 0 .+ 1), options)
 end
 
 # centroid except h-th vertex
@@ -143,7 +143,7 @@ struct ValuedSimplex{TS,TV,TO}
 end
 ValuedSimplex(S, V) = ValuedSimplex(S, V, sortperm(V))
 
-function solve(
+function _solve(
     mstyle::InPlace,
     prob::OptimizationProblem,
     x0,
@@ -156,7 +156,7 @@ function solve(
     order = sortperm(simplex_value)
     simplex = ValuedSimplex(simplex_vector, simplex_value, order)
     nmcache = NMCaches(simplex)
-    res = solve(mstyle, prob, simplex, method, options, nmcache)
+    res = _solve(mstyle, prob, simplex, method, options, nmcache)
     x0 .= solution(res)
     return res
 end
@@ -168,7 +168,7 @@ function NMCaches(simplex)
     return (x_reflect = x_reflect, x_cache = x_cache, x_centroid = x_centroid)
 end
 
-function solve(
+function _solve(
     mstyle::InPlace,
     prob::OptimizationProblem,
     simplex::ValuedSimplex,
@@ -345,7 +345,7 @@ end
 #####################
 #    out-of-place   #
 #####################
-function solve(
+function _solve(
     mstyle::OutOfPlace,
     prob::OptimizationProblem,
     x0,
@@ -357,10 +357,10 @@ function solve(
     simplex_value = batched_value(prob, simplex_vector) # this could be batched
     order = sortperm(simplex_value)
     simplex = ValuedSimplex(simplex_vector, simplex_value, order)
-    res = solve(mstyle, prob, simplex, method, options)
+    res = _solve(mstyle, prob, simplex, method, options)
     return res
 end
-function solve(
+function _solve(
     mstyle::OutOfPlace,
     prob::OptimizationProblem,
     simplex::ValuedSimplex,

@@ -1,12 +1,12 @@
-# make this keyworded?
-init(::NEqProblem, ::LineSearch, x) = (z = copy(x), d = copy(x), Fx = copy(x), Jx = x * x')
+init(::NEqProblem, ::LineSearch; x, z = copy(x), d = copy(x), Fx = copy(x), Jx = x * x') =
+    (; z, d, Fx, Jx)
 # the bang is just potentially inplace x and state. nonbang copies these
 function solve(
     problem::NEqProblem,
     x,
     method::LineSearch = LineSearch(Newton(), Static(1)),
     options = NEqOptions(),
-    state = init(problem, method, x),
+    state = init(problem, method; x),
 )
     t0 = time()
 
