@@ -2,7 +2,6 @@
   NEqProblem(residuals)
   NEqProblem(residuals, options)
 
-An NEqProblem (Non-linear system of Equations Problem), is used to represent the
 mathematical problem of finding zeros in the residual function of square systems
 of equations. The problem is defined by `residuals` which is an appropriate objective
 type (for example `NonDiffed`, `OnceDiffed`, ...) for the types of algorithm to be used.
@@ -93,7 +92,7 @@ function Base.show(io::IO, ci::ConvergenceInfo{<:Any,<:Any,<:NEqOptions})
     println(io, "  Initial residual 2-norm:    $(@sprintf("%.2e", info.ρ2F0))")
     println(io, "  Initial residual Inf-norm:  $(@sprintf("%.2e", info.ρF0))")
     println(io)
-    println(io, "* Convergence measures")
+    println(io, "* Stopping criteria")
     if true
         #    println(io, "  |x - x'|              = $(@sprintf("%.2e", info.ρs)) <= $(@sprintf("%.2e", opt.x_abstol)) ($(info.ρs<=opt.x_abstol))")
         #    println(io, "  |x - x'|/|x|          = $(@sprintf("%.2e", info.ρs/info.ρx)) <= $(@sprintf("%.2e", opt.x_reltol)) ($(info.ρs/info.ρx <= opt.x_reltol))")
