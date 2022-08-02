@@ -265,6 +265,18 @@ const prob3 = OptimizationProblem(obj3, (-10.1, 9.0))
     @test all(abs.(solve(prob, BrentMin(), OptimizationOptions()).info.minimum) .< 1e-8)
     @test all(abs.(solve(prob2, BrentMin(), OptimizationOptions()).info.minimum) .< 1e-8)
     @test all(abs.(solve(prob3, BrentMin(), OptimizationOptions()).info.minimum) .< 1e-8)
+    #@allocated solve(prob3, BrentMin(), OptimizationOptions()) == 0
+    #@test @allocated solve(prob3, BrentMin(), OptimizationOptions()) == 0
+
+    # Test the "evaluate_bounds"
+    for f in [x->sign(x), x->-sign(x)]
+        for x in [(-2.0,2.0),(-1.0,2.0),(-2.0,1.0)]
+            obj = ScalarObjective(; f)
+            prob = OptimizationProblem(obj, x)
+            result = solve(prob, BrentMin(), OptimizationOptions())
+            @test result.info.minimum == -1.0
+        end
+    end
 end
 
 
