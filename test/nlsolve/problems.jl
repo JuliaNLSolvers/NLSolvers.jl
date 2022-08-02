@@ -1,4 +1,5 @@
 using NLSolvers
+using LinearMaps
 NLE_PROBS = Dict()
 
 

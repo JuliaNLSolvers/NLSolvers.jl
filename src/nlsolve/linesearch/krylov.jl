@@ -1,11 +1,8 @@
-# https://www.sciencedirect.com/science/article/pii/S0377042705007958
-# https://link.springer.com/article/10.1007/BF02592055
-# https://epubs.siam.org/doi/abs/10.1137/0917003
-# https://epubs.siam.org/doi/10.1137/0911026
-# https://pdfs.semanticscholar.org/b321/3084f663260076dcb92f2fa6031b362dc5bc.pdf
-# https://www.sciencedirect.com/science/article/abs/pii/0098135483800027
-abstract type ForcingSequence end
+# Missing!
+# An, Mo, Liu https://www.sciencedirect.com/science/article/pii/S0377042705007958
+# Shanno https://www.sciencedirect.com/science/article/abs/pii/0098135483800027
 
+abstract type ForcingSequence end
 struct FixedForceTerm{T} <: ForcingSequence
     η::T
 end
@@ -50,9 +47,10 @@ struct EisenstatWalkerB{T} <: ForcingSequence
 end
 EisenstatWalkerB() = EisenstatWalkerB(0.1, 1 + sqrt(5) / 2, 1.0, 100.0)
 
+# https://epubs.siam.org/doi/10.1137/0911026
 struct BrownSaad{T}
-
 end
+
 function η(fft::EisenstatWalkerB, info)
     T = typeof(info.ρFz)
     γ, α = fft.γ, fft.α
@@ -137,7 +135,6 @@ function solve(problem::NEqProblem, x, method::InexactNewton, options::NEqOption
         ρFx = force_info.ρFz
 
         # Backtracking
-        # 
         it = 0
         while !btk_conv
             it += 1
