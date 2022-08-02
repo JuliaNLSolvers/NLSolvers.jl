@@ -100,7 +100,7 @@ function Base.show(io::IO, ci::ConvergenceInfo)
         println(io, "  Initial gradient norm:    $(@sprintf("%.2e", info.∇f0))")
     end
     println(io)
-    println(io, "* Convergence measures")
+    println(io, "* Stopping criteria")
     if isa(ci.solver, NelderMead)
         nm_converged(r) = 0.0
         println(
