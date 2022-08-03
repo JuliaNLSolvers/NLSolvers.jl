@@ -20,8 +20,10 @@ julia = "1"
 ArbNumerics = "7e558dbc-694d-5a72-987c-6f4ebed21442"
 DoubleFloats = "497a8b3b-efae-58df-a0af-a86822472b78"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+GenericLinearAlgebra = "14197337-ba66-59df-a3e3-ca00e7dcff7a"
 GeometryTypes = "4d00f742-c7ba-57c2-abde-4428a4b178cb"
 IterativeSolvers = "42fd0dbc-a981-5370-80f2-aaf504508153"
+LinearMaps = "7a12625a-238d-50fd-b39a-03d52299707e"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
@@ -29,7 +31,6 @@ SparseDiffTools = "47a9eef4-7e08-11e9-0b38-333d64bd3804"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 StaticOptim = "814864de-89d5-11e8-1c72-cfea42f978d7"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-GenericLinearAlgebra = "14197337-ba66-59df-a3e3-ca00e7dcff7a"
 
 [targets]
-test = ["Test", "ArbNumerics", "DoubleFloats", "ForwardDiff", "GeometryTypes", "IterativeSolvers", "Printf", "StaticArrays", "SparseDiffTools", "SparseArrays", "Random", "GenericLinearAlgebra"]
+test = ["Test", "ArbNumerics", "DoubleFloats", "ForwardDiff", "GeometryTypes", "IterativeSolvers", "LinearMaps", "Printf", "StaticArrays", "SparseDiffTools", "SparseArrays", "Random", "GenericLinearAlgebra"]

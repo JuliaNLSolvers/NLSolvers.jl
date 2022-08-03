@@ -6,7 +6,19 @@ using IterativeSolvers
 using DoubleFloats
 using ForwardDiff
 using Test
-
+using IterativeSolvers
+function inexact_linsolve(x0, JvOp, Fx, ηₖ)
+    krylov_iter = IterativeSolvers.gmres_iterable!(x0, JvOp, Fx; maxiter = 50)
+    res = copy(Fx)
+    rhs = ηₖ * norm(Fx, 2)
+    for item in krylov_iter
+        res = krylov_iter.residual.current
+        if res <= rhs
+            break
+        end
+    end
+    return x0, res
+end
 @testset "nlequations interface" begin
     #
     # Have Anderosn use FixedPointProblem
@@ -200,28 +212,30 @@ using Test
         @test norm(res.info.best_residual, Inf) < 1e-12
         res = solve(prob, x0, LineSearch(Newton(), Static(0.6)), NEqOptions())
         @test norm(res.info.best_residual, Inf) < 1e-8
-        #res = solve(prob, copy(initial), DFSANE(), NEqOptions())
-        #res = solve(prob, copy(initial), InexactNewton(), NEqOptions())    
+        res = solve(prob, copy(x0), DFSANE(), NEqOptions())
+        @test norm(res.info.best_residual, Inf) < 1e-6
+        res = solve(prob, copy(x0), InexactNewton(inexact_linsolve, FixedForceTerm(0.001), 1e-4, 300), NEqOptions())
+        @test norm(res.info.best_residual, Inf) < 1e-8
     end
 
     @testset "fixedpoints" begin
-        # function G(x, Gx)
-        #     V1 = [1.0, 0.0] .+ 0.99*[0.1 0.9; 0.5 0.5]*x
-        #     V2 = [0.0, 2.0] .+ 0.99*[0.5 0.5; 1.0 0.0]*x
-        #     K = max(maximum(V1), maximum(V2))
-        #     Gx .= K .+ log.(exp.(V1 .- K) .+ exp.(V2 .- K))
-        #   end
-        #   fp1 = NLSolvers.fixedpoint!(G, zeros(2), Anderson(10000000,1, nothing,nothing))
-        #   fp2 = NLSolvers.fixedpoint!(G, zeros(2), Anderson(2, 2, 0.3, 1e2))
-        #   fp3 = NLSolvers.fixedpoint!(G, zeros(2), Anderson(2, 2, 0.01, 1e2))
-        #   @test all(fp1.x .≈ fp2.x)
-        #   @test all(fp1.x .≈ fp3.x)
+         function G(Gx, x)
+             V1 = [1.0, 0.0] .+ 0.99*[0.1 0.9; 0.5 0.5]*x
+             V2 = [0.0, 2.0] .+ 0.99*[0.5 0.5; 1.0 0.0]*x
+             K = max(maximum(V1), maximum(V2))
+             Gx .= K .+ log.(exp.(V1 .- K) .+ exp.(V2 .- K))
+           end
+           fp1 = NLSolvers.fixedpoint!(G, zeros(2), Anderson(10000000,1, nothing,nothing))
+           fp2 = NLSolvers.fixedpoint!(G, zeros(2), Anderson(2, 2, 0.3, 1e2))
+           fp3 = NLSolvers.fixedpoint!(G, zeros(2), Anderson(2, 2, 0.01, 1e2))
+           @test norm(fp1.info.best_residual .- fp2.info.best_residual) < 1e-7
+           @test norm(fp1.info.best_residual .- fp3.info.best_residual) < 1e-7
 
-        #   fp1 = NLSolvers.solve(NEqProblem((x, F)->G(x, F).-x), zeros(2), Anderson(10000000,1, nothing,nothing))
-        #   fp2 = NLSolvers.solve(NEqProblem((x, F)->G(x, F).-x), zeros(2), Anderson(2, 2, 0.3, 1e2))
-        #   fp3 = NLSolvers.solve(NEqProblem((x, F)->G(x, F).-x), zeros(2), Anderson(2, 2, 0.01, 1e2))
-        #   @test all(fp1.x .≈ fp2.x)
-        #   @test all(fp1.x .≈ fp3.x)
+           fp1 = NLSolvers.solve(NEqProblem(NLSolvers.VectorObjective((F, x)->G(F, x).-x, nothing, nothing, nothing)), [0.0,0.0], Anderson(10000000,1, nothing,nothing), NEqOptions())
+           fp2 = NLSolvers.solve(NEqProblem(NLSolvers.VectorObjective((F, x)->G(F, x).-x, nothing, nothing, nothing)), [0.0,0.0], Anderson(2, 2, 0.3, 1e2), NEqOptions())
+           fp2 = NLSolvers.solve(NEqProblem(NLSolvers.VectorObjective((F, x)->G(F, x).-x, nothing, nothing, nothing)), [0.0,0.0], Anderson(2, 2, 0.01, 1e2), NEqOptions())
+           @test norm(fp1.info.best_residual .- fp2.info.best_residual) < 1e-7
+           @test norm(fp1.info.best_residual .- fp3.info.best_residual) < 1e-7
     end
 
 
@@ -380,24 +394,10 @@ end
     end
     prob_obj = NLSolvers.VectorObjective(F_powell!, nothing, F_jacobian_powell!, jvop)
 
-
     prob = NEqProblem(prob_obj)
     res = solve(prob, copy(x0), LineSearch(Newton(), Backtracking()))
     @test norm(res.info.best_residual) < 1e-15
 
-    using IterativeSolvers
-    function inexact_linsolve(x0, JvOp, Fx, ηₖ)
-        krylov_iter = IterativeSolvers.gmres_iterable!(x0, JvOp, Fx; maxiter = 50)
-        res = copy(Fx)
-        rhs = ηₖ * norm(Fx, 2)
-        for item in krylov_iter
-            res = krylov_iter.residual.current
-            if res <= rhs
-                break
-            end
-        end
-        return x0, res
-    end
     res = solve(
         prob,
         copy(x0),

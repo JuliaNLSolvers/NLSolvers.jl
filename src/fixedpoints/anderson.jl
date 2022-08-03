@@ -30,24 +30,40 @@ function fixedpoint!(
     f_abstol = sqrt(eps(eltype(x))),
     maxiter = 100,
 )
+options = NEqOptions(maxiter=maxiter)
     #==============================================================
       Do initial function iterations; default is a delay of 0,
       but we always do at least one evaluation of G, to set up AA.
 
       Notation: AA solves g(x) - x = 0 or F(x) = 0
     ==============================================================#
+    t0 = time()
     Gx = g(Gx, x)
     Fx .= Gx .- x
     ρF0 = norm(Fx, Inf)
     ρ2F0 = norm(Fx, 2)
     x .= Gx
-    for i = 1:anderson.delay
+    delay_iter = 0
+    while delay_iter < anderson.delay
+        delay_iter += 1
         Gx = g(Gx, x)
         Fx .= Gx .- x
         x .= Gx
         finite_check = isallfinite(x)
         if norm(Fx) < f_abstol || !finite_check
-            return (x = x, Fx = Fx, acc_iter = 0, finite = finite_check)
+                return ConvergenceInfo(
+                    anderson,
+                    (
+                        solution = x,
+                        best_residual = Fx,
+                        ρF0,
+                        ρ2F0,
+                        delay_iter=delay_iter,
+                        iter=0,
+                        time = time() - t0,
+                    ),
+                    options,
+                )
         end
     end
 
@@ -77,7 +93,9 @@ function fixedpoint!(
     Δf = copy(Fx)
 
     Gold = copy(Gx)
-    for k = 1:maxiter
+    iter = 0
+    while iter < options.maxiter
+        iter += 1
         Fold = copy(Fx)
         Gx = g(x, Gx)
         Fx .= Gx .- x
@@ -134,20 +152,19 @@ function fixedpoint!(
 
         finite_check = isallfinite(x)
         if norm(Fx) < f_abstol || !finite_check
-            return (x = x, Fx = Fx, acc_iter = 0, finite = finite_check)
+            break#return (x = x, Fx = Fx, acc_iter = 0, finite = finite_check)
         end
     end
     ConvergenceInfo(
-        method,
+        anderson,
         (
             solution = x,
             best_residual = Fx,
-            ρF0 = ρF0,
-            ρ2F0 = ρ2F0,
-            iter = iter,
+            ρF0,
+            ρ2F0,
+            iter = iter + delay_iter,
             time = time() - t0,
         ),
         options,
     )
-    Gx, Gx, x
 end
