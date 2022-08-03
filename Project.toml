@@ -33,4 +33,4 @@ StaticOptim = "814864de-89d5-11e8-1c72-cfea42f978d7"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "ArbNumerics", "DoubleFloats", "ForwardDiff", "GeometryTypes", "IterativeSolvers", "Printf", "StaticArrays", "SparseDiffTools", "SparseArrays", "Random", "GenericLinearAlgebra"]
+test = ["Test", "ArbNumerics", "DoubleFloats", "ForwardDiff", "GeometryTypes", "IterativeSolvers", "LinearMaps", "Printf", "StaticArrays", "SparseDiffTools", "SparseArrays", "Random", "GenericLinearAlgebra"]
