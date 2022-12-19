@@ -2,7 +2,8 @@ using Documenter, NLSolvers
 
 makedocs(
     doctest = false,
-    sitename = "NLSolvers.jl"
+    sitename = "NLSolvers.jl",
+    pages = ["index.md", "optimization.md",]
 )
 
 deploydocs(
