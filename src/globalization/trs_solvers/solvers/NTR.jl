@@ -70,6 +70,7 @@ function (ms::NTR)(
         s .= -∇f
         s .= F \ s
         s₂ = norm(s, 2)
+
         if issuccess(F) && s₂ < Δ
             H = update_H!(H, h)
             return tr_return(;

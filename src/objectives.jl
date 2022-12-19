@@ -24,19 +24,36 @@ function value(so::ScalarObjective, x)
         return so.f(x)
     end
 end
-# need fall back for the case where fgh is not there
+# need fall back for the case where fg is not there
 function upto_gradient(so::ScalarObjective, ∇f, x)
     if has_param(so)
-        return so.fg(∇f, x, so.param)
+        if so.fg === nothing
+            return so.f(x, so.param), so.g(∇f, x, so.param)
+        else
+            return so.fg(∇f, x, so.param)
+        end
     else
-        return so.fg(∇f, x)
+        if so.fg === nothing
+            return so.f(x), so.g(∇f, x)
+        else
+            return so.fg(∇f, x)
+        end
     end
 end
+# need fall back for the case where fgh is not there
 function upto_hessian(so::ScalarObjective, ∇f, ∇²f, x)
     if has_param(so)
-        return so.fgh(∇f, ∇²f, x, so.param)
+        if so.fgh === nothing
+            return so.f(x, so.param), so.g(∇f, x, so.param), so.h(∇²f, x, so.param)
+        else
+            return so.fgh(∇f, ∇²f, x, so.param)
+        end
     else
-        return so.fgh(∇f, ∇²f, x)
+        if so.fgh === nothing
+            return so.f(x), so.g(∇f, x), so.h(∇²f, x)
+        else
+            return so.fgh(∇f, ∇²f, x)
+        end
     end
 end
 has_batched_f(so::ScalarObjective) = !(so.batched_f === nothing)
