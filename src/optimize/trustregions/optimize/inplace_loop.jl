@@ -155,7 +155,7 @@ end
 
 function update_trust_region(spr, R, p)
     T = eltype(p)
-    # Chosing a parameter > 0 might be preferable here. See p. 4 of Yuans survey
+    # Choosing a parameter > 0 might be preferable here. See p. 4 of Yuans survey
     # We want to avoid cycles, but we also need something that takes very small
     # steps when convergence is hard to achieve.
     α = T(0) / 7 # acceptance ratio
@@ -164,7 +164,7 @@ function update_trust_region(spr, R, p)
     t4 = T(1) / 2
     λ34 = T(0) / 2
     γ = T(2.5) # gamma for grow
-    λγ = T(0) / 2 # distance along growing interval ∈ (0, 1]
+    λγ = T(1) / 2 # distance along growing interval ∈ (0, 1]
     Δmax = T(10)^5 # restrict the largest step
     σ = T(1) / 4
 

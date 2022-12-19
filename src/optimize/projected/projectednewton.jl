@@ -7,10 +7,10 @@
 # ActiveBox
 ## Constructor
 ```julia
-    ActiveBox(; epsilon=1e-8)
+    ActiveBox(; factorize = cholesky, epsilon = 1e-8)
 ```
 
-`epsilon` determines the threshold for whether a bound is approximately active or not, see eqn. (32) in [1].
+`factorize` is a function that factorizes the restricted Hessian, `epsilon` determines the threshold for whether a bound is approximately active or not, see eqn. (32) in [1].
 
 ## Description
 ActiveBox second order for bound constrained convex optimization. It's an active set and allows for rapid exploration of the constraint face. It employs a modified Armijo-line search that takes the active set into account. Details can be found in [1].

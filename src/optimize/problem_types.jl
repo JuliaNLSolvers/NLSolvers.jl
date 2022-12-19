@@ -26,8 +26,8 @@ upto_gradient(prob::OptimizationProblem, ∇f, x) = upto_gradient(prob.objective
 upto_hessian(prob::OptimizationProblem, ∇f, ∇²f, x) =
     upto_hessian(prob.objective, ∇f, ∇²f, x)
 _manifold(prob::OptimizationProblem) = prob.manifold
-lowerbounds(mp::OptimizationProblem) = mp.bounds[1]
-upperbounds(mp::OptimizationProblem) = mp.bounds[2]
+lowerbounds(mp::OptimizationProblem) = mp.bounds === nothing ? throw(ErrorException("No lower bounds were supplied, but your chosen method needs them.")) : mp.bounds[1]
+upperbounds(mp::OptimizationProblem) = mp.bounds === nothing ? throw(ErrorException("No upper bounds were supplied, but your chosen method needs them.")) : mp.bounds[2]
 hasbounds(mp::OptimizationProblem) = mp.bounds isa Tuple
 bounds(mp::OptimizationProblem) = (lower = lowerbounds(mp), upper = upperbounds(mp))
 isboundedonly(::OptimizationProblem{<:Any,<:Nothing,<:Any,<:Nothing}) = false

@@ -1,3 +1,4 @@
+# TODO, trace ω and f to see if exploration works as expected
 ## References
 # - [1] Zhan, Zhang, and Chung. Adaptive particle swarm optimization, IEEE Transactions on Systems, Man, and Cybernetics, Part B: CyberneticsVolume 39, Issue 6 (2009): 1362-1381
 struct ParticleSwarm{Tn,T}
@@ -6,6 +7,7 @@ struct ParticleSwarm{Tn,T}
     elitist_learning::Bool
     c₁::T
     c₂::T
+    ω::T
     σmin::T
     σmax::T
 end
@@ -16,9 +18,10 @@ ParticleSwarm(;
     elitist_learning = true,
     c₁ = 2.0,
     c₂ = 2.0,
+    inertia_weight = 9 / 10,
     σmin = 0.1,
     σmax = 1.0,
-) = ParticleSwarm(n_particles, limit_search_space, elitist_learning, c₁, c₂, σmin, σmax)
+) = ParticleSwarm(n_particles, limit_search_space, elitist_learning, c₁, c₂, inertia_weight, σmin, σmax)
 
 summary(::ParticleSwarm) = "Adaptive Particle Swarm"
 function solve(
@@ -39,7 +42,7 @@ function solve(
     T, n = eltype(x0), length(x0)
 
     c₁, c₂, σmin, σmax = T(method.c₁), T(method.c₂), T(method.σmin), T(method.σmax)
-    ω = T(9) / 10 # see page 1368
+    ω = T(method.ω) # see page 1368
 
     X, V = [copy(x0) for i = 1:n_particles], [x0 * T(0) for i = 1:n_particles]
     X_best = [x0 * T(0) for i = 1:n_particles]
@@ -65,7 +68,7 @@ function solve(
     X_best[1] .= x0
     X[1] .= x0
     iter = 0
-    while iter <= options.maxiter
+    while iter < options.maxiter
         iter += 1
         limit_X!(X, lower, upper)
         Fs = batched_value(problem, Fs, X)

@@ -2,7 +2,7 @@
 | **Source**  | **Build Status** |
 |:-:|:-:|
 | [![Source](https://img.shields.io/badge/GitHub-source-green.svg)](https://github.com/pkofod/NLSolvers.jl) |  [![Build Status](https://travis-ci.org/pkofod/NLSolvers.jl.svg?branch=master)](https://travis-ci.org/pkofod/NLSolvers.jl) | [![](https://badges.gitter.im/pkofod/NLSolvers.jl.svg)](https://gitter.im/pkofod/NLSolvers.jl) |
-| [![Codecov branch](https://img.shields.io/codecov/c/github/pkofod/NLSolvers.jl/master.svg)](https://codecov.io/gh/pkofod/NLSolvers.jl) |[![Build Status](https://ci.appveyor.com/api/projects/status/prp8ygfp4rr9tafe?svg=true)](https://ci.appveyor.com/project/blegat/optim-jl) 
+| [![Codecov branch](https://img.shields.io/codecov/c/github/pkofod/NLSolvers.jl/master.svg)](https://codecov.io/gh/pkofod/NLSolvers.jl) |[![Build Status](https://ci.appveyor.com/api/projects/status/prp8ygfp4rr9tafe?svg=true)](https://ci.appveyor.com/project/blegat/optim-jl)
 
 NLSolvers provides optimization, curve fitting, and equation solving functionalities for Julia.
 The goal is to provide a set of robust and flexible methods that run fast. Currently, the package
