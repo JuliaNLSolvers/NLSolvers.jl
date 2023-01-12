@@ -86,18 +86,19 @@ options = NEqOptions(maxiter=maxiter)
       ges we have stored.
     ==============================================================#
     effective_memory = 0
-    beta = nothing
+    beta = anderson.beta
 
     G = [copy(x) for i = 1:memory]
     Δg = copy(Gx)
     Δf = copy(Fx)
 
     Gold = copy(Gx)
+    Fold = copy(Fx)
+    γv0 = zeros(effective_memory)
     iter = 0
     while iter < options.maxiter
         iter += 1
-        Fold = copy(Fx)
-        Gx = g(x, Gx)
+        Gx = g(Gx, x)
         Fx .= Gx .- x
         x .= Gx
 
@@ -109,7 +110,6 @@ options = NEqOptions(maxiter=maxiter)
         Fold .= Fx
 
         effective_memory += 1
-        memory
         # if we've exhausted the memory, downdate
         if effective_memory > memory
             vv_shift!(G)
@@ -139,7 +139,7 @@ options = NEqOptions(maxiter=maxiter)
         end
 
         # solve least squares problem
-        γv = zeros(effective_memory) #view(γv, 1:m_eff)
+        γv = view(γv0, 1:effective_memory)
         ldiv!(Rv, mul!(γv, Qv', vec(Fx)))
 
         # update next iterate
