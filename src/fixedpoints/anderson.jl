@@ -94,7 +94,7 @@ options = NEqOptions(maxiter=maxiter)
 
     Gold = copy(Gx)
     Fold = copy(Fx)
-    γv0 = zeros(effective_memory)
+    γv0 = zeros(eltype(Gx),memory)
     iter = 0
     while iter < options.maxiter
         iter += 1
