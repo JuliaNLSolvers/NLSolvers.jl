@@ -84,7 +84,7 @@ function _solve(prob, bm::BrentMin, options)
                 d = p / q
                 u = x + d
                 if u - a < 2 * tol || b - u < 2 * tol
-                    d = sign(m-x)*tol
+                    d = copysign(tol, m-x)
                 end
             else
                 # do golden section
@@ -99,7 +99,7 @@ function _solve(prob, bm::BrentMin, options)
             if abs(d) >= tol
                 u = x + d
             else
-                u = x + sign(d) * tol
+                u = x + copysign(tol, d)
             end
 
             fu = value(prob, u)
