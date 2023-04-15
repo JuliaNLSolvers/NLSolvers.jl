@@ -1,5 +1,5 @@
 ite_name:         NLSolvers.jl
-repo_url:         https://github.com/pkofod/NLSolvers.jl/
+repo_url:         https://github.com/JuliaNLSolvers/NLSolvers.jl
 site_description: Pure Julia implementations of optimization algorithms.
 site_author:      Patrick Kofod Mogensen
 
