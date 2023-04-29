@@ -102,6 +102,7 @@ end
 # if fast JacVec exists then maybe even line searches that updates the gradient can be used??? 
 ls_has_gradient(prob) = nothing
 ls_upto_gradient(prob,∇f,x) = upto_gradient(prob,∇f,x)
+ls_value(prob,z) = (value(prob,z),z)
 
 struct LineObjective!{TP,T1,T2,T3}
     prob::TP
@@ -115,8 +116,8 @@ end
 
 function (le::LineObjective!)(λ)
     z = retract!(_manifold(le.prob), le.z, le.x, le.d, λ)
-    ϕ = value(le.prob, z)
-    (ϕ = ϕ, z = z)
+    ϕ,z = ls_value(le.prob, z)
+    return (ϕ = ϕ, z = z)
 end
 
 function (le::LineObjective!)(λ, calc_grad::Bool)
@@ -137,11 +138,8 @@ end
 
 function (le::LineObjective)(λ)
     z = retract(_manifold(le.prob), le.x, le.d, λ)
-    _value = value(le.prob, z)
-    if le.prob.objective isa MeritObjective
-        return (ϕ = _value.ϕ, _value.Fx)
-    end
-    (ϕ = _value.ϕ, dϕ = _value.Fx)
+    ϕ,z = ls_value(le.prob, z)
+    return (ϕ = ϕ, z = z)
 end
 
 function (le::LineObjective)(λ, calc_grad::Bool)
@@ -168,6 +166,11 @@ function value(mo::MeritObjective, x)
     Fx = mo.F(mo.Fx, x)
     return norm(Fx)^2 / 2
     #(ϕ = (norm(Fx)^2) / 2, Fx = Fx)
+end
+
+function ls_value(mo::MeritObjective, x)
+    Fx = mo.F(mo.Fx, x)
+    return (norm(Fx)^2 / 2,Fx)
 end
 
 struct LsqWrapper{Tobj,TF,TJ} <: ObjWrapper
