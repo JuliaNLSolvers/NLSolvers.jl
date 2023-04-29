@@ -5,15 +5,16 @@ function solve(
     problem::NEqProblem,
     x,
     method::LineSearch = LineSearch(Newton(), Static(1)),
-    options = NEqOptions()
-    )
+    options = NEqOptions(),
+    state = init(problem, method; x),
+)
     # Unpack
     scheme, linesearch = modelscheme(method), algorithm(method)
     # Unpack important objectives
     F = problem.R.F
     FJ = problem.R.FJ
     # Unpack state
-    z, d, Fx, Jx = nothing,nothing,copy(x),nothing
+    z, d, Fx, Jx = state
     T = eltype(x)
     # Set up MeritObjective. This defines the least squares
     # objective for the line search.
