@@ -60,6 +60,7 @@ struct NEqOptions{T,Tmi,Call}
     f_reltol::T
     maxiter::Tmi
     callback::Call
+    show_trace::Bool
 end
 NEqOptions(;
     f_limit = 0.0,
@@ -67,7 +68,26 @@ NEqOptions(;
     f_reltol = 1e-12,
     maxiter = 10^4,
     callback = nothing,
-) = NEqOptions(f_limit, f_abstol, f_reltol, maxiter, callback)
+    show_trace = false,
+) = NEqOptions(f_limit, f_abstol, f_reltol, maxiter, callback, show_trace)
+
+function OptimizationOptions(neq::NEqOptions)
+    return OptimizationOptions(;
+    x_abstol = 0.0,
+    x_reltol = 0.0,
+    x_norm = x -> norm(x, Inf),
+    g_abstol = 2*neq.f_abstol,
+    g_reltol = 2*neq.f_reltol,
+    g_norm = x -> norm(x, Inf),
+    f_limit = neq.f_limit,
+    f_abstol = 0.0,
+    f_reltol = 0.0,
+    nm_tol = 1e-8,
+    maxiter = neq.maxiter,
+    show_trace = neq.show_trace,
+)
+end
+
 function Base.show(io::IO, ci::ConvergenceInfo{<:Any,<:Any,<:NEqOptions})
     opt = ci.options
     info = ci.info
@@ -131,3 +151,66 @@ function Base.show(io::IO, ci::ConvergenceInfo{<:Any,<:Any,<:NEqOptions})
     println(io, "  Seconds run:   $(@sprintf("%.2e", info.time))")
     println(io, "  Iterations:    $(info.iter)")
 end
+
+function upto_gradient(merit::MeritObjective, Fx, x)
+    upto_gradient(merit.prob, Fx, x)
+    #merit.F .= Fx
+    #return res
+end
+upto_gradient(neq::NEqProblem, Fx, x) =
+    upto_gradient(neq.R, Fx, x)
+
+function upto_gradient(vo::VectorObjective, Fx, x)
+    value(vo,Fx,x)
+    obj = norm(Fx)^2/2
+    return obj, Fx
+end
+
+function upto_hessian(merit::MeritObjective, ∇f, ∇²f, x)
+    upto_hessian(merit.prob, ∇f, ∇²f, x)
+end
+
+upto_hessian(neq::NEqProblem, ∇f, ∇²f, x) =
+    upto_hessian(neq.R, ∇f, ∇²f, x)
+
+function upto_hessian(vo::VectorObjective, ∇f, ∇²f, x)
+    Fx, Jx = vo.FJ(∇f, ∇²f, x)
+    obj = norm(Fx)^2/2
+    return obj, Fx, Jx
+end
+
+function LineObjective(obj::TP,∇fz::T1,z::T2,x::T2,d::T2,φ0::T3,dφ0::T3) where {TP<:(NLSolvers.OptimizationProblem{<:NLSolvers.MeritObjective}),T1,T2,T3}
+    return LineObjective(obj.objective,∇fz,z,x,d,φ0,dφ0)
+end
+
+function LineObjective!(obj::TP,∇fz::T1,z::T2,x::T2,d::T2,φ0::T3,dφ0::T3) where {TP<:(NLSolvers.OptimizationProblem{<:NLSolvers.MeritObjective}),T1,T2,T3}
+    return LineObjective!(obj.objective,∇fz,z,x,d,φ0,dφ0)
+end
+
+function ls_has_gradient(obj::MeritObjective)
+    if obj.prob.R.Jv === nothing
+        throw(error("You need to provide Jv for using LineSearch with gradient information."))
+    end
+    return nothing
+end
+
+function ls_upto_gradient(merit::MeritObjective, Fx, x)
+    upto_gradient(merit.prob, Fx, x)
+end
+upto_gradient(neq::NEqProblem, Fx, x) =
+    upto_gradient(neq.R, Fx, x)
+
+function upto_gradient(vo::VectorObjective, Fx, x)
+    vo.Jv(x)
+    value(vo,Fx,x)
+    obj = norm(Fx)^2/2
+    return obj, Fx
+end
+
+
+_manifold(merit::NLSolvers.MeritObjective) = _manifold(merit.prob)
+
+bounds(neq::NEqProblem) = neq.bounds
+
+
+
