@@ -262,15 +262,15 @@ end =#
 
 function _identity(v::Vector{T}) where T
     out = Matrix{T}(undef, length(v), length(v))
-    fill!(out, false)
-    for i in LinearAlgebra.diagind(v)
-        out[i] = true
+    out .= false
+    for i in 1:length(v)
+        out[i,i] = true
     end
     return out
 end
 
 function _identity(x)
-    return I + x .* x' .* false
+     return I + x .* x' .* false
 end
 function prepare_variables(prob, approach, x0, ∇fz, B)
     objective = prob.objective
