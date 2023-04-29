@@ -263,7 +263,7 @@ end =#
 function _identity(v::Vector{T}) where T
     out = Matrix{T}(undef, length(v), length(v))
     fill!(out, false)
-    for i in diagind(v)
+    for i in LinearAlgebra.diagind(v)
         out[i] = true
     end
     return out
