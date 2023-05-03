@@ -4,6 +4,10 @@ struct GradientDescent{T1,TP} <: QuasiNewton{T1}
 end
 GradientDescent() = GradientDescent(Direct(), nothing)
 GradientDescent(m) = GradientDescent(m, nothing)
+
+# We don't need to maintain a dense matrix for Gradient Descent
+init_B(aproach::GradientDescent, ::Nothing, x0) = I
+
 hasprecon(::GradientDescent{<:Any,<:Nothing}) = NoPrecon()
 hasprecon(::GradientDescent{<:Any,<:Any}) = HasPrecon()
 

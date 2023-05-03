@@ -267,15 +267,6 @@ function init_B(aproach, ::Nothing, x0)
   return I + abs.(0 * x * x')
 end
 
-# We don't need to maintain a dense matrix for Gradient Descent
-function init_B(aproach::GradientDescent, ::Nothing, x0)
-  return I
-end
-
-function init_B(aproach::LBFGS, ::Nothing, x0)
-  return nothing
-end
-
 # B provided  
 function init_B(aproach, B, x0)
   return B
@@ -286,10 +277,6 @@ function init_f∇fB(prob, scheme, ∇fz, B, x)
    fz, ∇fz = upto_gradient(prob, ∇fz, x)
    return fz, ∇fz, B
 end
-
-function init_f∇fB(prob, scheme::Newton, ∇fz, B, x)
-   upto_hessian(prob, ∇fz, B, x)
-end 
 
 function prepare_variables(prob, approach, x0, ∇fz, B)
     objective = prob.objective
