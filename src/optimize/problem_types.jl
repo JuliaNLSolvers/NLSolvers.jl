@@ -260,6 +260,37 @@ end
   ∇f(x) calls:   53
 =#
 
+# B not provided
+# Construct a matrix on the correct form and of the correct type
+# with the content of I_{n,n}
+function init_B(aproach, ::Nothing, x0)
+  return I + abs.(0 * x * x')
+end
+
+# We don't need to maintain a dense matrix for Gradient Descent
+function init_B(aproach::GradientDescent, ::Nothing, x0)
+  return I
+end
+
+function init_B(aproach::LBFGS, ::Nothing, x0)
+  return nothing
+end
+
+# B provided  
+function init_B(aproach, B, x0)
+  return B
+end
+
+#init fz,∇fz,B, allows overloading later by NEqProblem
+function init_f∇fB(prob, scheme, ∇fz, B, x)
+   fz, ∇fz = upto_gradient(prob, ∇fz, x)
+   return fz, ∇fz, B
+end
+
+function init_f∇fB(prob, scheme::Newton, ∇fz, B, x)
+   upto_hessian(prob, ∇fz, B, x)
+end 
+
 function prepare_variables(prob, approach, x0, ∇fz, B)
     objective = prob.objective
     z = x0
@@ -268,25 +299,10 @@ function prepare_variables(prob, approach, x0, ∇fz, B)
         !any(clamp.(x0, lowerbounds(prob), upperbounds(prob)) .!= x0) ||
             error("Initial guess not in the feasible region")
     end
-
-    if isa(B, Nothing)  # didn't provide a B
-        if modelscheme(approach) isa GradientDescent
-            # We don't need to maintain a dense matrix for Gradient Descent
-            B = I
-        elseif modelscheme(approach) isa LBFGS
-            B = nothing
-        else
-            # Construct a matrix on the correct form and of the correct type
-            # with the content of I_{n,n}
-            B = I + abs.(0 * x * x')
-        end
-    end
+    
+    B = init_B(approach, B, x0)
     # first evaluation
-    if isa(modelscheme(approach), Newton)
-        fz, ∇fz, B = upto_hessian(prob, ∇fz, B, x)
-    else
-        fz, ∇fz = upto_gradient(prob, ∇fz, x)
-    end
+    fz, ∇fz, B = init_f∇fB(prob, modelscheme(approach), ∇fz, B, x)
     fx = copy(fz)
     ∇fx = copy(∇fz)
     Pg = ∇fz
