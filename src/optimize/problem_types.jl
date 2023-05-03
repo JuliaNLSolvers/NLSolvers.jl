@@ -263,7 +263,7 @@ end
 # B not provided
 # Construct a matrix on the correct form and of the correct type
 # with the content of I_{n,n}
-function init_B(aproach, ::Nothing, x0)
+function init_B(aproach, ::Nothing, x)
   return I + abs.(0 * x * x')
 end
 
