@@ -223,7 +223,7 @@ OptimizationOptions(;
     maxiter,
     show_trace,
 )
-
+#=
 struct MinResults{Tr,Tc<:ConvergenceInfo,Th,Ts,To}
     res::Tr
     conv::Tc
@@ -251,7 +251,7 @@ function Base.show(io::IO, mr::MinResults)
     println(io)
     println(io, " * Convergence measures\n")
     show(io, convinfo(mr))
-end
+end =#
 #=
 * Work counters
   Seconds run:   0  (vs limit Inf)
@@ -260,6 +260,18 @@ end
   ∇f(x) calls:   53
 =#
 
+function _identity(v::Vector{T}) where T
+    out = Matrix{T}(undef, length(v), length(v))
+    out .= false
+    for i in 1:length(v)
+        out[i,i] = true
+    end
+    return out
+end
+
+function _identity(x)
+     return I + x .* x' .* false
+end
 function prepare_variables(prob, approach, x0, ∇fz, B)
     objective = prob.objective
     z = x0
@@ -278,7 +290,7 @@ function prepare_variables(prob, approach, x0, ∇fz, B)
         else
             # Construct a matrix on the correct form and of the correct type
             # with the content of I_{n,n}
-            B = I + abs.(0 * x * x')
+            B = _identity(x)
         end
     end
     # first evaluation
@@ -303,7 +315,7 @@ end
 function x_converged(x, z, options)
     x_converged = false
     if x !== nothing # if not calling from initial_converged
-        y = x .- z
+        y = (xi-zi for (xi,zi) in zip(x,z)) #do not allocate an additional vector
         ynorm = options.x_norm(y)
         x_converged = x_converged || ynorm ≤ options.x_abstol
         x_converged = x_converged || ynorm ≤ options.x_norm(x) * options.x_reltol

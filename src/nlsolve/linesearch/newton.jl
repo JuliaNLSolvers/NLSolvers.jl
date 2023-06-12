@@ -8,8 +8,6 @@ function solve(
     options = NEqOptions(),
     state = init(problem, method; x),
 )
-    t0 = time()
-
     # Unpack
     scheme, linesearch = modelscheme(method), algorithm(method)
     # Unpack important objectives
@@ -17,15 +15,29 @@ function solve(
     FJ = problem.R.FJ
     # Unpack state
     z, d, Fx, Jx = state
-    z .= x
-    T = eltype(Fx)
-
-
+    T = eltype(x)
     # Set up MeritObjective. This defines the least squares
     # objective for the line search.
     merit = MeritObjective(problem, F, FJ, Fx, Jx, d)
     meritproblem =
-        OptimizationProblem(merit, nothing, Euclidean(0), nothing, mstyle(problem), nothing)
+        OptimizationProblem(merit, bounds(problem), _manifold(problem), nothing, mstyle(problem), nothing)
+
+    opt_options = OptimizationOptions(options)
+    res = solve(meritproblem, x, method, opt_options)
+
+    F0 = res.info.∇f0
+    ρF0, ρ2F0 = norm(F0, Inf), norm(F0, 2)
+    newinfo = (
+        solution = solution(res),
+        best_residual = res.info.minimum,
+        ρs = T(NaN),
+        ρF0 = ρF0,
+        ρ2F0 = ρ2F0,
+        time = res.info.time,
+        iter = res.info.iter,
+    )
+
+    return ConvergenceInfo(method, newinfo, options)
 
     # Evaluate the residual and Jacobian
     Fx, Jx = FJ(Fx, Jx, x)

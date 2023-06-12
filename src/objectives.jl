@@ -100,6 +100,10 @@ end
 
 ## If prob is a NEqProblem, then we can just dispatch to least squares MeritObjective
 # if fast JacVec exists then maybe even line searches that updates the gradient can be used??? 
+ls_has_gradient(prob) = nothing
+ls_upto_gradient(prob,∇f,x) = upto_gradient(prob,∇f,x)
+ls_value(prob,z) = (value(prob,z),z)
+
 struct LineObjective!{TP,T1,T2,T3}
     prob::TP
     ∇fz::T1
@@ -109,15 +113,19 @@ struct LineObjective!{TP,T1,T2,T3}
     φ0::T3
     dφ0::T3
 end
+
 function (le::LineObjective!)(λ)
     z = retract!(_manifold(le.prob), le.z, le.x, le.d, λ)
-    ϕ = value(le.prob, z)
-    (ϕ = ϕ, z = z)
+    ϕ,z = ls_value(le.prob, z)
+    return (ϕ = ϕ, z = z)
 end
+
 function (le::LineObjective!)(λ, calc_grad::Bool)
-    f, g = upto_gradient(le.prob, le.∇fz, retract!(_manifold(le.prob), le.z, le.x, le.d, λ))
+    ls_has_gradient(le.prob)
+    f, g = ls_upto_gradient(le.prob, le.∇fz, retract!(_manifold(le.prob), le.z, le.x, le.d, λ))
     (ϕ = f, dϕ = real(dot(g, le.d))) # because complex dot might not have exactly zero im part and it's the wrong type
 end
+
 struct LineObjective{TP,T1,T2,T3}
     prob::TP
     ∇fz::T1
@@ -127,16 +135,16 @@ struct LineObjective{TP,T1,T2,T3}
     φ0::T3
     dφ0::T3
 end
+
 function (le::LineObjective)(λ)
     z = retract(_manifold(le.prob), le.x, le.d, λ)
-    _value = value(le.prob, z)
-    if le.prob.objective isa MeritObjective
-        return (ϕ = _value.ϕ, _value.Fx)
-    end
-    (ϕ = _value,)
+    ϕ,z = ls_value(le.prob, z)
+    return (ϕ = ϕ, z = z)
 end
+
 function (le::LineObjective)(λ, calc_grad::Bool)
-    f, g = upto_gradient(le.prob, le.∇fz, retract(_manifold(le.prob), le.x, le.d, λ))
+    ls_has_gradient(le.prob)
+    f, g = ls_upto_gradient(le.prob, le.∇fz, retract(_manifold(le.prob), le.x, le.d, λ))
     (ϕ = f, dϕ = real(dot(g, le.d))) # because complex dot might not have exactly zero im part and it's the wrong type
 end
 
@@ -156,7 +164,13 @@ struct MeritObjective{TP,T1,T2,T3,T4,T5}
 end
 function value(mo::MeritObjective, x)
     Fx = mo.F(mo.Fx, x)
-    (ϕ = (norm(Fx)^2) / 2, Fx = Fx)
+    return norm(Fx)^2 / 2
+    #(ϕ = (norm(Fx)^2) / 2, Fx = Fx)
+end
+
+function ls_value(mo::MeritObjective, x)
+    Fx = mo.F(mo.Fx, x)
+    return (norm(Fx)^2 / 2,Fx)
 end
 
 struct LsqWrapper{Tobj,TF,TJ} <: ObjWrapper
