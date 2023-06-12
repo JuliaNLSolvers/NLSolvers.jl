@@ -1,4 +1,4 @@
-ite_name:         NLSolvers.jl
+site_name:        NLSolvers.jl
 repo_url:         https://github.com/JuliaNLSolvers/NLSolvers.jl
 site_description: Pure Julia implementations of optimization algorithms.
 site_author:      Patrick Kofod Mogensen
@@ -22,7 +22,7 @@ extra_css:
 
 docs_dir: 'build'
 
-pages:
+nav:
     - Home: 'index.md'
 #    - Tutorials:
 #        - Minimizing a function: 'user/minimization.md'
