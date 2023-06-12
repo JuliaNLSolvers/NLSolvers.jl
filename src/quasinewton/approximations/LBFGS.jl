@@ -16,6 +16,7 @@ hasprecon(::LBFGS{<:Inverse,<:Any,<:Any,<:Any}) = HasPrecon()
 
 LBFGS(m::Int = 5) = LBFGS(Inverse(), TwoLoop(), m, nothing)
 LBFGS(approx, m = 5) = LBFGS(approx, TwoLoop(), m, nothing)
+init_B(aproach::LBFGS, ::Nothing, x0) = nothing
 """
 	q holds gradient at current state
 	history is a named tuple of S and Y
