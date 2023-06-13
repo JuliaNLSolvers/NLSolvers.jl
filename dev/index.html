@@ -1,5 +1,152 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>NLSolvers.jl · NLSolvers.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit">NLSolvers.jl</span></div><form class="docs-search" action="search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li class="is-active"><a class="tocitem" href>NLSolvers.jl</a><ul class="internal"><li><a class="tocitem" href="#How"><span>How</span></a></li><li><a class="tocitem" href="#What"><span>What</span></a></li><li><a class="tocitem" href="#Citing-the-package"><span>Citing the package</span></a></li></ul></li><li><a class="tocitem" href="optimization/">Optimization</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>NLSolvers.jl</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>NLSolvers.jl</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/JuliaNLSolvers/NLSolvers.jl/blob/master/docs/src/index.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="NLSolvers.jl"><a class="docs-heading-anchor" href="#NLSolvers.jl">NLSolvers.jl</a><a id="NLSolvers.jl-1"></a><a class="docs-heading-anchor-permalink" href="#NLSolvers.jl" title="Permalink"></a></h1><p>Univariate and multivariate optimization and equation solving in Julia.</p><p>NLSolvers.jl is the backend code for <a href="https://github.com/JuliaNLSolvers/Optim.jl">Optim.jl</a> v2.0.0 and higher.</p><h2 id="How"><a class="docs-heading-anchor" href="#How">How</a><a id="How-1"></a><a class="docs-heading-anchor-permalink" href="#How" title="Permalink"></a></h2><p>The package is a registered package, and can be installed with <code>Pkg.add</code>.</p><pre><code class="language-julia">julia&gt; using Pkg; Pkg.add(&quot;NLSolvers&quot;)</code></pre><p>or through the <code>pkg</code> REPL mode by typing</p><pre><code class="language-none">] add NLSolvers</code></pre><h2 id="What"><a class="docs-heading-anchor" href="#What">What</a><a id="What-1"></a><a class="docs-heading-anchor-permalink" href="#What" title="Permalink"></a></h2><p>NLSolvers.jl is a Julia package for optimization, curve fitting and systems of nonlinear equations. The package requires full specification of the problem, so no smart constructors, automatic differentiation, or other user friendly features are present. If the focus is on ease of use, <a href="https://github.com/JuliaNLSolvers/Optim.jl">Optim.jl</a> is the package to use.</p><h2 id="Citing-the-package"><a class="docs-heading-anchor" href="#Citing-the-package">Citing the package</a><a id="Citing-the-package-1"></a><a class="docs-heading-anchor-permalink" href="#Citing-the-package" title="Permalink"></a></h2><p>If you use NLSolvers.jl or Optim.jl in your work, please cite consider citing our paper in the Journal of Open Source Software. Citations give us the possibility to document the usage of the package, but it also gives us a way of following all the exciting ways in which NLSolvers.jl and Optim.jl are used in many fields fields including, but not limited to, optimization methods and software, economics, optics, physics, machine learning and more.</p><p><a href="https://doi.org/10.21105/joss.00615"><img src="http://joss.theoj.org/papers/10.21105/joss.00615/status.svg" alt="JOSS"/></a> <a href="https://scholar.google.com/scholar?cluster=8284109979069908974&amp;hl=en&amp;as_sdt=2005"><img src="https://img.shields.io/badge/google-scholar-informational" alt="SCHOLAR"/></a></p><pre><code class="language-none">@article{mogensen2018optim,
+<html lang="en">
+<head>
+  
+  
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Pure Julia implementations of optimization algorithms.">
+    <meta name="author" content="Patrick Kofod Mogensen">
+    
+    <link rel="shortcut icon" href="./img/favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
+    <title>NLSolvers.jl</title>
+    <link href="./css/bootstrap-3.3.7.min.css" rel="stylesheet">
+    <link href="./css/font-awesome-4.7.0.css" rel="stylesheet">
+    <link href="./css/base.css" rel="stylesheet">
+    <link rel="stylesheet" href="./css/highlight.css">
+    <link href="assets/Documenter.css" rel="stylesheet">
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
+    <![endif]-->
+
+    <script src="./js/jquery-3.2.1.min.js"></script>
+    <script src="./js/bootstrap-3.3.7.min.js"></script>
+    <script src="./js/highlight.pack.js"></script>
+    
+      <script src="./js/elasticlunr.min.js"></script>
+    
+    <base target="_top">
+    <script>
+      var base_url = '.';
+      var is_top_frame = (window === window.parent);
+        
+        var pageToc = [
+          {title: "NLSolvers.jl", url: "#_top", children: [
+              {title: "How", url: "#how" },
+              {title: "What", url: "#what" },
+              {title: "Citing the package", url: "#citing-the-package" },
+          ]},
+        ];
+
+    </script>
+    <script src="./js/base.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS_HTML"></script>
+      <script src="assets/mathjaxhelper.js"></script> 
+</head>
+
+<body>
+<script>
+if (is_top_frame) { $('body').addClass('wm-top-page'); }
+</script>
+
+<nav class="navbar wm-page-top-frame">
+  <div class="container-fluid wm-top-container">
+    
+    <div class="wm-top-tool pull-right wm-vcenter">
+      <form class="dropdown wm-vcentered" id="wm-search-form" action="./search.html">
+        
+        <button id="wm-search-show" class="btn btn-sm btn-default" type="submit"
+          ><i class="fa fa-search" aria-hidden="true"></i></button>
+
+        <div class="input-group input-group-sm wm-top-search">
+          <input type="text" name="q" class="form-control" id="mkdocs-search-query" placeholder="Search" autocomplete="off">
+          <span class="input-group-btn" role="search">
+            
+            <button class="btn btn-default dropdown-toggle collapse" data-toggle="dropdown" type="button"><span class="caret"></span></button>
+            <ul id="mkdocs-search-results" class="dropdown-menu dropdown-menu-right"></ul>
+            <button id="wm-search-go" class="btn btn-default" type="submit"><i class="fa fa-search" aria-hidden="true"></i></button>
+          </span>
+        </div>
+      </form>
+    </div>
+
+    
+    <div class="wm-top-tool wm-vcenter pull-right wm-small-left">
+      <button id="wm-toc-button" type="button" class="btn btn-sm btn-default wm-vcentered"><i class="fa fa-th-list" aria-hidden="true"></i></button>
+    </div>
+
+    
+    
+
+    
+    <a href="" class="wm-top-brand wm-top-link wm-vcenter">
+      
+      <div class="wm-top-title">
+        NLSolvers.jl<br>
+        
+      </div>
+    </a>
+  </div>
+</nav>
+
+  <div id="main-content" class="wm-page-top-frame">
+    
+<nav class="wm-toc-pane">
+  
+    <ul class="wm-toctree wm-toc-repo">
+      <li class="wm-toc-li wm-toc-lev1">
+      <a class="wm-article-link wm-toc-text" href="https://github.com/JuliaNLSolvers/NLSolvers.jl">
+        <i class="fa fa-github"></i>
+
+        GitHub
+      </a>
+      </li>
+    </ul>
+  <ul class="wm-toctree">
+        <li class="wm-toc-li wm-toc-lev1 "><a href="" class="wm-article-link wm-toc-text">Home</a>
+</li>
+  </ul>
+</nav>
+
+    <div class="wm-content-pane">
+      <iframe class="wm-article" name="article"></iframe>
+    </div>
+  </div>
+
+<div class="container-fluid wm-page-content">
+  <a name="_top"></a>
+    
+
+    
+
+    <p><a id='NLSolvers.jl'></a></p>
+<p><a id='NLSolvers.jl-1'></a></p>
+<h1 id="nlsolversjl">NLSolvers.jl</h1>
+<p>Univariate and multivariate optimization and equation solving in Julia.</p>
+<p>NLSolvers.jl is the backend code for <a href="https://github.com/JuliaNLSolvers/Optim.jl">Optim.jl</a> v2.0.0 and higher.</p>
+<p><a id='How'></a></p>
+<p><a id='How-1'></a></p>
+<h2 id="how">How</h2>
+<p>The package is a registered package, and can be installed with <code>Pkg.add</code>.</p>
+<pre><code class="language-julia">julia&gt; using Pkg; Pkg.add(&quot;NLSolvers&quot;)
+</code></pre>
+<p>or through the <code>pkg</code> REPL mode by typing</p>
+<pre><code>] add NLSolvers
+</code></pre>
+<p><a id='What'></a></p>
+<p><a id='What-1'></a></p>
+<h2 id="what">What</h2>
+<p>NLSolvers.jl is a Julia package for optimization, curve fitting and systems of nonlinear equations. The package requires full specification of the problem, so no smart constructors, automatic differentiation, or other user friendly features are present. If the focus is on ease of use, <a href="https://github.com/JuliaNLSolvers/Optim.jl">Optim.jl</a> is the package to use.</p>
+<p><a id='Citing-the-package'></a></p>
+<p><a id='Citing-the-package-1'></a></p>
+<h2 id="citing-the-package">Citing the package</h2>
+<p>If you use NLSolvers.jl or Optim.jl in your work, please cite consider citing our paper in the Journal of Open Source Software. Citations give us the possibility to document the usage of the package, but it also gives us a way of following all the exciting ways in which NLSolvers.jl and Optim.jl are used in many fields fields including, but not limited to, optimization methods and software, economics, optics, physics, machine learning and more.</p>
+<p><a href="https://doi.org/10.21105/joss.00615"><img alt="JOSS" src="http://joss.theoj.org/papers/10.21105/joss.00615/status.svg" /></a> <a href="https://scholar.google.com/scholar?cluster=8284109979069908974&amp;hl=en&amp;as_sdt=2005"><img alt="SCHOLAR" src="https://img.shields.io/badge/google-scholar-informational" /></a></p>
+<pre><code>@article{mogensen2018optim,
   title={Optim: A mathematical optimization package for Julia},
   author={Mogensen, Patrick Kofod and Riseth, Asbj{\o}rn Nilsen},
   journal={Journal of Open Source Software},
@@ -7,4 +154,26 @@
   number={24},
   year={2018},
   publisher={Open Journals}
-}</code></pre></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="optimization/">Optimization »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 13 April 2023 06:29">Thursday 13 April 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+}
+</code></pre>
+
+  <br>
+    
+
+    <br>
+</div>
+
+<footer class="container-fluid wm-page-content">
+      <p>
+        <a href="https://github.com/JuliaNLSolvers/NLSolvers.jl/edit/master/docs/index.md"><i class="fa fa-github"></i>
+Edit on GitHub</a>
+      </p>
+  <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a> using <a href="https://github.com/gristlabs/mkdocs-windmill">Windmill</a> theme by Grist Labs.</p>
+</footer>
+
+</body>
+</html>
+<!--
+MkDocs version : 1.4.3
+Build Date UTC : 2023-06-13 05:48:19.405301+00:00
+-->
