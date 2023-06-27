@@ -1,3 +1,8 @@
+"""
+    Static
+
+An object that specifies a constant step length.
+"""
 struct Static{T} <: LineSearcher
     α::T
 end

@@ -58,8 +58,12 @@ using Printf
 
 function solve end
 export solve
-"""
 
+"""
+    objective_return(f, g, H=nothing)
+
+Return the objective `f` or a tuple containing `f`, the gradient `g` if `g !== nothing`,
+and the Hessian `H` if `H !== nothing`.
 """
 function objective_return(f, g, H = nothing)
     if g isa Nothing && H isa Nothing
@@ -70,16 +74,36 @@ function objective_return(f, g, H = nothing)
         return f, g, H
     end
 end
+
 export objective_return
+
 isallfinite(x) = mapreduce(isfinite, *, x)
 
+"""
+    MutationStyle
+
+An abstract type with subtypes [`InPlace`](@ref) and [`OutOfPlace`](@ref) that permits
+dispatching on whether an operation is mutating.
+"""
 abstract type MutateStyle end
+
+"""
+    InPlace
+
+A [`MutationStyle`](@ref) for in-place (mutating) operations.
+"""
+struct InPlace <: MutateStyle end
+
+"""
+    OutOfPlace
+
+A [`MutationStyle`](@ref) for out-of-place (non-mutating) operations.
+"""
+struct OutOfPlace <: MutateStyle end
 
 abstract type AbstractProblem end
 abstract type AbstractOptions end
 
-struct InPlace <: MutateStyle end
-struct OutOfPlace <: MutateStyle end
 include("precondition.jl")
 include("Manifolds.jl")
 include("objectives.jl")
@@ -90,10 +114,17 @@ export NonDiffed, OnceDiffed, TwiceDiffed, ScalarObjective
 # make this struct that has scheme and approx
 abstract type QuasiNewton{T1} end
 
+"""
+    HessianApproximation
+
+An abstract type that permits dispatching on particular methodologies for approximating
+the Hessian of an objective function.
+"""
 abstract type HessianApproximation end
 struct Inverse <: HessianApproximation end
 struct Direct <: HessianApproximation end
 export Inverse, Direct
+
 # problem and options types
 include("optimize/problem_types.jl")
 export OptimizationProblem, OptimizationOptions
