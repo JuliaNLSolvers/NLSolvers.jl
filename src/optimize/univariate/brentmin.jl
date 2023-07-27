@@ -84,7 +84,7 @@ function _solve(prob, bm::BrentMin, options)
                 d = p / q
                 u = x + d
                 if u - a < 2 * tol || b - u < 2 * tol
-                    d = copysign(tol, m-x)
+                    d = copysign(tol, m - x)
                 end
             else
                 # do golden section
@@ -154,5 +154,9 @@ function _solve(prob, bm::BrentMin, options)
             x = b
         end
     end
-    return ConvergenceInfo(bm, (;x, f0, minimum=fx, time=time()-time0, iter=brent_iter), options)
+    return ConvergenceInfo(
+        bm,
+        (; x, f0, minimum = fx, time = time() - time0, iter = brent_iter),
+        options,
+    )
 end

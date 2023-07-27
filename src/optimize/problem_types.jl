@@ -26,8 +26,16 @@ upto_gradient(prob::OptimizationProblem, ∇f, x) = upto_gradient(prob.objective
 upto_hessian(prob::OptimizationProblem, ∇f, ∇²f, x) =
     upto_hessian(prob.objective, ∇f, ∇²f, x)
 _manifold(prob::OptimizationProblem) = prob.manifold
-lowerbounds(mp::OptimizationProblem) = mp.bounds === nothing ? throw(ErrorException("No lower bounds were supplied, but your chosen method needs them.")) : mp.bounds[1]
-upperbounds(mp::OptimizationProblem) = mp.bounds === nothing ? throw(ErrorException("No upper bounds were supplied, but your chosen method needs them.")) : mp.bounds[2]
+lowerbounds(mp::OptimizationProblem) =
+    mp.bounds === nothing ?
+    throw(
+        ErrorException("No lower bounds were supplied, but your chosen method needs them."),
+    ) : mp.bounds[1]
+upperbounds(mp::OptimizationProblem) =
+    mp.bounds === nothing ?
+    throw(
+        ErrorException("No upper bounds were supplied, but your chosen method needs them."),
+    ) : mp.bounds[2]
 hasbounds(mp::OptimizationProblem) = mp.bounds isa Tuple
 bounds(mp::OptimizationProblem) = (lower = lowerbounds(mp), upper = upperbounds(mp))
 isboundedonly(::OptimizationProblem{<:Any,<:Nothing,<:Any,<:Nothing}) = false
@@ -169,8 +177,18 @@ function Base.show(io::IO, ci::ConvergenceInfo)
             end
         end
         if haskey(info, :prob) && hasbounds(info.prob)
-            if any(iszero, info.solution .- info.prob.bounds[1]) ||
-               any(iszero, info.prob.bounds[2] .- info.solution)
+            dist_lower_bounds = info.solution .- info.prob.bounds[1]
+            dist_upper_bounds = info.prob.bounds[2] .- info.solution
+            println(io)
+            println(
+                io,
+                "  |x - lower|           = $(@sprintf("%.2e", norm(dist_lower_bounds, 2)))",
+            )
+            println(
+                io,
+                "  |x - upper|           = $(@sprintf("%.2e", norm(dist_upper_bounds, 2)))",
+            )
+            if any(iszero, dist_lower_bounds) || any(iszero, dist_upper_bounds)
                 println(io, "\n  !!! Solution is at the boundary !!!")
             end
         end
@@ -264,18 +282,18 @@ end
 # Construct a matrix on the correct form and of the correct type
 # with the content of I_{n,n}
 function init_B(aproach, ::Nothing, x)
-  return I + abs.(0 * x * x')
+    return I + abs.(0 * x * x')
 end
 
 # B provided  
 function init_B(aproach, B, x0)
-  return B
+    return B
 end
 
 #init fz,∇fz,B, allows overloading later by NEqProblem
 function init_f∇fB(prob, scheme, ∇fz, B, x)
-   fz, ∇fz = upto_gradient(prob, ∇fz, x)
-   return fz, ∇fz, B
+    fz, ∇fz = upto_gradient(prob, ∇fz, x)
+    return fz, ∇fz, B
 end
 
 function prepare_variables(prob, approach, x0, ∇fz, B)
@@ -286,7 +304,7 @@ function prepare_variables(prob, approach, x0, ∇fz, B)
         !any(clamp.(x0, lowerbounds(prob), upperbounds(prob)) .!= x0) ||
             error("Initial guess not in the feasible region")
     end
-    
+
     B = init_B(approach, B, x0)
     # first evaluation
     fz, ∇fz, B = init_f∇fB(prob, modelscheme(approach), ∇fz, B, x)

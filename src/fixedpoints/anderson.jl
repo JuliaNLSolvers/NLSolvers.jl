@@ -30,7 +30,7 @@ function fixedpoint!(
     f_abstol = sqrt(eps(eltype(x))),
     maxiter = 100,
 )
-options = NEqOptions(maxiter=maxiter)
+    options = NEqOptions(maxiter = maxiter)
     #==============================================================
       Do initial function iterations; default is a delay of 0,
       but we always do at least one evaluation of G, to set up AA.
@@ -51,19 +51,19 @@ options = NEqOptions(maxiter=maxiter)
         x .= Gx
         finite_check = isallfinite(x)
         if norm(Fx) < f_abstol || !finite_check
-                return ConvergenceInfo(
-                    anderson,
-                    (
-                        solution = x,
-                        best_residual = Fx,
-                        ρF0,
-                        ρ2F0,
-                        delay_iter=delay_iter,
-                        iter=0,
-                        time = time() - t0,
-                    ),
-                    options,
-                )
+            return ConvergenceInfo(
+                anderson,
+                (
+                    solution = x,
+                    best_residual = Fx,
+                    ρF0,
+                    ρ2F0,
+                    delay_iter = delay_iter,
+                    iter = 0,
+                    time = time() - t0,
+                ),
+                options,
+            )
         end
     end
 
@@ -94,7 +94,7 @@ options = NEqOptions(maxiter=maxiter)
 
     Gold = copy(Gx)
     Fold = copy(Fx)
-    γv0 = zeros(eltype(Gx),memory)
+    γv0 = zeros(eltype(Gx), memory)
     iter = 0
     while iter < options.maxiter
         iter += 1

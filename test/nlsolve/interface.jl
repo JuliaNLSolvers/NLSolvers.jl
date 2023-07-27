@@ -214,28 +214,69 @@ end
         @test norm(res.info.best_residual, Inf) < 1e-8
         res = solve(prob, copy(x0), DFSANE(), NEqOptions())
         @test norm(res.info.best_residual, Inf) < 1e-6
-        res = solve(prob, copy(x0), InexactNewton(inexact_linsolve, FixedForceTerm(0.001), 1e-4, 300), NEqOptions())
+        res = solve(
+            prob,
+            copy(x0),
+            InexactNewton(inexact_linsolve, FixedForceTerm(0.001), 1e-4, 300),
+            NEqOptions(),
+        )
         @test norm(res.info.best_residual, Inf) < 1e-8
     end
 
     @testset "fixedpoints" begin
-         function G(Gx, x)
-             V1 = [1.0, 0.0] .+ 0.99*[0.1 0.9; 0.5 0.5]*x
-             V2 = [0.0, 2.0] .+ 0.99*[0.5 0.5; 1.0 0.0]*x
-             K = max(maximum(V1), maximum(V2))
-             Gx .= K .+ log.(exp.(V1 .- K) .+ exp.(V2 .- K))
-           end
-           fp1 = NLSolvers.fixedpoint!(G, zeros(2), Anderson(10000000,1, nothing,nothing))
-           fp2 = NLSolvers.fixedpoint!(G, zeros(2), Anderson(2, 2, 0.3, 1e2))
-           fp3 = NLSolvers.fixedpoint!(G, zeros(2), Anderson(2, 2, 0.01, 1e2))
-           @test norm(fp1.info.best_residual .- fp2.info.best_residual) < 1e-7
-           @test norm(fp1.info.best_residual .- fp3.info.best_residual) < 1e-7
+        function G(Gx, x)
+            V1 = [1.0, 0.0] .+ 0.99 * [0.1 0.9; 0.5 0.5] * x
+            V2 = [0.0, 2.0] .+ 0.99 * [0.5 0.5; 1.0 0.0] * x
+            K = max(maximum(V1), maximum(V2))
+            Gx .= K .+ log.(exp.(V1 .- K) .+ exp.(V2 .- K))
+        end
+        fp1 = NLSolvers.fixedpoint!(G, zeros(2), Anderson(10000000, 1, nothing, nothing))
+        fp2 = NLSolvers.fixedpoint!(G, zeros(2), Anderson(2, 2, 0.3, 1e2))
+        fp3 = NLSolvers.fixedpoint!(G, zeros(2), Anderson(2, 2, 0.01, 1e2))
+        @test norm(fp1.info.best_residual .- fp2.info.best_residual) < 1e-7
+        @test norm(fp1.info.best_residual .- fp3.info.best_residual) < 1e-7
 
-           fp1 = NLSolvers.solve(NEqProblem(NLSolvers.VectorObjective((F, x)->G(F, x).-x, nothing, nothing, nothing)), [0.0,0.0], Anderson(10000000,1, nothing,nothing), NEqOptions())
-           fp2 = NLSolvers.solve(NEqProblem(NLSolvers.VectorObjective((F, x)->G(F, x).-x, nothing, nothing, nothing)), [0.0,0.0], Anderson(2, 2, 0.3, 1e2), NEqOptions())
-           fp2 = NLSolvers.solve(NEqProblem(NLSolvers.VectorObjective((F, x)->G(F, x).-x, nothing, nothing, nothing)), [0.0,0.0], Anderson(2, 2, 0.01, 1e2), NEqOptions())
-           @test norm(fp1.info.best_residual .- fp2.info.best_residual) < 1e-7
-           @test norm(fp1.info.best_residual .- fp3.info.best_residual) < 1e-7
+        fp1 = NLSolvers.solve(
+            NEqProblem(
+                NLSolvers.VectorObjective(
+                    (F, x) -> G(F, x) .- x,
+                    nothing,
+                    nothing,
+                    nothing,
+                ),
+            ),
+            [0.0, 0.0],
+            Anderson(10000000, 1, nothing, nothing),
+            NEqOptions(),
+        )
+        fp2 = NLSolvers.solve(
+            NEqProblem(
+                NLSolvers.VectorObjective(
+                    (F, x) -> G(F, x) .- x,
+                    nothing,
+                    nothing,
+                    nothing,
+                ),
+            ),
+            [0.0, 0.0],
+            Anderson(2, 2, 0.3, 1e2),
+            NEqOptions(),
+        )
+        fp2 = NLSolvers.solve(
+            NEqProblem(
+                NLSolvers.VectorObjective(
+                    (F, x) -> G(F, x) .- x,
+                    nothing,
+                    nothing,
+                    nothing,
+                ),
+            ),
+            [0.0, 0.0],
+            Anderson(2, 2, 0.01, 1e2),
+            NEqOptions(),
+        )
+        @test norm(fp1.info.best_residual .- fp2.info.best_residual) < 1e-7
+        @test norm(fp1.info.best_residual .- fp3.info.best_residual) < 1e-7
     end
 
 

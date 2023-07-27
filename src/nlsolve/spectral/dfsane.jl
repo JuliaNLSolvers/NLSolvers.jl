@@ -9,9 +9,9 @@ struct RNMS{T}
     γ::T
     α0::T
 end
-RNMS(T=Float64; gamma = T(1) / 10000, alpha_0 = T(1)) = RNMS(gamma, alpha_0)
+RNMS(T = Float64; gamma = T(1) / 10000, alpha_0 = T(1)) = RNMS(gamma, alpha_0)
 
-function find_steplength(rnms::RNMS, φ, φ0::T1, fbar, ηk::T2, τmin, τmax) where {T1, T2}
+function find_steplength(rnms::RNMS, φ, φ0::T1, fbar, ηk::T2, τmin, τmax) where {T1,T2}
     α₊ = T1(rnms.α0)
     α₋ = α₊
     γ = T1(rnms.γ)
@@ -58,14 +58,21 @@ To re-implement the setup in the numerical section of [PAPER] use
 
 DFSANE(memory=10, sigma_limit=(1e-10, 1e10), gamma=..., epsilon=..., c1=0.1, c2,0.5, alpha0=1))
 """
-struct DFSANE{T, Σ}
+struct DFSANE{T,Σ}
     memory::T
     sigma_limits::Σ
 end
-DFSANE(;memory=4, sigma_limits=(1e-5, 1e5)) = DFSANE(memory, sigma_limits)
+DFSANE(; memory = 4, sigma_limits = (1e-5, 1e5)) = DFSANE(memory, sigma_limits)
 
-init(::NEqProblem, ::DFSANE; x, Fx = copy(x), y = copy(x), d = copy(x), z = copy(x)) = (; x, Fx, y, d, z)
-function solve(prob::NEqProblem, x0, method::DFSANE, options::NEqOptions, state = init(prob, method; x = copy(x0)))
+init(::NEqProblem, ::DFSANE; x, Fx = copy(x), y = copy(x), d = copy(x), z = copy(x)) =
+    (; x, Fx, y, d, z)
+function solve(
+    prob::NEqProblem,
+    x0,
+    method::DFSANE,
+    options::NEqOptions,
+    state = init(prob, method; x = copy(x0)),
+)
     if !(mstyle(prob) === InPlace())
         throw(ErrorException("solve() not defined for OutOfPlace() with DFSANE"))
     end
