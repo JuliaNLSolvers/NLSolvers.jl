@@ -79,19 +79,24 @@ if (is_top_frame) { $('body').addClass('wm-top-page'); }
     <p><a id='Optimization'></a></p>
 <p><a id='Optimization-1'></a></p>
 <h1 id="optimization">Optimization</h1>
+<p>NLSolvers.jl implements several algorithms for non-linear optimization. The use-cases for non-linear optimization are quite diverse, and as such it is important for a Julia package for optimization to be flexible in the interface and the admissable types. Scalar optimization should not allocate a lot of buffers, static array types should not try to do in-place operations and allocate normal <code>Array</code>s, and so on. This section explains how to use the various algorithms in NLSolvers.jl and gives the user ideas about where it is possible to take advantage of parallel computing, special array types, and more.</p>
 <p><a id='Univariate-optimization'></a></p>
 <p><a id='Univariate-optimization-1'></a></p>
 <h2 id="univariate-optimization">Univariate optimization</h2>
 <p>Brent's method for minimizing a scalar objective is implemented as the <code>BrentMin</code> method. To solve it, you need to provide an objective and bounds.</p>
-<pre><code>brent_f(x) = sin(x)
+<pre><code># Define objective function
+brent_f(x) = sin(x)
+# Define the objective wrapper
 brent_scalar = ScalarObjective(; f = brent_f)
+# Define the optimization problem using the objective wrapper and bounds as a tuple
 brent_prob = OptimizationProblem(brent_scalar, (π/2, 2*π))
+# Solve the problem using Brent's method for optimization
 solve(brent_prob, BrentMin(), OptimizationOptions())
 </code></pre>
 <p><a id='Multivariate-optimization'></a></p>
 <p><a id='Multivariate-optimization-1'></a></p>
 <h2 id="multivariate-optimization">Multivariate optimization</h2>
-<p>Most applications of optimization software deals with multivariate optimization and there are many methods in the literature and in software that deals with these types of questions. Multivariate optimization can be unconstrained or constrained. We will show how to deal with these different cases below.</p>
+<p>Many applications of optimization software deals with multivariate optimization and there are many methods in the literature and in software that deals with these types of questions. Below, we will show how to do multivariate optimization in NLSolvers.jl. Notice, that multivariate optimization is fundamentally different from multivalued optimization where the objective is a vector. Multivalued optimization is currently not supported in NLSolvers.jl</p>
 <p><a id='Unconstrained-optimization'></a></p>
 <p><a id='Unconstrained-optimization-1'></a></p>
 <h3 id="unconstrained-optimization">Unconstrained optimization</h3>
@@ -162,7 +167,11 @@ Results of minimization
   Iterations:    11
 </code></pre>
 <p>Since we have Hessian information available, we can also use variants of Newton's method.</p>
-<pre><code>results = solve(prob, x0, TrustRegion(Newton()), OptimizationOptions())
+<pre><code>julia&gt; x0 = [3.0, 1.0]
+2-element Vector{Float64}:
+ 3.0
+ 1.0
+
 julia&gt; results = solve(prob, x0, TrustRegion(Newton()), OptimizationOptions())
 Results of minimization
 
