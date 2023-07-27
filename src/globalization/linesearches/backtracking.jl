@@ -51,7 +51,7 @@ The Backtracking constructor takes the following keyword arguments
  - verbose: the verbosity level
 
 `ratio` controls how much time to spend looking for a large step size. It
-is very common to chose 1/2, but others can be chosen. It's 
+is very common to chose 1/2, but others can be chosen.
 
 When chosing parameters, it's important to note that it must be true that
   0 < decrease < ratio

@@ -7,12 +7,12 @@
 ===============================================================================#
 struct RNMS{T}
     γ::T
-    α0::T
+    σ0::T
 end
-RNMS(T = Float64; gamma = T(1) / 10000, alpha_0 = T(1)) = RNMS(gamma, alpha_0)
+RNMS(T = Float64; decrease = T(1) / 10000, sigma_0 = T(1)) = RNMS(decrease, sigma_0)
 
 function find_steplength(rnms::RNMS, φ, φ0::T1, fbar, ηk::T2, τmin, τmax) where {T1,T2}
-    α₊ = T1(rnms.α0)
+    α₊ = T1(rnms.σ0)
     α₋ = α₊
     γ = T1(rnms.γ)
     for k = 1:100
@@ -53,16 +53,21 @@ end
 
 Construct a method instance of the DFSANE algorithm for solving systems of non-linear equations. The memory keyword is used to control how many residual norm values to store for the non-monotoneous line search (`M` in the paper). The `sigma_limit` keyword is used to provide a tuple of values used to bound the spectral coefficient (`σ_min` and `σ_max` in the paper).
 
+    - decrease (γ in the paper) is used to control what amount of decrease in function value is sufficient. Must be chosen such that 0 < decrease < 1.
 # Notes
 To re-implement the setup in the numerical section of [PAPER] use
 
-DFSANE(memory=10, sigma_limit=(1e-10, 1e10), gamma=..., epsilon=..., c1=0.1, c2,0.5, alpha0=1))
+DFSANE(nexp=2,memory=10, sigma_limit=(1e-10, 1e10), decrease=1e-4, sigma_0=1.0))
 """
-struct DFSANE{T,Σ}
+struct DFSANE{T,Σ,TAU,N, G, A}
     memory::T
     sigma_limits::Σ
+    taus::TAU
+    nexp::N
+    γ::G
+    σ0::A
 end
-DFSANE(; memory = 4, sigma_limits = (1e-5, 1e5)) = DFSANE(memory, sigma_limits)
+DFSANE(; memory = 4, sigma_limits = (1e-5, 1e5), taus=(1 / 10, 1 / 2), nexp=2,decrease = 1 / 10000, sigma_0 = 1.0) = DFSANE(memory, sigma_limits, taus,nexp, decrease, sigma_0)
 
 init(::NEqProblem, ::DFSANE; x, Fx = copy(x), y = copy(x), d = copy(x), z = copy(x)) =
     (; x, Fx, y, d, z)
@@ -82,8 +87,8 @@ function solve(
     T = eltype(x0)
 
     σmin, σmax = method.sigma_limits
-    τmin, τmax = T(1) / 10, T(1) / 2
-    nexp = 2
+    τmin, τmax = T.(method.taus)
+    nexp = method.nexp
 
 
     x, Fx, y, d, z = state.x, state.Fx, state.y, state.d, state.z
@@ -117,7 +122,7 @@ function solve(
         ηk = ρ2F0 / (1 + iter)^2
         φ(α) = norm(F(Fx, (z .= x .+ α .* d)))^nexp
         φ0 = fx
-        α, φα = find_steplength(RNMS(), φ, φ0, fbar, ηk, τmin, τmax)
+        α, φα = find_steplength(RNMS(method.γ,method.σ0), φ, φ0, fbar, ηk, τmin, τmax)
         if isnan(α) || isnan(φα)
             status = :linesearch_failed
             break
@@ -144,6 +149,7 @@ function solve(
     ConvergenceInfo(
         method,
         (
+            prob,
             solution = x,
             best_residual = Fx,
             ρF0 = ρF0,
