@@ -17,8 +17,8 @@ end
 
 function init_f∇fB(prob, scheme::Newton, ∇fz, B, x)
     upto_hessian(prob, ∇fz, B, x)
- end 
- 
+end
+
 Newton(; approx = Direct(), linsolve = default_newton_linsolve, reset_age = nothing) =
     Newton(approx, linsolve, reset_age, nothing)
 summary(::Newton{<:Direct,typeof(default_newton_linsolve)}) =

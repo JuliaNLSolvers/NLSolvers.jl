@@ -48,8 +48,7 @@ end
 EisenstatWalkerB() = EisenstatWalkerB(0.1, 1 + sqrt(5) / 2, 1.0, 100.0)
 
 # https://epubs.siam.org/doi/10.1137/0911026
-struct BrownSaad{T}
-end
+struct BrownSaad{T} end
 
 function η(fft::EisenstatWalkerB, info)
     T = typeof(info.ρFz)
@@ -88,9 +87,23 @@ InexactNewton(; linsolve, force_seq = DemboSteihaug(), eta0 = 1e-4, maxiter = 30
 # map from method to forcing sequence
 η(fft::InexactNewton, info) = η(fft.force_seq, info)
 
-init(::NEqProblem, ::InexactNewton; x, z = copy(x), xp = copy(x), d = copy(x), Fx = copy(x), Jx = x * x') =
-    (; z, xp, d, Fx, Jx)
-function solve(problem::NEqProblem, x, method::InexactNewton, options::NEqOptions, state = init(problem, method; x))
+init(
+    ::NEqProblem,
+    ::InexactNewton;
+    x,
+    z = copy(x),
+    xp = copy(x),
+    d = copy(x),
+    Fx = copy(x),
+    Jx = x * x',
+) = (; z, xp, d, Fx, Jx)
+function solve(
+    problem::NEqProblem,
+    x,
+    method::InexactNewton,
+    options::NEqOptions,
+    state = init(problem, method; x),
+)
     if !(mstyle(problem) === InPlace())
         throw(ErrorException("solve() not defined for OutOfPlace() with InexactNewton"))
     end

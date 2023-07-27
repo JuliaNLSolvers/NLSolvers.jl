@@ -1,15 +1,21 @@
 # Optimization
+NLSolvers.jl implements several algorithms for non-linear optimization. The use-cases for non-linear optimization are quite diverse, and as such it is important for a Julia package for optimization to be flexible in the interface and the admissable types. Scalar optimization should not allocate a lot of buffers, static array types should not try to do in-place operations and allocate normal `Array`s, and so on. This section explains how to use the various algorithms in NLSolvers.jl and gives the user ideas about where it is possible to take advantage of parallel computing, special array types, and more.
+
 ## Univariate optimization
 Brent's method for minimizing a scalar objective is implemented as the `BrentMin` method. To solve it, you need to provide an objective and bounds.
 ```
+# Define objective function
 brent_f(x) = sin(x)
+# Define the objective wrapper
 brent_scalar = ScalarObjective(; f = brent_f)
+# Define the optimization problem using the objective wrapper and bounds as a tuple
 brent_prob = OptimizationProblem(brent_scalar, (π/2, 2*π))
+# Solve the problem using Brent's method for optimization
 solve(brent_prob, BrentMin(), OptimizationOptions())
 ```
 
 ## Multivariate optimization
-Most applications of optimization software deals with multivariate optimization and there are many methods in the literature and in software that deals with these types of questions. Multivariate optimization can be unconstrained or constrained. We will show how to deal with these different cases below.
+Many applications of optimization software deals with multivariate optimization and there are many methods in the literature and in software that deals with these types of questions. Below, we will show how to do multivariate optimization in NLSolvers.jl. Notice, that multivariate optimization is fundamentally different from multivalued optimization where the objective is a vector. Multivalued optimization is currently not supported in NLSolvers.jl
 
 ### Unconstrained optimization
 If there are no constraints present, there are a lot of methods to choose from. They typically require an objective and an initial point. So-called gradient based methods, or first order methods, require gradients as well, and the second order methods require Hessian information as well. Some methods can even exploit Hessian-vector products.
@@ -96,7 +102,11 @@ Results of minimization
 Since we have Hessian information available, we can also use variants of Newton's method.
 
 ```
-results = solve(prob, x0, TrustRegion(Newton()), OptimizationOptions())
+julia> x0 = [3.0, 1.0]
+2-element Vector{Float64}:
+ 3.0
+ 1.0
+
 julia> results = solve(prob, x0, TrustRegion(Newton()), OptimizationOptions())
 Results of minimization
 

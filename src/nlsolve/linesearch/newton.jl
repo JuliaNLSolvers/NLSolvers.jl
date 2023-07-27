@@ -117,12 +117,12 @@ function solve(
         # Update 2-norm for line search conditions: ϕ(0) and ϕ'(0)
         ρ2F = norm(Fx, 2)
         ρF = norm(Fx, Inf)
-        
+
         #Bail out on non-finite result
         if !isfinite(ρF)
             break
         end
-        
+
         # Update the largest successive change in the iterate
         ρs = mapreduce(x -> abs(x[1] - x[2]), max, zip(x, z)) # norm(x.-z, Inf)
 

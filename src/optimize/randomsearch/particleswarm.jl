@@ -21,7 +21,16 @@ ParticleSwarm(;
     inertia_weight = 9 / 10,
     σmin = 0.1,
     σmax = 1.0,
-) = ParticleSwarm(n_particles, limit_search_space, elitist_learning, c₁, c₂, inertia_weight, σmin, σmax)
+) = ParticleSwarm(
+    n_particles,
+    limit_search_space,
+    elitist_learning,
+    c₁,
+    c₂,
+    inertia_weight,
+    σmin,
+    σmax,
+)
 
 summary(::ParticleSwarm) = "Adaptive Particle Swarm"
 function solve(
@@ -118,6 +127,7 @@ function solve(
     ConvergenceInfo(
         method,
         (
+            prob = problem,
             swarm_f = swarm_f,
             X = X,
             Fs = Fs,
