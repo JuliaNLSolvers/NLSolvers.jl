@@ -30,20 +30,21 @@ is_inplace(problem::NEqProblem) = mstyle(problem) === InPlace()
 #function value(nleq::NEqProblem, x)
 #    nleq.R(x)
 #end
-function value(nleq::NEqProblem, x, F)
-    value(nleq.R, x, F)
+function value(nleq::NEqProblem, F, x)
+    value(nleq.R, F, x)
 end
-struct VectorObjective{TF,TJ,TFJ,TJv}
-    F::TF
-    J::TJ
-    FJ::TFJ
-    Jv::TJv
+function jacobian(nleq::NEqProblem{<:ScalarObjective}, J, x)
+    gradient(nleq.R, J, x)
 end
+function value_jacobian(nleq::NEqProblem{<:ScalarObjective, <:Any, <:Any, OutOfPlace}, F, J, x)
+    nleq.R.fg(J, x)
+end
+
 function value(nleq::VectorObjective, F, x)
     nleq.F(F, x)
 end
-function value_jacobian!(nleq::NEqProblem{<:VectorObjective,<:Any,<:Any}, F, J, x)
-    nleq.FJ(F, J, x)
+function value_jacobian(nleq::NEqProblem{<:VectorObjective,<:Any,<:Any,<:Any}, F, J, x)
+    nleq.R.FJ(F, J, x)
 end
 
 """
@@ -100,7 +101,7 @@ function Base.show(io::IO, ci::ConvergenceInfo{<:Any,<:Any,<:NEqOptions})
             ρF = norm(info.best_residual, Inf)
             println(
                 io,
-                "  |F(x')|               = $(@sprintf("%.2e", ρF)) <= $(@sprintf("%.2e", opt.f_limit)) ($(ρF<=opt.f_limit))",
+                "  |F(x')|               = $(@sprintf("%.2e", ρF)) <= $(@sprintf("%.2e", opt.f_abstol)) ($(ρF<=opt.f_abstol))",
             )
         end
         if haskey(info, :fx)
