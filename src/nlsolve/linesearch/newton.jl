@@ -12,23 +12,25 @@ function solve(
 
     # Unpack
     scheme, linesearch = modelscheme(method), algorithm(method)
-    # Unpack important objectives
-    F = problem.R.F
-    FJ = problem.R.FJ
+
     # Unpack state
     z, d, Fx, Jx = state
-    z .= x
+    if mstyle(problem) isa InPlace
+        z .= x
+    else
+        z = copy(x)
+    end
     T = eltype(Fx)
 
 
     # Set up MeritObjective. This defines the least squares
     # objective for the line search.
-    merit = MeritObjective(problem, F, FJ, Fx, Jx, d)
+    merit = MeritObjective(problem, Fx, d)
     meritproblem =
         OptimizationProblem(merit, nothing, Euclidean(0), nothing, mstyle(problem), nothing)
 
     # Evaluate the residual and Jacobian
-    Fx, Jx = FJ(Fx, Jx, x)
+    Fx, Jx = value_jacobian(problem, Fx, Jx, x)
     if !(scheme.reset_age === nothing)
         JFx = factorize(Jx)
     else
@@ -160,7 +162,7 @@ function update_model(
 )
     # Update F, J, JF, and age as necessary
     if scheme.reset_age === nothing
-        F, J = problem.R.FJ(F, J, z)
+        F, J = value_jacobian(problem, F, J, z)
         if scheme.factorizer === nothing
             JF = nothing
         else

@@ -103,6 +103,15 @@ function batched_value(so::ScalarObjective, F, X)
     end
 end
 
+
+struct VectorObjective{TF,TJ,TFJ,TJv}
+    F::TF
+    J::TJ
+    FJ::TFJ
+    Jv::TJv
+end
+VectorObjective(; F=nothing, J=nothing, FJ=nothing, Jv=nothing) = VectorObjective(F, J, FJ, Jv)
+
 ## If prob is a NEqProblem, then we can just dispatch to least squares MeritObjective
 # if fast JacVec exists then maybe even line searches that updates the gradient can be used??? 
 struct LineObjective!{TP,T1,T2,T3}
@@ -151,16 +160,20 @@ _lineobjective(mstyle::InPlace, prob::AbstractProblem, ∇fz, z, x, d, φ0, dφ0
 _lineobjective(mstyle::OutOfPlace, prob::AbstractProblem, ∇fz, z, x, d, φ0, dφ0) =
     LineObjective(prob, ∇fz, z, x, d, φ0, real(dφ0))
 
-struct MeritObjective{TP,T1,T2,T3,T4,T5}
+struct MeritObjective{TP,T1,T2}
     prob::TP
-    F::T1
-    FJ::T2
-    Fx::T3
-    Jx::T4
-    d::T5
+    Fx::T1
+    d::T2
 end
 function value(mo::MeritObjective, x)
-    Fx = mo.F(mo.Fx, x)
+    _value(mo, mo.prob.R, mo.Fx, x)
+end
+function _value(mo, R::ScalarObjective, Fx, x)
+    Fx = R.f(x)
+    (ϕ = (norm(Fx)^2) / 2, Fx = Fx)
+end
+function _value(mo, R::VectorObjective, Fx, x)
+    Fx = mo.prob.R.F(mo.Fx, x)
     (ϕ = (norm(Fx)^2) / 2, Fx = Fx)
 end
 

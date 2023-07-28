@@ -109,7 +109,7 @@ include("Manifolds.jl")
 include("objectives.jl")
 export LeastSquaresObjective
 include("linearalgebra.jl")
-export NonDiffed, OnceDiffed, TwiceDiffed, ScalarObjective
+export NonDiffed, OnceDiffed, TwiceDiffed, ScalarObjective, VectorObjective
 
 # make this struct that has scheme and approx
 abstract type QuasiNewton{T1} end

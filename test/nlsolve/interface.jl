@@ -448,3 +448,23 @@ end
     @test norm(res.info.best_residual) < 1e-10
 
 end
+
+@testset "scalar nlsolves" begin
+    function ff(x)
+        x^2
+     end
+     
+     function fgg(Jx, x)
+         x^2, 2x
+     end
+     
+     prob_obj = NLSolvers.ScalarObjective(
+         f=ff,
+         fg=fgg,
+     )
+     
+    prob = NEqProblem(prob_obj; inplace = false)
+
+    x0 = 0.3
+    res = solve(prob, x0, LineSearch(Newton(), Backtracking()))
+end

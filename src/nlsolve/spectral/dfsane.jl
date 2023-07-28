@@ -70,7 +70,7 @@ function solve(
     prob::NEqProblem,
     x0,
     method::DFSANE,
-    options::NEqOptions,
+    options::NEqOptions = NEqOptions(),
     state = init(prob, method; x = copy(x0)),
 )
     if !(mstyle(prob) === InPlace())
