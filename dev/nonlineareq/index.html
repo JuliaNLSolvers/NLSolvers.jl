@@ -34,6 +34,8 @@
         
         var pageToc = [
           {title: "Solving non-linear systems of equations", url: "#_top", children: [
+              {title: "Scalar solving with 1st order derivatives", url: "#scalar-solving-with-1st-order-derivatives" },
+              {title: "Multivariate non-linear equation solving", url: "#multivariate-non-linear-equation-solving" },
           ]},
         ];
 
@@ -59,6 +61,115 @@ if (is_top_frame) { $('body').addClass('wm-top-page'); }
     <p><a id='Solving-non-linear-systems-of-equations'></a></p>
 <p><a id='Solving-non-linear-systems-of-equations-1'></a></p>
 <h1 id="solving-non-linear-systems-of-equations">Solving non-linear systems of equations</h1>
+<p>Non-linear systems of equations arise in many different applications. As for optimization, different situations will call for different inputs and optimizations: scalar, static, mutating, iterative solvers, etc. Below, we will cover some important algorithms and special cases.</p>
+<p><a id='Scalar-solving-with-1st-order-derivatives'></a></p>
+<p><a id='Scalar-solving-with-1st-order-derivatives-1'></a></p>
+<h2 id="scalar-solving-with-1st-order-derivatives">Scalar solving with 1st order derivatives</h2>
+<p>Assume that you have a residual system that you want to solve. This means that if your original system to solve is is <code>F(x) = K</code> for some real number <code>K</code>, you have made sure to provide a residual function <code>G(x) = F(x) - K</code> that we can solve for <code>G(x) = 0</code> instead. Then, you can use Newton's method for root finding as follows:</p>
+<pre><code>function F(x)
+    x^2
+    end
+
+    function FJ(Jx, x)
+        x^2, 2x
+    end
+
+    prob_obj = NLSolvers.ScalarObjective(
+        f=F,
+        fg=FJ,
+    )
+
+prob = NEqProblem(prob_obj; inplace = false)
+
+x0 = 0.3
+res = solve(prob, x0, LineSearch(Newton(), Backtracking()))
+</code></pre>
+<p>with output</p>
+<pre><code>julia&gt; res = solve(prob, x0, LineSearch(Newton(), Backtracking()))
+Results of solving non-linear equations
+
+* Algorithm:
+  Newton's method with default linsolve with backtracking (no interp)
+
+* Candidate solution:
+  Final residual 2-norm:      5.36e-09
+  Final residual Inf-norm:    5.36e-09
+
+  Initial residual 2-norm:    9.00e-02
+  Initial residual Inf-norm:  9.00e-02
+
+* Stopping criteria
+  |F(x')|               = 5.36e-09 &lt;= 1.00e-08 (true)
+
+* Work counters
+  Seconds run:   1.41e-05
+  Iterations:    12
+</code></pre>
+<p>The output reports initial and final residual norms. The convergence check is also reported, and some work counters report the time spent and the number of iterations. </p>
+<p><a id='Multivariate-non-linear-equation-solving'></a></p>
+<p><a id='Multivariate-non-linear-equation-solving-1'></a></p>
+<h2 id="multivariate-non-linear-equation-solving">Multivariate non-linear equation solving</h2>
+<p>Multivariate non-linear equation solving requires writing a <code>VectorObjective</code> instead of a <code>ScalarObjective</code> as above. The <code>VectorObjective</code> is </p>
+<pre><code>using NLSolvers, ForwardDiff
+function theta(x)
+    if x[1] &gt; 0
+        return atan(x[2] / x[1]) / (2.0 * pi)
+    else
+        return (pi + atan(x[2] / x[1])) / (2.0 * pi)
+    end
+end
+
+function F_powell!(Fx, x)
+    if (x[1]^2 + x[2]^2 == 0)
+        dtdx1 = 0
+        dtdx2 = 0
+    else
+        dtdx1 = -x[2] / (2 * pi * (x[1]^2 + x[2]^2))
+        dtdx2 = x[1] / (2 * pi * (x[1]^2 + x[2]^2))
+    end
+    Fx[1] =
+        -2000.0 * (x[3] - 10.0 * theta(x)) * dtdx1 +
+        200.0 * (sqrt(x[1]^2 + x[2]^2) - 1) * x[1] / sqrt(x[1]^2 + x[2]^2)
+    Fx[2] =
+        -2000.0 * (x[3] - 10.0 * theta(x)) * dtdx2 +
+        200.0 * (sqrt(x[1]^2 + x[2]^2) - 1) * x[2] / sqrt(x[1]^2 + x[2]^2)
+    Fx[3] = 200.0 * (x[3] - 10.0 * theta(x)) + 2.0 * x[3]
+    Fx
+end
+
+function F_jacobian_powell!(Fx, Jx, x)
+    ForwardDiff.jacobian!(Jx, F_powell!, Fx, x)
+    Fx, Jx
+end
+
+prob_obj = VectorObjective(F=F_powell!, J=F_jacobian_powell!)
+prob = NEqProblem(prob_obj)
+
+x0 = [-1.0, 0.0, 0.0]
+res = solve(prob, copy(x0), LineSearch(Newton(), Backtracking()))
+</code></pre>
+<p>with result</p>
+<pre><code>julia&gt; res = solve(prob, copy(x0), LineSearch(Newton(), Backtracking()))
+Results of solving non-linear equations
+
+* Algorithm:
+  Newton's method with default linsolve with backtracking (no interp)
+
+* Candidate solution:
+  Final residual 2-norm:      8.57e-16
+  Final residual Inf-norm:    6.24e-16
+
+  Initial residual 2-norm:    1.88e+03
+  Initial residual Inf-norm:  1.59e+03
+
+* Stopping criteria
+  |F(x')|               = 6.24e-16 &lt;= 1.00e-08 (true)
+
+* Work counters
+  Seconds run:   2.10e-04
+  Iterations:    33
+</code></pre>
+<p>We again see initial and final residual norms. This time the 2- and Inf-norm are different because there is more than one element in the state to be optimized over. The final 2-norm also satisfies the required threshold, and the run-time and number of iterations are reported.</p>
 
   <br>
     
