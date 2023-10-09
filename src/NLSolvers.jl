@@ -1,6 +1,10 @@
 module NLSolvers
 
-struct ForwardDiffAutoDiff end
+struct ForwardDiffAutoDiff{C, CO}
+    chunk::C
+    coloring::CO
+end
+ForwardDiffAutoDiff(;chunk=nothing, coloring=nothing) = ForwardDiffAutoDiff(chunk, coloring)
 export ForwardDiffAutoDiff
 
 import Base: show, summary
