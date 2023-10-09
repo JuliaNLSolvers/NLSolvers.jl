@@ -59,7 +59,7 @@ To re-implement the setup in the numerical section of [PAPER] use
 
 DFSANE(nexp=2,memory=10, sigma_limit=(1e-10, 1e10), decrease=1e-4, sigma_0=1.0))
 """
-struct DFSANE{T,Σ,TAU,N, G, A}
+struct DFSANE{T,Σ,TAU,N,G,A}
     memory::T
     sigma_limits::Σ
     taus::TAU
@@ -67,7 +67,14 @@ struct DFSANE{T,Σ,TAU,N, G, A}
     γ::G
     σ0::A
 end
-DFSANE(; memory = 4, sigma_limits = (1e-5, 1e5), taus=(1 / 10, 1 / 2), nexp=2,decrease = 1 / 10000, sigma_0 = 1.0) = DFSANE(memory, sigma_limits, taus,nexp, decrease, sigma_0)
+DFSANE(;
+    memory = 4,
+    sigma_limits = (1e-5, 1e5),
+    taus = (1 / 10, 1 / 2),
+    nexp = 2,
+    decrease = 1 / 10000,
+    sigma_0 = 1.0,
+) = DFSANE(memory, sigma_limits, taus, nexp, decrease, sigma_0)
 
 init(::NEqProblem, ::DFSANE; x, Fx = copy(x), y = copy(x), d = copy(x), z = copy(x)) =
     (; x, Fx, y, d, z)
@@ -122,7 +129,7 @@ function solve(
         ηk = ρ2F0 / (1 + iter)^2
         φ(α) = norm(F(Fx, (z .= x .+ α .* d)))^nexp
         φ0 = fx
-        α, φα = find_steplength(RNMS(method.γ,method.σ0), φ, φ0, fbar, ηk, τmin, τmax)
+        α, φα = find_steplength(RNMS(method.γ, method.σ0), φ, φ0, fbar, ηk, τmin, τmax)
         if isnan(α) || isnan(φα)
             status = :linesearch_failed
             break

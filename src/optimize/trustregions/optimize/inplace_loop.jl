@@ -57,9 +57,8 @@ function solve(
     is_converged = converged(approach, objvars, ∇f0, options, reject, Δkp1)
     while iter <= options.maxiter && !any(is_converged)
         iter += 1
-        objvars, Δkp1, reject =
+        objvars, Δkp1, reject, qnvars =
             iterate!(p, objvars, Δkp1, approach, problem, options, qnvars, false)
-
         # Check for convergence
         is_converged = converged(approach, objvars, ∇f0, options, reject, Δkp1)
         print_trace(approach, options, iter, t0, objvars, Δkp1)
@@ -147,10 +146,16 @@ function iterate!(
         z .= x
         fz = fx
         ∇fz .= ∇fx
+        # This is correct because 
+        s .= 0 # z - x
+        y .= 0 # ∇fz - ∇fx
+        # and will cause quasinewton updates to not update
     end
+
     return (x = x, fx = fx, ∇fx = ∇fx, z = z, fz = fz, ∇fz = ∇fz, B = B, Pg = nothing),
     Δkp1,
-    reject_step
+    reject_step,
+    QNVars(d, s, y)
 end
 
 function update_trust_region(spr, R, p)

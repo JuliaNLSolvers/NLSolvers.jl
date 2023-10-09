@@ -10,8 +10,18 @@ PositiveFactorizations = "85a6dd25-e78a-55b7-8502-1745935b8125"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
+[weakdeps]
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
+[extensions]
+ForwardDiffExt = "ForwardDiff"
+StaticArraysExt = "StaticArrays"
+
 [compat]
+ForwardDiff = "0.10.36"
 IterativeSolvers = "0.9"
+StaticArrays = "1.6.5"
 PositiveFactorizations = "0.2"
 SparseDiffTools = "1.13.2"
 julia = "1"
