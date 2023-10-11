@@ -1,11 +1,19 @@
 module NLSolvers
-
-struct ForwardDiffAutoDiff{C, CO}
-    chunk::C
-    coloring::CO
+module Experimental
+    struct ForwardDiffAutoDiff{C,CO}
+        chunk::C
+        coloring::CO
+    end
+    ForwardDiffAutoDiff(; chunk = nothing, coloring = nothing) =
+        ForwardDiffAutoDiff(chunk, coloring)
+    struct SparseForwardDiff{C,CO}
+        chunk::C
+        coloring::CO
+    end
+    SparseForwardDiff(; chunk = nothing, coloring = nothing) =
+        SparseForwardDiff(chunk, coloring)
 end
-ForwardDiffAutoDiff(;chunk=nothing, coloring=nothing) = ForwardDiffAutoDiff(chunk, coloring)
-export ForwardDiffAutoDiff
+export Experimental
 
 import Base: show, summary
 using Statistics # for var in statistics... probably not worth it
