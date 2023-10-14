@@ -10,8 +10,7 @@ function NLSolvers.ScalarObjective(autodiff::AD.AbstractBackend, x, style=NLSolv
 end
 function _autodiff(fdad::AD.AbstractBackend, x, so::ScalarObjective, style)
     g_f = (g,x) -> let f = so.f
-    @show 1
-        g .= AD.gradient(fdad, f, x)
+        g .= AD.gradient(fdad, f, x)[1]
         g
     end
 
@@ -29,24 +28,17 @@ function _autodiff(fdad::AD.AbstractBackend, x, so::ScalarObjective, style)
     end
 
     fgh_f = (g, h, x) -> let f = so.f    
-    @show 4
-        v, G, H = AD.value_and_gradient_and_hessian(fdad, f, x)
+        v, G, H = AD.value_gradient_and_hessian(fdad, f, x)
         g .= G[1]
         h .= H[1]
         v, g, h
     end
 
     hv_f = (w, x, v) -> let f = so.f, g = g_f
-        #=chunk = something(fdad.chunk, ForwardDiff.Chunk(x))
-        gcfg = ForwardDiff.GradientConfig(x->sum(g(x*0, x)'*v), x, chunk)
-        gr_res = DiffResults.DiffResult(zero(eltype(x)), x*0)
-
-        w .= ForwardDiff.gradient!(gr_res, f, x, gcfg)=#
-
         h = AD.hessian(fdad, f, x)
         w .= h[1]*v
     end
 
-    ScalarObjective(f = so.f, g = g_f, fg = fg_f, h = h_f, fgh = fgh_f, hv = hv_f)
+    ScalarObjective(f = so.f, g = g_f, fg = fg_f, h = h_f, fgh = fgh_f, hv = hv_f, param=so.param)
 end
 end

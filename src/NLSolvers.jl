@@ -1,17 +1,17 @@
 module NLSolvers
 module Experimental
-    struct ForwardDiffAutoDiff{C,CO}
-        chunk::C
-        coloring::CO
-    end
-    ForwardDiffAutoDiff(; chunk = nothing, coloring = nothing) =
-        ForwardDiffAutoDiff(chunk, coloring)
-    struct SparseForwardDiff{C,CO}
-        chunk::C
-        coloring::CO
-    end
-    SparseForwardDiff(; chunk = nothing, coloring = nothing) =
-        SparseForwardDiff(chunk, coloring)
+struct ForwardDiffAutoDiff{C,CO}
+    chunk::C
+    coloring::CO
+end
+ForwardDiffAutoDiff(; chunk = nothing, coloring = nothing) =
+    ForwardDiffAutoDiff(chunk, coloring)
+struct SparseForwardDiff{C,CO}
+    chunk::C
+    coloring::CO
+end
+SparseForwardDiff(; chunk = nothing, coloring = nothing) =
+    SparseForwardDiff(chunk, coloring)
 end
 export Experimental
 
