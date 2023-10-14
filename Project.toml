@@ -34,6 +34,10 @@ StaticArrays = "1.6.5"
 julia = "1"
 
 [extras]
+AbstractDifferentiation = "c29ec348-61ec-40c8-8164-b8c60e9d9f3d"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
+SparseDiffTools = "47a9eef4-7e08-11e9-0b38-333d64bd3804"
 ArbNumerics = "7e558dbc-694d-5a72-987c-6f4ebed21442"
 DoubleFloats = "497a8b3b-efae-58df-a0af-a86822472b78"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
