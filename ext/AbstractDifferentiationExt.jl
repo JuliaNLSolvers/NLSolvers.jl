@@ -21,7 +21,6 @@ function _autodiff(fdad::AD.AbstractBackend, x, so::ScalarObjective, style)
     end
 
     h_f = (H, x) -> let f = so.f
-    @show 3
         h = AD.hessian(fdad, f, x)
         H .= h[1]
         H
