@@ -412,45 +412,71 @@ end
     N_test = 9
     w = rand(N_test)
     obj_val = rand()
-    obj(x) = sum(x.^2)+obj_val
+    obj(x) = sum(x .^ 2) + obj_val
     function g!(G, x)
         G .= 2x
         G
     end
     g(x) = 2x
     function h!(H, x)
-        H .= x*x'+2*I
+        H .= x * x' + 2 * I
         H
     end
     function hv!(Hv, x)
-        Hv .= (x*x'+2*I) * x
+        Hv .= (x * x' + 2 * I) * x
         Hv
     end
     #res = Optim.optimize(f, w)
     #@test res.method isa NelderMead
-    
-    sc= ScalarObjective(;f=obj, g=g!, h=h!, hv=hv!)
-    cges = [ConjugateGradient(), ConjugateGradient(update = VPRP())]
-    lses = [LineSearch(NLSolvers.SR1()),LineSearch(NLSolvers.DBFGS()),LineSearch(NLSolvers.DFP()),LineSearch(NLSolvers.BB()),LineSearch(NLSolvers.LBFGS()), LineSearch(NLSolvers.BFGS()), LineSearch(NLSolvers.GradientDescent())]
-for ls in lses
-   res = solve(OptimizationProblem(sc), copy(w),ls, OptimizationOptions())
-   @test res.info.minimum ≈ obj_val
-   @test res.info.solution ≈ zeros(N_test)
-end
 
-cges = [ConjugateGradient(), ConjugateGradient(update = HS()), ConjugateGradient(update = CD()), ConjugateGradient(update = HZ()), ConjugateGradient(update = FR()), ConjugateGradient(update = PRP()), ConjugateGradient(update = VPRP()), ConjugateGradient(update = LS()), ConjugateGradient(update = DY())]
-    lses = [LineSearch(NLSolvers.SR1()),LineSearch(NLSolvers.DBFGS()),LineSearch(NLSolvers.DFP()),LineSearch(NLSolvers.BB()),LineSearch(NLSolvers.LBFGS()), LineSearch(NLSolvers.BFGS()), LineSearch(NLSolvers.GradientDescent())]
-for ls in lses
-   res = solve(OptimizationProblem(sc), copy(w),ls, OptimizationOptions())
-   @test res.info.minimum ≈ obj_val
-   @test res.info.solution ≈ zeros(N_test)
-end
-#  ConjugateGradient(update = HS()) fails here if I don't check if beta is finite and sets it to 0 if it isn't. Keeps cycling 0,-0.5,0,-0.5 what's up...
-for ls in cges
-    res = solve(OptimizationProblem(sc), copy(w),ls, OptimizationOptions())
-    @test res.info.minimum ≈ obj_val
-    @test sum(abs, res.info.solution) <1e-7
- end
+    sc = ScalarObjective(; f = obj, g = g!, h = h!, hv = hv!)
+    cges = [ConjugateGradient(), ConjugateGradient(update = VPRP())]
+    lses = [
+        LineSearch(NLSolvers.SR1()),
+        LineSearch(NLSolvers.DBFGS()),
+        LineSearch(NLSolvers.DFP()),
+        LineSearch(NLSolvers.BB()),
+        LineSearch(NLSolvers.LBFGS()),
+        LineSearch(NLSolvers.BFGS()),
+        LineSearch(NLSolvers.GradientDescent()),
+    ]
+    for ls in lses
+        res = solve(OptimizationProblem(sc), copy(w), ls, OptimizationOptions())
+        @test res.info.minimum ≈ obj_val
+        @test res.info.solution ≈ zeros(N_test)
+    end
+
+    cges = [
+        ConjugateGradient(),
+        ConjugateGradient(update = HS()),
+        ConjugateGradient(update = CD()),
+        ConjugateGradient(update = HZ()),
+        ConjugateGradient(update = FR()),
+        ConjugateGradient(update = PRP()),
+        ConjugateGradient(update = VPRP()),
+        ConjugateGradient(update = LS()),
+        ConjugateGradient(update = DY()),
+    ]
+    lses = [
+        LineSearch(NLSolvers.SR1()),
+        LineSearch(NLSolvers.DBFGS()),
+        LineSearch(NLSolvers.DFP()),
+        LineSearch(NLSolvers.BB()),
+        LineSearch(NLSolvers.LBFGS()),
+        LineSearch(NLSolvers.BFGS()),
+        LineSearch(NLSolvers.GradientDescent()),
+    ]
+    for ls in lses
+        res = solve(OptimizationProblem(sc), copy(w), ls, OptimizationOptions())
+        @test res.info.minimum ≈ obj_val
+        @test res.info.solution ≈ zeros(N_test)
+    end
+    #  ConjugateGradient(update = HS()) fails here if I don't check if beta is finite and sets it to 0 if it isn't. Keeps cycling 0,-0.5,0,-0.5 what's up...
+    for ls in cges
+        res = solve(OptimizationProblem(sc), copy(w), ls, OptimizationOptions())
+        @test res.info.minimum ≈ obj_val
+        @test sum(abs, res.info.solution) < 1e-7
+    end
 end
 
 
