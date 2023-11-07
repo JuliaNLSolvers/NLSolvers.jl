@@ -158,7 +158,7 @@ function find_steplength(mstyle, ls::Backtracking, φ::T, λ) where {T}
         Tf(ls.ratio), Tf(ls.decrease), ls.maxiter, ls.verbose
 
     #== factor in Armijo condition ==#
-    t = -decrease * dφ0
+    t = decrease * dφ0
 
     iter, α, β = 0, λ, λ # iteration variables
     f_α = φ(α) # initial function value
@@ -174,7 +174,6 @@ function find_steplength(mstyle, ls::Backtracking, φ::T, λ) where {T}
         β, α, f_α = interpolate(ls.interp, φ, φ0, dφ0, α, f_α.ϕ, ratio)
         is_solved = isfinite(f_α.ϕ) && f_α.ϕ <= φ0 + α * t
     end
-
     ls_success = iter >= maxiter ? false : true
 
     if verbose

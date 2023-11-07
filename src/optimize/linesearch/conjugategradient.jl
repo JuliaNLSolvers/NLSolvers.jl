@@ -313,6 +313,9 @@ function iterate(
         y .= .-∇fz
     end
     β = update_parameter(mstyle, scheme.update, d, ∇fz, ∇fx, y, P, P∇fz)
+    if !isfinite(β)
+        β = zero(β)
+    end
 
     return (x = x, fx = fx, ∇fx = ∇fx, z = z, fz = fz, ∇fz = ∇fz, B = nothing, Pg = Pg),
     P,

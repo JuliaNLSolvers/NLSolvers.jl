@@ -1,3 +1,4 @@
+
 function solve(
     problem::OptimizationProblem,
     s0::Tuple,
@@ -108,10 +109,8 @@ function iterate!(
     scale = nothing,
 )
     x, fx, ∇fx, z, fz, ∇fz, B, Pg = objvars
-    T = eltype(x)
+
     scheme, subproblemsolver = modelscheme(approach), algorithm(approach)
-    y, d, s = qnvars.y, qnvars.d, qnvars.s
-    fx = fz
     copyto!(x, z)
     copyto!(∇fx, ∇fz)
     spr = subproblemsolver(∇fx, B, Δk, p, scheme; abstol = 1e-10)
@@ -123,7 +122,7 @@ function iterate!(
     # tive value, we may conclude that "something" is wrong. We might be at a
     # ridge (positive-indefinite case) for example, or the scaling of the model
     # is such that we cannot satisfy ||∇f|| < tol.
-    if abs(spr.mz) < eps(T)
+    if abs(spr.mz) < eps(spr.mz)
         # set flag to check for problems
     end
 
@@ -131,6 +130,9 @@ function iterate!(
     # Update before acceptance, to keep adding information about the hessian
     # even when the step is not "good" enough.
 
+    y, d, s = qnvars.y, qnvars.d, qnvars.s
+    fx = fz
+    # Should build a good code for picking update model.
     fz, ∇fz, B, s, y = update_obj!(problem, spr.p, y, ∇fx, z, ∇fz, B, scheme, scale)
 
     # Δf is often called ared or Ared for actual reduction. I prefer "change in"
@@ -150,6 +152,7 @@ function iterate!(
         s .= 0 # z - x
         y .= 0 # ∇fz - ∇fx
         # and will cause quasinewton updates to not update
+        # this seems incorrect as it's already updated, should hold off here
     end
 
     return (x = x, fx = fx, ∇fx = ∇fx, z = z, fz = fz, ∇fz = ∇fz, B = B, Pg = nothing),
@@ -157,7 +160,16 @@ function iterate!(
     reject_step,
     QNVars(d, s, y)
 end
-
+#=
+struct TrustRegionUpdateModel
+    postpone_gradient
+    postpone_Hessian
+    store_double
+    always_update
+    ratio_for_update
+    α
+end
+=#
 function update_trust_region(spr, R, p)
     T = eltype(p)
     # Choosing a parameter > 0 might be preferable here. See p. 4 of Yuans survey
