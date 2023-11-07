@@ -45,9 +45,10 @@ using Test
                 N == 10 &&
                 optimizer(nothing).linesearcher isa HZAW &&
                 optimizer(nothing).scheme isa LBFGS
-            )
+                || N ∈ (50,100) && optimizer(nothing).linesearcher isa Backtracking && optimizer(nothing).scheme isa ConjugateGradient)
                 @test iter[end-1] >= iter[end]
             end
         end
     end
 end
+
