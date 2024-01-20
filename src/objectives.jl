@@ -177,21 +177,6 @@ function _value(mo, R::VectorObjective, Fx, x)
     (ϕ = (norm(Fx)^2) / 2, Fx = Fx)
 end
 
-struct LsqWrapper{Tobj,TF,TJ} <: ObjWrapper
-    R::Tobj
-    F::TF
-    J::TJ
-end
-function (lw::LsqWrapper)(x)
-    F = lw.R(lw.F, x)
-    sum(abs2, F) / 2
-end
-function (lw::LsqWrapper)(∇f, x)
-    _F, _J = lw.R(lw.F, lw.J, x)
-    copyto!(∇f, sum(_J; dims = 1))
-    sum(abs2, _F), ∇f
-end
-
 struct LeastSquaresObjective{TFx,TJx,Tf,Tfj,Td}
     Fx::TFx
     Jx::TJx

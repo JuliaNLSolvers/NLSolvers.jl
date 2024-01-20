@@ -148,7 +148,7 @@ Returns:
     solved - Whether or not a solution was reached (as opposed to
       terminating early due to maxiter)
 """
-function (ms::NWI)(∇f, H, Δ, p, scheme; abstol = 1e-10, maxiter = 50)
+function (ms::NWI)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxiter = 50)
     T = eltype(p)
     n = length(∇f)
     H = H isa UniformScaling ? Diagonal(copy(∇f) .* 0 .+ 1) : H

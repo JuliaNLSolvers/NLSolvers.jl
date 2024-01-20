@@ -12,7 +12,7 @@ function default_newton_linsolve(B, g)
     B \ g
 end
 function default_newton_linsolve(d, B, g)
-    d .= (B \ g)
+    d = (B \ g)
 end
 
 function init_f∇fB(prob, scheme::Newton, ∇fz, B, x)

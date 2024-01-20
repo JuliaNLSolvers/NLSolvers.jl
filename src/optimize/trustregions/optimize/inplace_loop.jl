@@ -16,7 +16,7 @@ function solve(
     objvars;
     initial_Δ = 20.0,
 )
-    if !(mstyle(problem) === InPlace())
+    if !(mstyle(problem) === InPlace()) && !(approach.spsolve == Dogleg())
         throw(
             ErrorException("solve() not defined for OutOfPlace() with TrustRegion solvers"),
         )
@@ -113,9 +113,11 @@ function iterate!(
     scheme, subproblemsolver = modelscheme(approach), algorithm(approach)
     y, d, s = qnvars.y, qnvars.d, qnvars.s
     fx = fz
-    copyto!(x, z)
-    copyto!(∇fx, ∇fz)
-    spr = subproblemsolver(∇fx, B, Δk, p, scheme; abstol = 1e-10)
+
+    x = _copyto(mstyle(problem), x, z)
+    ∇fx = _copyto(mstyle(problem), ∇fx, ∇fz)
+
+    spr = subproblemsolver(∇fx, B, Δk, p, scheme, problem.mstyle; abstol = 1e-10)
     Δm = -spr.mz
 
     # Grab the model value, m. If m is zero, the solution, z, does not improve
@@ -128,7 +130,7 @@ function iterate!(
         # set flag to check for problems
     end
 
-    z = retract(problem, z, x, p)
+    z = retract(problem, z, x, spr.p)
     # Update before acceptance, to keep adding information about the hessian
     # even when the step is not "good" enough.
 
@@ -144,9 +146,9 @@ function iterate!(
     Δkp1, reject_step = update_trust_region(spr, R, p)
 
     if reject_step
-        z .= x
+        z = _copyto(mstyle(problem), z, x)
+        ∇fz = _copyto(mstyle(problem), ∇fz, ∇fx)
         fz = fx
-        ∇fz .= ∇fx
     end
     return (x = x, fx = fx, ∇fx = ∇fx, z = z, fz = fz, ∇fz = ∇fz, B = B, Pg = nothing),
     Δkp1,
