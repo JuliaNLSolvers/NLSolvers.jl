@@ -192,10 +192,10 @@ end
 function negate(::OutOfPlace, A::AbstractArray)
     -A
 end
-function scale(::InPlace, B, A, m)
+function _scale(::InPlace, B, A, m)
     B .= A .* m
 end
-function scale(::OutOfPlace, B, A, m)
+function _scale(::OutOfPlace, B, A, m)
     A .* m
 end
 function _copyto(::InPlace, z, x)

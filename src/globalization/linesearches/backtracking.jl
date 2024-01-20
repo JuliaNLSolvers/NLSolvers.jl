@@ -158,7 +158,7 @@ function find_steplength(mstyle, ls::Backtracking, φ::T, λ) where {T}
         Tf(ls.ratio), Tf(ls.decrease), ls.maxiter, ls.verbose
 
     #== factor in Armijo condition ==#
-    t = -decrease * dφ0
+    t = decrease * dφ0
 
     iter, α, β = 0, λ, λ # iteration variables
     f_α = φ(α) # initial function value

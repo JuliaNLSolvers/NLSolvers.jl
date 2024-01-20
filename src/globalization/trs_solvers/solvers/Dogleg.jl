@@ -33,7 +33,7 @@ function (dogleg::Dogleg)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxite
     if norm_d_cauchy ≥ Δ
         shrink = Δ / norm_d_cauchy # inv(Δ/norm_d_cauchy) puts it on the border
 
-        p = scale(mstyle, p, d_cauchy, shrink)
+        p = _scale(mstyle, p, d_cauchy, shrink)
         interior = false
     else
         # Else, calculate (Quasi-)Newton step. If this is interior, then take the
