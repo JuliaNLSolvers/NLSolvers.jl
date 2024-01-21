@@ -41,6 +41,34 @@ NLE_PROBS["rosenbrock"]["array"]["mutating"] = NLSolvers.VectorObjective(
 )
 
 
+NLE_PROBS["rosenbrock"]["static"] = Dict()
+function F_rosenbrock_static(Fx, x)
+    Fx1 = 1 - x[1]
+    Fx2 = 10(x[2] - x[1]^2)
+    return @SVector([Fx1,Fx2])
+end
+function J_rosenbrock_static(Jx, x)
+    Jx11 = -1
+    Jx12 = 0
+    Jx21 = -20 * x[1]
+    Jx22 = 10
+    return @SArray([Jx11 Jx12; Jx21 Jx22])
+end
+function FJ_rosenbrock_static(Fx, Jx, x)
+    F_rosenbrock_static(Fx, x)
+    J_rosenbrock_static(Jx, x)
+    Fx, Jx
+end
+
+NLE_PROBS["rosenbrock"]["static"]["x0"] = @SVector([-1.2, 1.0])
+NLE_PROBS["rosenbrock"]["static"]["mutating"] = NLSolvers.VectorObjective(
+    F_rosenbrock_static,
+    J_rosenbrock_static,
+    FJ_rosenbrock_static,
+    nothing,
+)
+
+
 function F_powell_singular!(x::Vector, Fx::Vector, Jx::Union{Nothing,Matrix} = nothing)
     if !(Fx isa Nothing)
         Fx[1] = x[1] + 10x[2]

@@ -20,15 +20,16 @@ struct ScalarObjective{Tf,Tg,Tfg,Tfgh,Th,Thv,Tbf,P}
     param::P
 end
 ScalarObjective(;
-    f = nothing,
-    g = nothing,
-    fg = nothing,
-    fgh = nothing,
-    h = nothing,
-    hv = nothing,
-    batched_f = nothing,
-    param = nothing,
-) = ScalarObjective(f, g, fg, fgh, h, hv, batched_f, param)
+     f = nothing,
+     g = nothing,
+     fg = nothing,
+     fgh = nothing,
+     h = nothing,
+     hv = nothing,
+     batched_f = nothing,
+     param = nothing,
+ ) = ScalarObjective(f, g, fg, fgh, h, hv, batched_f, param)
+
 has_param(so::ScalarObjective) = so.param === nothing ? false : true
 function value(so::ScalarObjective, x)
     if has_param(so)
@@ -184,21 +185,6 @@ end
 function _value(mo, R::VectorObjective, Fx, x)
     Fx = mo.prob.R.F(mo.Fx, x)
     (ϕ = (norm(Fx)^2) / 2, Fx = Fx)
-end
-
-struct LsqWrapper{Tobj,TF,TJ} <: ObjWrapper
-    R::Tobj
-    F::TF
-    J::TJ
-end
-function (lw::LsqWrapper)(x)
-    F = lw.R(lw.F, x)
-    sum(abs2, F) / 2
-end
-function (lw::LsqWrapper)(∇f, x)
-    _F, _J = lw.R(lw.F, lw.J, x)
-    copyto!(∇f, sum(_J; dims = 1))
-    sum(abs2, _F), ∇f
 end
 
 struct LeastSquaresObjective{TFx,TJx,Tf,Tfj,Td}

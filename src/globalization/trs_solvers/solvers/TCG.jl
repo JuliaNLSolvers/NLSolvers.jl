@@ -22,6 +22,7 @@ function (ms::TCG)(
     Δ::T,
     s,
     scheme,
+    mstyle,
     λ0 = 0;
     abstol = 1e-10,
     maxiter = min(5, length(s)),
