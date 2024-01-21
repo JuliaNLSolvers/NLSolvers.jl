@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  
+  
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <meta name="author" content="Patrick Kofod Mogensen">
+    
+    <link rel="shortcut icon" href="../../img/favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
+    <title>Precondition - NLSolvers.jl</title>
+    <link href="../../css/bootstrap-3.3.7.min.css" rel="stylesheet">
+    <link href="../../css/font-awesome-4.7.0.css" rel="stylesheet">
+    <link href="../../css/base.css" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/highlight.css">
+    <link href="../../assets/Documenter.css" rel="stylesheet">
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
+    <![endif]-->
+
+    <script src="../../js/jquery-3.2.1.min.js"></script>
+    <script src="../../js/bootstrap-3.3.7.min.js"></script>
+    <script src="../../js/highlight.pack.js"></script>
+    
+    <base target="_top">
+    <script>
+      var base_url = '../..';
+      var is_top_frame = false;
+        
+        var pageToc = [
+          {title: "Preconditioners", url: "#_top", children: [
+          ]},
+        ];
+
+    </script>
+    <script src="../../js/base.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS_HTML"></script>
+      <script src="../../assets/mathjaxhelper.js"></script> 
+</head>
+
+<body>
+<script>
+if (is_top_frame) { $('body').addClass('wm-top-page'); }
+</script>
+
+
+
+<div class="container-fluid wm-page-content">
+  <a name="_top"></a>
+    
+
+    
+
+    <p><a id='Preconditioners'></a></p>
+<p><a id='Preconditioners-1'></a></p>
+<h1 id="preconditioners">Preconditioners</h1>
+<p>It is possible to apply preconditioners to improve convergence on ill-conditioned problems. The interface across solvers is the same, but in different contexts, it means slightly different things.</p>
+<p>As mentioned above, preconditioning is used to improve the conditioning of the problem at hand. A useful way to think about it is as a change of variables according to <code>x = S*y</code>, see [HZSurvey], where <code>S</code> is an invertible matrix. Writing the conjugate gradient descent, <code>ConjugateGradient</code> in this package, in the variable <code>y</code>, and changing it back to <code>x</code>, you obtain the equations</p>
+<pre><code>x' = x + α*d
+d' = P*g' + β*d
+</code></pre>
+<p>where <code>P = S*S'</code> is the preconditioner we will provide as the end-user, and <code>g</code> and <code>d</code> in the update formulae for β are replaced by <code>S'g</code> and <code>inv(S)*d</code> respectively. For this to be effective, <code>P</code> itself should represent the inverse of the actual Hessian of the objective function. </p>
+<p>The methods that accept preconditioners accept a <code>P</code> keyword in their constructors, for example</p>
+<pre><code class="language-julia">function precon(x, P=nothing)
+  if P isa Nothing
+    return InvDiagPrecon([1.0, 1.0, 1.0])
+  else
+    P.diag .= [1.0, 1.0, 1.0]
+    return P
+  end 
+end
+BFGS(; P=precon)
+</code></pre>
+<p>Here, we're using the <code>InvDiagPrecon</code> preconditioner provided by this package. The preconditioner is applied using <code>ldiv!(Pg, P, g)</code> for in-place algorithms, and <code>Pg = Pg\g</code> for out-of-oplace algorithms. Otherwise, unless a custom type is provided and methods are defined, it is applied using <code>ldiv!(Pg, factorize(P), g)</code> for in-place algorithms. Additionally, <code>ConjugateGradient</code> requires <code>dot(x, P, y)</code> to be defined for the preconditioner type as well. </p>
+
+  <br>
+    
+
+    <br>
+</div>
+
+<footer class="container-fluid wm-page-content">
+      <p>
+        <a href="https://github.com/JuliaNLSolvers/NLSolvers.jl/edit/master/docs/tutorials/precondition.md"><i class="fa fa-github"></i>
+Edit on GitHub</a>
+      </p>
+  <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a> using <a href="https://github.com/gristlabs/mkdocs-windmill">Windmill</a> theme by Grist Labs.</p>
+</footer>
+
+</body>
+</html>
