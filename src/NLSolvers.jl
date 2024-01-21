@@ -185,9 +185,6 @@ include("lsqsolve/problem_types.jl")
 include("lsqsolve/optimization.jl")
 export LeastSquaresProblem, LeastSquaresOptions
 
-function negate(problem::AbstractProblem, A)
-
-end
 function negate(::InPlace, A::AbstractArray)
     A .= .-A
     return A
@@ -195,7 +192,18 @@ end
 function negate(::OutOfPlace, A::AbstractArray)
     -A
 end
-
+function _scale(::InPlace, B, A, m)
+    B .= A .* m
+end
+function _scale(::OutOfPlace, B, A, m)
+    A .* m
+end
+function _copyto(::InPlace, z, x)
+    copyto!(z, x)
+end
+function _copyto(::OutOfPlace, z, x)
+    copy(x)
+end
 mstyle(problem::AbstractProblem) = problem.mstyle
 
 """

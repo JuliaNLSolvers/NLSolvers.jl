@@ -51,6 +51,7 @@ function (ms::NTR)(
     Δ::T,
     s,
     scheme,
+    mstyle,
     λ0 = 0;
     abstol = 1e-10,
     maxiter = 50,

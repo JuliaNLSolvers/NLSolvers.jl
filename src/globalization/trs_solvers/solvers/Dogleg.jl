@@ -20,7 +20,7 @@ struct Dogleg{T} <: TRSPSolver
 end
 Dogleg() = Dogleg(nothing)
 
-function (dogleg::Dogleg)(∇f, H, Δ, p, scheme; abstol = 1e-10, maxiter = 50)
+function (dogleg::Dogleg)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxiter = 50)
     T = eltype(p)
     n = length(∇f)
 
@@ -32,7 +32,8 @@ function (dogleg::Dogleg)(∇f, H, Δ, p, scheme; abstol = 1e-10, maxiter = 50)
     norm_d_cauchy = norm(d_cauchy)
     if norm_d_cauchy ≥ Δ
         shrink = Δ / norm_d_cauchy # inv(Δ/norm_d_cauchy) puts it on the border
-        p .= d_cauchy .* shrink
+
+        p = _scale(mstyle, p, d_cauchy, shrink)
         interior = false
     else
         # Else, calculate (Quasi-)Newton step. If this is interior, then take the
@@ -42,7 +43,6 @@ function (dogleg::Dogleg)(∇f, H, Δ, p, scheme; abstol = 1e-10, maxiter = 50)
         p = find_direction!(p, H, nothing, ∇f, scheme)
         norm_p = norm(p)
         if norm_p ≤ Δ # fixme really need to add the 20% slack here (see TR book and NTR)
-            p .= p
             if norm_p < Δ
                 interior = true
             else
@@ -75,7 +75,8 @@ function (dogleg::Dogleg)(∇f, H, Δ, p, scheme; abstol = 1e-10, maxiter = 50)
             else
                 t = T(0)
             end
-            p .= d_cauchy .+ t .* p
+
+            p, _ = move(mstyle, p, d_cauchy, p, p, t)
             interior = false
         end
     end

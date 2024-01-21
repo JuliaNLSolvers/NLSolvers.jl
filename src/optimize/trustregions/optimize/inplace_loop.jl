@@ -16,7 +16,7 @@ function solve(
     objvars;
     initial_Δ = 20.0,
 )
-    if !(mstyle(problem) === InPlace())
+    if !(mstyle(problem) === InPlace()) && !(approach.spsolve == Dogleg())
         throw(
             ErrorException("solve() not defined for OutOfPlace() with TrustRegion solvers"),
         )
@@ -49,7 +49,7 @@ function solve(
     qnvars = QNVars(objvars.z, objvars.z)
     p = copy(objvars.x)
 
-    objvars, Δkp1, reject =
+    objvars, Δkp1, reject, qnvars =
         iterate!(p, objvars, Δk, approach, problem, options, qnvars, false)
 
     iter = 1
@@ -57,7 +57,7 @@ function solve(
     is_converged = converged(approach, objvars, ∇f0, options, reject, Δkp1)
     while iter <= options.maxiter && !any(is_converged)
         iter += 1
-        objvars, Δkp1, reject =
+        objvars, Δkp1, reject, qnvars =
             iterate!(p, objvars, Δkp1, approach, problem, options, qnvars, false)
 
         # Check for convergence
@@ -113,9 +113,11 @@ function iterate!(
     scheme, subproblemsolver = modelscheme(approach), algorithm(approach)
     y, d, s = qnvars.y, qnvars.d, qnvars.s
     fx = fz
-    copyto!(x, z)
-    copyto!(∇fx, ∇fz)
-    spr = subproblemsolver(∇fx, B, Δk, p, scheme; abstol = 1e-10)
+
+    x = _copyto(mstyle(problem), x, z)
+    ∇fx = _copyto(mstyle(problem), ∇fx, ∇fz)
+
+    spr = subproblemsolver(∇fx, B, Δk, p, scheme, problem.mstyle; abstol = 1e-10)
     Δm = -spr.mz
 
     # Grab the model value, m. If m is zero, the solution, z, does not improve
@@ -124,13 +126,17 @@ function iterate!(
     # tive value, we may conclude that "something" is wrong. We might be at a
     # ridge (positive-indefinite case) for example, or the scaling of the model
     # is such that we cannot satisfy ||∇f|| < tol.
-    if abs(spr.mz) < eps(T)
+    if abs(spr.mz) < eps(spr.mz)
         # set flag to check for problems
     end
 
-    z = retract(problem, z, x, p)
+    z = retract(problem, z, x, spr.p)
     # Update before acceptance, to keep adding information about the hessian
     # even when the step is not "good" enough.
+
+    y, d, s = qnvars.y, qnvars.d, qnvars.s
+    fx = fz
+    # Should build a good code for picking update model.
 
     fz, ∇fz, B, s, y = update_obj!(problem, spr.p, y, ∇fx, z, ∇fz, B, scheme, scale)
 
@@ -144,13 +150,19 @@ function iterate!(
     Δkp1, reject_step = update_trust_region(spr, R, p)
 
     if reject_step
-        z .= x
+        z = _copyto(mstyle(problem), z, x)
+        ∇fz = _copyto(mstyle(problem), ∇fz, ∇fx)
         fz = fx
-        ∇fz .= ∇fx
+        # This is correct because 
+        s = _scale(mstyle(problem), s, s, 0) # z - x
+        y = _scale(mstyle(problem), y, y, 0) # ∇fz - ∇fx
+        # and will cause quasinewton updates to not update
+        # this seems incorrect as it's already updated, should hold off here
     end
     return (x = x, fx = fx, ∇fx = ∇fx, z = z, fz = fz, ∇fz = ∇fz, B = B, Pg = nothing),
     Δkp1,
-    reject_step
+    reject_step,
+    QNVars(d, s, y)
 end
 
 function update_trust_region(spr, R, p)

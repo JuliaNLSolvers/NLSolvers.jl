@@ -341,9 +341,6 @@ end
     # Fc = zeros(6)
     # minimize!(lsqwrap, [100.0, 1.0], NelderMead(), OptimizationOptions())
 
-    # lsqwrap = NLSolvers.LsqWrapper(F, zeros(6), zeros(6,2))
-    # minimize!(MinProblem(;obj=lsqwrap,bounds=([0.0,0.0],[250.0,2.0])), [100.0, 1.0], ParticleSwarm(), OptimizationOptions())
-
     # function F(F, b)
     #   @. F = b[1]*(1 - exp(-b[2]*xdata)) - ydata
 
@@ -363,8 +360,6 @@ end
     # Fc = zeros(6)
 
 
-    # lsqwrap = NLSolvers.LsqWrapper(OnceDiffed(F), zeros(6), zeros(6,2))
-    # minimize!(lsqwrap, [100.0, 1.0], LineSearch(LBFGS()), OptimizationOptions())
 
 
     # #using Plots
@@ -468,3 +463,37 @@ end
     x0 = 0.3
     res = solve(prob, x0, LineSearch(Newton(), Backtracking()))
 end
+
+function solve_static()
+    function F_rosenbrock_static(Fx, x)
+        Fx1 = 1 - x[1]
+        Fx2 = 10(x[2] - x[1]^2)
+        return @SVector([Fx1,Fx2])
+    end
+    function J_rosenbrock_static(Jx, x)
+        Jx11 = -1
+        Jx12 = 0
+        Jx21 = -20 * x[1]
+        Jx22 = 10
+        return @SArray([Jx11 Jx12; Jx21 Jx22])
+    end
+    function FJ_rosenbrock_static(Fx, Jx, x)
+        Fx = F_rosenbrock_static(Fx, x)
+        Jx = J_rosenbrock_static(Jx, x)
+        Fx, Jx
+    end
+    obj = NLSolvers.VectorObjective(
+        F_rosenbrock_static,
+        J_rosenbrock_static,
+        FJ_rosenbrock_static,
+        nothing,
+    )
+
+    prob_static =  NEqProblem(obj; inplace=false)
+    x0_static = @SVector([-1.2, 1.0])
+    res = solve(prob_static, x0_static, TrustRegion(Newton(), Dogleg()), NEqOptions())
+end
+
+solve_static()
+alloced = @allocated solve_static()
+@test alloced == 0
