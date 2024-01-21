@@ -27,6 +27,9 @@ nav:
     - Tutorials:
         - Minimizing a function: 'optimization.md'
         - Solving non-linear equations: 'nonlineareq.md'
+        - Solving non-linear least squares problems: 'leastsquares.md'
+    - Extensions:
+        - Using extensions: 'extensions.md'
 #        - Gradients and Hessians: 'user/gradientsandhessians.md'
 #        - Configurable Options: 'user/config.md'
 #        - Linesearch: 'algo/linesearch.md'

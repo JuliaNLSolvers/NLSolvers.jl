@@ -1,4 +1,19 @@
 module NLSolvers
+module Experimental
+struct ForwardDiffAutoDiff{C,CO}
+    chunk::C
+    coloring::CO
+end
+ForwardDiffAutoDiff(; chunk = nothing, coloring = nothing) =
+    ForwardDiffAutoDiff(chunk, coloring)
+struct SparseForwardDiff{C,CO}
+    chunk::C
+    coloring::CO
+end
+SparseForwardDiff(; chunk = nothing, coloring = nothing) =
+    SparseForwardDiff(chunk, coloring)
+end
+export Experimental
 
 import Base: show, summary
 using Statistics # for var in statistics... probably not worth it
@@ -79,6 +94,7 @@ export objective_return
 
 isallfinite(x) = mapreduce(isfinite, *, x)
 
+
 """
     MutationStyle
 
@@ -100,6 +116,11 @@ struct InPlace <: MutateStyle end
 A [`MutationStyle`](@ref) for out-of-place (non-mutating) operations.
 """
 struct OutOfPlace <: MutateStyle end
+
+mutation_style(x, style::Nothing) = OutOfPlace()
+mutation_style(x, style::OutOfPlace) = style
+mutation_style(x, style::InPlace) = style
+mutation_style(x::Array, style::Nothing) = InPlace()
 
 abstract type AbstractProblem end
 abstract type AbstractOptions end

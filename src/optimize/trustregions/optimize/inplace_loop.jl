@@ -1,3 +1,4 @@
+
 function solve(
     problem::OptimizationProblem,
     s0::Tuple,
@@ -59,7 +60,6 @@ function solve(
         iter += 1
         objvars, Δkp1, reject, qnvars =
             iterate!(p, objvars, Δkp1, approach, problem, options, qnvars, false)
-
         # Check for convergence
         is_converged = converged(approach, objvars, ∇f0, options, reject, Δkp1)
         print_trace(approach, options, iter, t0, objvars, Δkp1)
@@ -109,15 +109,14 @@ function iterate!(
     scale = nothing,
 )
     x, fx, ∇fx, z, fz, ∇fz, B, Pg = objvars
-    T = eltype(x)
+
     scheme, subproblemsolver = modelscheme(approach), algorithm(approach)
-    y, d, s = qnvars.y, qnvars.d, qnvars.s
-    fx = fz
 
     x = _copyto(mstyle(problem), x, z)
     ∇fx = _copyto(mstyle(problem), ∇fx, ∇fz)
 
     spr = subproblemsolver(∇fx, B, Δk, p, scheme, problem.mstyle; abstol = 1e-10)
+
     Δm = -spr.mz
 
     # Grab the model value, m. If m is zero, the solution, z, does not improve
@@ -159,12 +158,22 @@ function iterate!(
         # and will cause quasinewton updates to not update
         # this seems incorrect as it's already updated, should hold off here
     end
+
     return (x = x, fx = fx, ∇fx = ∇fx, z = z, fz = fz, ∇fz = ∇fz, B = B, Pg = nothing),
     Δkp1,
     reject_step,
     QNVars(d, s, y)
 end
-
+#=
+struct TrustRegionUpdateModel
+    postpone_gradient
+    postpone_Hessian
+    store_double
+    always_update
+    ratio_for_update
+    α
+end
+=#
 function update_trust_region(spr, R, p)
     T = eltype(p)
     # Choosing a parameter > 0 might be preferable here. See p. 4 of Yuans survey

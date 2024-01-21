@@ -34,6 +34,9 @@ function fgh!(G, H, x)
     return fx, G, H
 end
 obj = ScalarObjective(f, g!, fg, fgh!, h!, nothing, nothing, nothing)
+# obj = ScalarObjective(NLSolvers.Experimental.ForwardDiffAutoDiff(), p0; f)
+
+
 prob = OptimizationProblem(obj, ([0.0, 0.0], [3.0, 3.0]))
 res = solve(prob, copy(p0), LineSearch(BFGS()), OptimizationOptions())
 res = solve(prob, copy(p0), NelderMead(), OptimizationOptions())

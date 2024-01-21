@@ -174,7 +174,6 @@ function find_steplength(mstyle, ls::Backtracking, φ::T, λ) where {T}
         β, α, f_α = interpolate(ls.interp, φ, φ0, dφ0, α, f_α.ϕ, ratio)
         is_solved = isfinite(f_α.ϕ) && f_α.ϕ <= φ0 + α * t
     end
-
     ls_success = iter >= maxiter ? false : true
 
     if verbose
