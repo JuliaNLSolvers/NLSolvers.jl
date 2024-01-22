@@ -8,14 +8,14 @@ function update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme, scale = nothing)
     # Update B
     if scale == nothing
         if isa(scheme.approx, Direct)
-            yBy = dot(y, B * y)
+            yBy = dot(y, B, y)
             if !iszero(yBy)
                 Badj = dot(y, s) / yBy .* B
             end
         else
             ys = dot(y, s)
             if !iszero(ys)
-                Badj = dot(y, B * y) / ys .* B
+                Badj = dot(y, B, y) / ys .* B
             else
                 return fz, ∇fz, B, s, y
             end
@@ -45,7 +45,7 @@ function update_obj(problem, s, ∇fx, z, ∇fz, B, scheme, scale = nothing)
     # Update B
     if scale == nothing
         if isa(scheme.approx, Direct)
-            yBy = dot(y, B * y)
+            yBy = dot(y, B, y)
             if !iszero(yBy) && isfinite(yBy)
                 Badj = dot(y, s) / yBy * B # this is different than above?
             else
@@ -54,7 +54,7 @@ function update_obj(problem, s, ∇fx, z, ∇fz, B, scheme, scale = nothing)
         else
             ys = dot(y, s)
             if !iszero(ys) && isfinite(ys)
-                Badj = dot(y, B * y) / ys * B
+                Badj = dot(y, B, y) / ys * B
             else
                 Badj = B
             end

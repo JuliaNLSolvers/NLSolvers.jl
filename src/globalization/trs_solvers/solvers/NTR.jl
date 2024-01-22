@@ -64,16 +64,21 @@ function (ms::NTR)(
     n = length(∇f)
     h = H isa UniformScaling ? copy(∇f) .* 0 .+ 1 : diag(H)
     H = H isa UniformScaling ? Diagonal(copy(∇f) .* 0 .+ 1) : H
-
+    inplace = mstyle == InPlace()
     # Check for interior convergence
     if λ == T(0)
         F = cholesky(Symmetric(H); check = false)
-        s .= -∇f
-        s .= F \ s
+        if inplace
+            s .= -∇f
+            s .= F \ s
+        else
+            s = -∇f
+            s = F \ s
+        end
         s₂ = norm(s, 2)
 
         if issuccess(F) && s₂ < Δ
-            H = update_H!(H, h)
+            H = update_H!(mstyle, H, h)
             return tr_return(;
                 λ = λ,
                 ∇f = ∇f,
@@ -94,7 +99,7 @@ function (ms::NTR)(
     λL, λU = isg.L, isg.U
 
     for iter = 1:maxiter
-        H = update_H!(H, h, λ)
+        H = update_H!(mstyle, H, h, λ)
         F = cholesky(Symmetric(H); check = false)
         in𝓖, linpack = false, false
         #===========================================================================
@@ -109,13 +114,17 @@ function (ms::NTR)(
             # Algorithm 7.3.1 on p. 185 in [ConnGouldTointBook]
             # Step 1 was factorizing
             # Step 2
-            s .= -∇f
-            s .= F \ s
-
+            if inplace
+                s .= -∇f
+                s .= F \ s
+            else
+                s = -∇f
+                s = F \ s
+            end
             # Check if step is approximately equal to the radius
             s₂ = norm(s, 2)
             if s₂ ≈ Δ
-                H = update_H!(H, h)
+                H = update_H!(mstyle, H, h)
                 return tr_return(;
                     λ = λ,
                     ∇f = ∇f,
@@ -145,15 +154,18 @@ function (ms::NTR)(
             if in𝓖
                 linpack = true
                 w, u = λL_with_linpack(F)
-                λL = max(λL, λ - dot(u, H * u))
+                λL = max(λL, λ - dot(u, H, u))
 
                 α, s_g, m_g = 𝓖_root(u, s, Δ, ∇f, H)
-                s .= s_g
-
+                if inplace
+                    s .= s_g
+                else
+                    s = s_g
+                end
                 s₂ = norm(s)
                 # check hard case convergnce
-                if α^2 * dot(u, H * u) ≤ κhard * (dot(s, H * s) + λ * Δ^2)
-                    H = update_H!(H, h)
+                if α^2 * dot(u, H, u) ≤ κhard * (dot(s, H, s) + λ * Δ^2)
+                    H = update_H!(mstyle, H, h)
                     return tr_return(;
                         λ = λ,
                         ∇f = ∇f,
@@ -167,12 +179,13 @@ function (ms::NTR)(
                     )
                 end
                 # If not the hard case solution, try to factorize H(λ⁺)
-                H = update_H!(H, h, λ⁺)
+                H = update_H!(mstyle, H, h, λ⁺)
                 F = cholesky(H; check = false)
                 if issuccess(F) # Then we're in L, great! lemma 7.3.2
                     λ = λ⁺
                 else # we landed in N, this is bad, so use bounds to approach L
-                    λ = max(sqrt(λL * λU), λL + θ * (λU - λL))
+                    λLλU = abs(λL * λU)
+                    λ = max(sqrt(λLλU), λL + θ * (λU - λL))
                 end
             else # in L, we can safely step
                 λ = λ⁺
@@ -180,7 +193,7 @@ function (ms::NTR)(
 
             # check for convergence
             if in𝓖 && abs(s₂ - Δ) ≤ κeasy * Δ
-                H = update_H!(H, h)
+                H = update_H!(mstyle, H, h)
                 return tr_return(;
                     λ = λ,
                     ∇f = ∇f,
@@ -194,9 +207,13 @@ function (ms::NTR)(
             elseif abs(s₂ - Δ) ≤ κeasy * Δ # implicitly "if in 𝓕" since we're in that branch
                 # u and α comes from linpack
                 if linpack
-                    if α^2 * dot(u, H * u) ≤ κhard * (dot(sλ, H * sλ) * Δ^2)
-                        s .= s .+ α * u
-                        H = update_H!(H, h)
+                    if α^2 * dot(u, H, u) ≤ κhard * (dot(sλ, H, sλ) * Δ^2)
+                        if inplace
+                            s .= s .+ α * u
+                        else
+                            s = s + α * u
+                        end
+                        H = update_H!(mstyle, H, h)
                         return tr_return(;
                             λ = λ,
                             ∇f = ∇f,
@@ -216,10 +233,10 @@ function (ms::NTR)(
             # lower bound, we cannot apply the Newton step here.
             δ, v = λL_in_𝓝(H, F)
             λL = max(λL, λ + δ / dot(v, v)) # update lower bound
-            λ = max(sqrt(λL * λU), λL + θ * (λU - λL)) # no converence possible, so step in bracket
+            λ = max(sqrt(λLλU), λL + θ * (λU - λL)) # no convergence possible, so step in bracket
         end
     end
-    H = update_H!(H, h)
+    H = update_H!(mstyle, H, h)
     tr_return(;
         λ = λ,
         ∇f = ∇f,
@@ -272,9 +289,9 @@ function 𝓖_root(u, s, Δ, ∇f, H)
     α₂ = (-pb - pd) / 2pa
 
     s₁ = s + α₁ * u
-    m₁ = dot(∇f, s₁) + dot(s₁, H * s₁) / 2
+    m₁ = dot(∇f, s₁) + dot(s₁, H, s₁) / 2
     s₂ = s + α₂ * u
-    m₂ = dot(∇f, s₂) + dot(s₂, H * s₂) / 2
+    m₂ = dot(∇f, s₂) + dot(s₂, H, s₂) / 2
     α, s, m = m₁ ≤ m₂ ? (α₁, s₁, m₁) : (α₂, s₂, m₂)
     α, s, m
 end

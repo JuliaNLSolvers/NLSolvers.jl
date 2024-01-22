@@ -15,6 +15,7 @@
 """
 struct TCG <: TRSPSolver end
 summary(::TCG) = "Steihaug-Toint Truncated CG"
+trs_supports_outofplace(trs::TCG) = true
 
 function (ms::TCG)(
     ∇f,
@@ -30,8 +31,13 @@ function (ms::TCG)(
     κhard = T(2) / 10,
 ) where {T}
     M = I
+    inplace = mstyle == InPlace()
     # We only know that TCG has its properties if we start with s = 0
-    s .= T(0)
+    if inplace
+        s .= T(0)
+    else
+        s = s * T(0)
+    end
     # g is the gradient of the quadratic model with the step α*p
     if all(iszero, ∇f)
         return tr_return(;
@@ -50,17 +56,21 @@ function (ms::TCG)(
     p = -v
     for i = 1:maxiter
         # Check for negative curvature
-        κ = dot(p, H * p)
+        κ = dot(p, H, p)
 
-        c = dot(s, M * s)
-        b′ = dot(s, M * p) # b/2
-        a = dot(p, M * p)
+        c = dot(s, M, s)
+        b′ = dot(s, M, p) # b/2
+        a = dot(p, M, p)
 
         if κ <= 0
             # This branch just catches that sigma can be nan if a is exactly 0.
             if !iszero(a)
                 σ = (-b′ + sqrt(b′^2 + a * (Δ^2 - c))) / a
-                @. s = s + σ * p
+                if inplace
+                    @. s = s + σ * p
+                else
+                    s = s + σ * p
+                end
             end
             return tr_return(;
                 λ = NaN,
@@ -78,7 +88,11 @@ function (ms::TCG)(
 
         if a * α^2 + α * 2 * b′ + c >= Δ^2
             σ = (-b′ + sqrt(b′^2 + a * (Δ^2 - c))) / a
-            @. s = s + σ * p
+            if inplace
+                @. s = s + σ * p
+            else
+                s = s + σ * p
+            end
             return tr_return(;
                 λ = NaN,
                 ∇f = ∇f,
@@ -90,12 +104,24 @@ function (ms::TCG)(
                 Δ = Δ,
             )
         end
-        @. s = s + α * p
+        if inplace
+            @. s = s + α * p
+        else
+            s = s + α * p
+        end
         den = dot(g, v)
-        g .= g .+ α .* (H * p)
-        v .= M \ g
-        β = dot(g, v) / den
-        @. p = -v + β * p
+        if inplace
+            g .= g .+ α .* (H * p)
+            v .= M \ g
+            β = dot(g, v) / den
+            @. p = -v + β * p
+        else
+            den = dot(g, v)
+            g = g + α * (H * p)
+            v = M \ g
+            β = dot(g, v) / den
+            p = -v + β * p
+        end
     end
     tr_return(;
         λ = NaN,

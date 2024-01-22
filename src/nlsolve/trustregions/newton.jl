@@ -47,14 +47,9 @@ function solve(
     x,
     approach::TrustRegion{<:Union{SR1,DBFGS,BFGS,Newton},<:Any,<:Any},
     options::NEqOptions,
-)
-  if !(mstyle(prob) === InPlace()) && !(approach.spsolve isa Dogleg)
-        throw(
-            ErrorException(
-                "solve() not defined for OutOfPlace() with Trustregion for NEqProblem",
-            ),
-        )
-    end
+)   
+
+    trs_outofplace_check(approach.spsolve,prob)
     F = prob.R
     # should we wrap a Fx here so we can log F0 info here?
     # and so we can extract it at the end as well?

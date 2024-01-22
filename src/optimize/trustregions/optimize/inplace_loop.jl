@@ -16,11 +16,8 @@ function solve(
     objvars;
     initial_Δ = 20.0,
 )
-    if !(mstyle(problem) === InPlace()) && !(approach.spsolve == Dogleg())
-        throw(
-            ErrorException("solve() not defined for OutOfPlace() with TrustRegion solvers"),
-        )
-    end
+
+    trs_outofplace_check(approach.spsolve,problem)
     t0 = time()
     T = eltype(objvars.z)
     Δmin = cbrt(eps(T))

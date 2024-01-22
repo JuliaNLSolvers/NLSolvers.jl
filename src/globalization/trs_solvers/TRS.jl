@@ -7,7 +7,7 @@ function (ms::TRSolver)(∇f, H, Δ, p)
     x, info = trs(H, ∇f, Δ)
     p .= x[:, 1]
 
-    m = dot(∇f, p) + dot(p, H * p) / 2
+    m = dot(∇f, p) + dot(p, H, p) / 2
     interior = norm(p, 2) ≤ Δ
     return (
         p = p,

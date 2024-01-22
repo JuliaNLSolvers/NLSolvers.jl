@@ -20,6 +20,8 @@ struct Dogleg{T} <: TRSPSolver
 end
 Dogleg() = Dogleg(nothing)
 
+trs_supports_outofplace(trs::Dogleg) = true
+
 function (dogleg::Dogleg)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxiter = 50)
     T = eltype(p)
     n = length(∇f)
@@ -80,7 +82,7 @@ function (dogleg::Dogleg)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxite
             interior = false
         end
     end
-    m = dot(∇f, p) + dot(p, H * p) / 2
+    m = dot(∇f, p) + dot(p, H, p) / 2
 
     return (
         p = p,
