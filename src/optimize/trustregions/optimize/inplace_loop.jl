@@ -17,7 +17,7 @@ function solve(
     initial_Δ = 20.0,
 )
 
-    mstyle(prob) == OutOfPlace() && trs_outofplace_check(approach.spsolve,problem)
+    mstyle(problem) == OutOfPlace() && trs_outofplace_check(approach.spsolve,problem)
 
     t0 = time()
     T = eltype(objvars.z)
