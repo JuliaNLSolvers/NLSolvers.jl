@@ -49,7 +49,7 @@ function solve(
     options::NEqOptions,
 )   
 
-    trs_outofplace_check(approach.spsolve,prob)
+    mstyle(prob) == OutOfPlace() && trs_outofplace_check(approach.spsolve,prob)
     F = prob.R
     # should we wrap a Fx here so we can log F0 info here?
     # and so we can extract it at the end as well?

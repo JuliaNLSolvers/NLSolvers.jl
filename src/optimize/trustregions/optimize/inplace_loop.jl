@@ -17,7 +17,8 @@ function solve(
     initial_Δ = 20.0,
 )
 
-    trs_outofplace_check(approach.spsolve,problem)
+    mstyle(prob) == OutOfPlace() && trs_outofplace_check(approach.spsolve,problem)
+
     t0 = time()
     T = eltype(objvars.z)
     Δmin = cbrt(eps(T))
