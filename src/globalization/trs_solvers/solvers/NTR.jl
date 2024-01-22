@@ -184,8 +184,7 @@ function (ms::NTR)(
                 if issuccess(F) # Then we're in L, great! lemma 7.3.2
                     λ = λ⁺
                 else # we landed in N, this is bad, so use bounds to approach L
-                    λLλU = abs(λL * λU)
-                    λ = max(sqrt(λLλU), λL + θ * (λU - λL))
+                    λ = max(sqrt(λL * λU), λL + θ * (λU - λL))
                 end
             else # in L, we can safely step
                 λ = λ⁺
@@ -233,7 +232,7 @@ function (ms::NTR)(
             # lower bound, we cannot apply the Newton step here.
             δ, v = λL_in_𝓝(H, F)
             λL = max(λL, λ + δ / dot(v, v)) # update lower bound
-            λ = max(sqrt(λLλU), λL + θ * (λU - λL)) # no convergence possible, so step in bracket
+            λ = max(sqrt(λL * λU), λL + θ * (λU - λL)) # no convergence possible, so step in bracket
         end
     end
     H = update_H!(mstyle, H, h)
