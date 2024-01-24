@@ -139,7 +139,7 @@ export Backtracking, Static, HZAW
 export FFQuadInterp
 
 include("globalization/trs_solvers/root.jl")
-export NWI, Dogleg, NTR
+export NWI, Dogleg, NTR, TCG
 
 # Quasi-Newton (including Newton and gradient descent) functionality
 include("quasinewton/quasinewton.jl")

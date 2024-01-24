@@ -118,10 +118,10 @@ calc_p!(mstyle::MutateStyle, p, Qt∇f, QΛQ, λ) = calc_p!(mstyle, p, Qt∇f, Q
 function calc_p!(mstyle::MutateStyle, p, Qt∇f, QΛQ, λ::T, first_j) where {T}
     inplace = mstyle === InPlace()
     # Reset search direction to 0
-    if inplace
+    p = if inplace
         fill!(p, T(0))
     else
-        p = T(0) .* p
+        T(0) .* p
     end
     # Unpack eigenvalues and eigenvectors
     Λ = QΛQ.values
@@ -131,7 +131,7 @@ function calc_p!(mstyle::MutateStyle, p, Qt∇f, QΛQ, λ::T, first_j) where {T}
         if inplace
             @. p = p - κ * Q[:, j]
         else
-            p = p - κ * Q[:, j]
+            p = p .- κ .* Q[:, j]
         end
     end
     p
@@ -239,7 +239,7 @@ function (ms::NWI)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxiter = 50)
             if inplace
                 @. p = -pλ + tau * Q[:, 1]
             else
-                p = -pλ + tau * Q[:, 1]
+                p = tau .* Q[:, 1] .- pλ
             end
             m = dot(∇f, p) + dot(p, H, p) / 2
 

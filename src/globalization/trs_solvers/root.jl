@@ -56,11 +56,13 @@ end
 function _update_H(H, h, λ = nothing)
     T = eltype(h)
     if λ == nothing
-        Hd = Diagonal(h)
-        return H + Hd
+        h̄ = Diagonal(h)
+        H̄ = H - Diagonal(H)
+        return H̄ + h̄
     elseif !(λ == T(0))
-        Hd = Diagonal(h)
-        return H + Hd + λ*I
+        h̄ = Diagonal(h)
+        H̄ = H - Diagonal(H)
+        return H̄ + h̄ + λ*I
     else
         return H
     end
