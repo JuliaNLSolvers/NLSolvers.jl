@@ -65,6 +65,7 @@ function solve(problem::OptimizationProblem, x0, adam::Adam, options::Optimizati
         # m̂ = m./(1-β₁^t)
         # v̂ = v./(1-β₂^t)
         # x = x .- α*m̂/(sqrt.(v̂+ϵ))
+        # This appears to only be approximately true
         αₜ = α * sqrt(1 - β₂^iter) / (1 - β₁^iter)
         z = z .- αₜ .* m ./ (sqrt.(v) .+ ϵ)
 
