@@ -29,7 +29,7 @@ using Test
                     OPT_PROBS["laplacian"]["array"]["mutating"],
                     copy(initial_x),
                     optimizer(P),
-                    OptimizationOptions(g_abstol = 1e-6),
+                    OptimizationOptions(g_abstol = 1e-6, f_abstol = 0.0),
                 )
                 push!(mino, results.info.minimum)
                 push!(iter, results.info.iter)
