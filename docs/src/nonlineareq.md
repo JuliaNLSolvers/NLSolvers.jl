@@ -8,16 +8,16 @@ Assume that you have a residual system that you want to solve. This means that i
 ```
 function F(x)
     x^2
-    end
+end
     
-    function FJ(Jx, x)
-        x^2, 2x
-    end
-    
-    prob_obj = NLSolvers.ScalarObjective(
-        f=F,
-        fg=FJ,
-    )
+function FJ(Jx, x)
+    x^2, 2x
+end
+
+prob_obj = NLSolvers.ScalarObjective(
+    f=F,
+    fg=FJ,
+)
     
 prob = NEqProblem(prob_obj; inplace = false)
 
@@ -86,7 +86,7 @@ function F_jacobian_powell!(Fx, Jx, x)
     Fx, Jx
 end
 
-prob_obj = VectorObjective(F=F_powell!, J=F_jacobian_powell!)
+prob_obj = VectorObjective(F=F_powell!, FJ=F_jacobian_powell!)
 prob = NEqProblem(prob_obj)
 
 x0 = [-1.0, 0.0, 0.0]
