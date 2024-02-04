@@ -25,7 +25,7 @@ struct NWI{T} <: NearlyExactTRSP
 end
 NWI() = NWI(eigen)
 summary(::NWI) = "Trust Region (Newton, eigen)"
-
+trs_supports_outofplace(trs::NWI) = true
 """
     initial_safeguards(B, h, g, Δ)
 
@@ -112,19 +112,27 @@ function is_maybe_hard_case(QΛQ, Qt∇f::AbstractVector{T}) where {T}
 end
 
 # Equation 4.38 in N&W (2006)
-calc_p!(p, Qt∇f, QΛQ, λ) = calc_p!(p, Qt∇f, QΛQ, λ, 1)
+calc_p!(mstyle::MutateStyle, p, Qt∇f, QΛQ, λ) = calc_p!(mstyle, p, Qt∇f, QΛQ, λ, 1)
 
 # Equation 4.45 in N&W (2006) since we allow for first_j > 1
-function calc_p!(p, Qt∇f, QΛQ, λ::T, first_j) where {T}
+function calc_p!(mstyle::MutateStyle, p, Qt∇f, QΛQ, λ::T, first_j) where {T}
+    inplace = mstyle === InPlace()
     # Reset search direction to 0
-    fill!(p, T(0))
-
+    p = if inplace
+        fill!(p, T(0))
+    else
+        T(0) .* p
+    end
     # Unpack eigenvalues and eigenvectors
     Λ = QΛQ.values
     Q = QΛQ.vectors
     for j = first_j:length(Λ)
         κ = Qt∇f[j] / (Λ[j] + λ)
-        @. p = p - κ * Q[:, j]
+        if inplace
+            @. p = p - κ * Q[:, j]
+        else
+            p = p .- κ .* Q[:, j]
+        end
     end
     p
 end
@@ -153,7 +161,7 @@ function (ms::NWI)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxiter = 50)
     n = length(∇f)
     H = H isa UniformScaling ? Diagonal(copy(∇f) .* 0 .+ 1) : H
     h = diag(H)
-
+    inplace = mstyle == InPlace()
     # Note that currently the eigenvalues are only sorted if H is perfectly
     # symmetric.  (Julia issue #17093)
     if H isa Diagonal
@@ -176,14 +184,14 @@ function (ms::NWI)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxiter = 50)
     # positive, so the Newton step, pN, is fine unless norm(pN, 2) > Δ.
     if λmin >= sqrt(eps(T))
         λ = T(0) # no amount of I is added yet
-        p = calc_p!(p, Qt∇f, QΛQ, λ) # calculate the Newton step
+        p = calc_p!(mstyle, p, Qt∇f, QΛQ, λ) # calculate the Newton step
         if norm(p, 2) ≤ Δ
             # No shrinkage is necessary: -(H \ ∇f) is the minimizer
             interior = true
             solved = true
             hard_case = false
 
-            m = dot(∇f, p) + dot(p, H * p) / 2
+            m = dot(∇f, p) + dot(p, H, p) / 2
 
             return (
                 p = p,
@@ -218,7 +226,7 @@ function (ms::NWI)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxiter = 50)
 
         # The old p is discarded, and replaced with one that takes into account
         # the first j such that λj ≠ λmin. Formula 4.45 in N&W (2006)
-        pλ = calc_p!(p, Qt∇f, QΛQ, λ, first_j)
+        pλ = calc_p!(mstyle, p, Qt∇f, QΛQ, λ, first_j)
 
         # Check if the choice of λ leads to a solution inside the trust region.
         # If it does, then we construct the "hard case solution".
@@ -228,9 +236,12 @@ function (ms::NWI)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxiter = 50)
 
             tau = sqrt(Δ^2 - norm(pλ, 2)^2)
 
-            @. p = -pλ + tau * Q[:, 1]
-
-            m = dot(∇f, p) + dot(p, H * p) / 2
+            if inplace
+                @. p = -pλ + tau * Q[:, 1]
+            else
+                p = tau .* Q[:, 1] .- pλ
+            end
+            m = dot(∇f, p) + dot(p, H, p) / 2
 
             return (
                 p = p,
@@ -257,7 +268,7 @@ function (ms::NWI)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxiter = 50)
     λ = safeguard_λ(λ, isg)
     for iter = 1:maxiter
         λ_previous = λ
-        H = update_H!(H, h, λ)
+        H = update_H!(mstyle, H, h, λ)
 
         F =
             H isa Diagonal ? cholesky(H; check = false) :
@@ -271,7 +282,11 @@ function (ms::NWI)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxiter = 50)
             continue
         end
         R = F.U
-        p .= R \ (R' \ -∇f)
+        if inplace
+            p .= R \ (R' \ -∇f)
+        else
+            p = R \ (R' \ -∇f)
+        end
         q_l = R' \ p
 
         p_norm = norm(p, 2)
@@ -289,8 +304,8 @@ function (ms::NWI)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxiter = 50)
         end
     end
 
-    H = update_H!(H, h)
-    m = dot(∇f, p) + dot(p, H * p) / 2
+    H = update_H!(mstyle, H, h)
+    m = dot(∇f, p) + dot(p, H, p) / 2
     return (
         p = p,
         mz = m,

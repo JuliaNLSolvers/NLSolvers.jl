@@ -464,7 +464,7 @@ end
     res = solve(prob, x0, LineSearch(Newton(), Backtracking()))
 end
 
-function solve_static()
+function solve_static(trs)
     function F_rosenbrock_static(Fx, x)
         Fx1 = 1 - x[1]
         Fx2 = 10(x[2] - x[1]^2)
@@ -491,9 +491,12 @@ function solve_static()
 
     prob_static =  NEqProblem(obj; inplace=false)
     x0_static = @SVector([-1.2, 1.0])
-    res = solve(prob_static, x0_static, TrustRegion(Newton(), Dogleg()), NEqOptions())
+    res = solve(prob_static, x0_static, TrustRegion(Newton(), trs), NEqOptions())
 end
 
-solve_static()
-alloced = @allocated solve_static()
-@test alloced == 0
+@testset "out-of-place trust region nlsolves" begin
+    @test iszero(@allocated solve_static(Dogleg()))
+    @test iszero(@allocated solve_static(NWI()))
+    @test iszero(@allocated solve_static(TCG()))
+    #@test iszero(@allocated solve_static(NTR())) #TODO
+end
