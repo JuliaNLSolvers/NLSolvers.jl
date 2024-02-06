@@ -15,7 +15,6 @@ function f_lsq(x)
     mod = model(xdata, x)
     return sum(abs2, mod .- ydata) / 2
 end
-x0 = copy(p0)
 function g!(G, x)
     ForwardDiff.gradient!(G, f_lsq, x)
     return G
