@@ -915,7 +915,7 @@ end
     )
     @time res = solve(prob, copy(x0), LineSearch(SR1()), OptimizationOptions())
     #    @time res = solve(prob, (copy(x0m), MArray(I+x0m*x0m')), TrustRegion(DBFGS(), Dogleg()), OptimizationOptions());
-    @time res = solve(prob, copy(x0), TrustRegion(DBFGS(), Dogleg()), OptimizationOptions())
+    @time res = solve(prob, copy(x0), TrustRegion(DBFGS(inverse=false), Dogleg()), OptimizationOptions())
 end
 
 
