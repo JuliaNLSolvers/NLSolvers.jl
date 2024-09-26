@@ -53,7 +53,7 @@ res = solve(prob, copy(p0), TrustRegion(SR1(), NWI()), OptimizationOptions())
 res = solve(prob, copy(p0), TrustRegion(DFP(), Dogleg()), OptimizationOptions())
 res = solve(prob, copy(p0), TrustRegion(DFP(), NTR()), OptimizationOptions())
 res = solve(prob, copy(p0), TrustRegion(DFP(), NWI()), OptimizationOptions())
-res = solve(prob, copy(p0), TrustRegion(DBFGS(), Dogleg()), OptimizationOptions())
+res = solve(prob, copy(p0), TrustRegion(DBFGS(inverse=false), Dogleg()), OptimizationOptions())
 res = solve(prob, copy(p0), TrustRegion(BFGS(), NTR()), OptimizationOptions())
 res = solve(prob, copy(p0), TrustRegion(BFGS(), NWI()), OptimizationOptions())
 

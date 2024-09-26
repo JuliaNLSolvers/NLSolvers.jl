@@ -166,7 +166,7 @@ using Test
     @test res.info.minimum < 1e-16
 
     x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-    res = solve(prob, x0, TrustRegion(DBFGS(), Dogleg()), OptimizationOptions())
+    res = solve(prob, x0, TrustRegion(DBFGS(inverse=false), Dogleg()), OptimizationOptions())
     @test res.info.minimum < 1e-16
 
     x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
@@ -187,7 +187,7 @@ using Test
     @test res.info.minimum < 1e-16
 
     x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
-    res = solve(prob, x0, TrustRegion(DBFGS(), Dogleg()), OptimizationOptions())
+    res = solve(prob, x0, TrustRegion(DBFGS(inverse=false), Dogleg()), OptimizationOptions())
     @test res.info.minimum < 1e-16
 
     x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
@@ -208,7 +208,7 @@ using Test
     prob_on_bounds = OptimizationProblem(obj = f, bounds = ([3.5, -9.0], [13.0, 4.0]))
 
     x0 = copy(OPT_PROBS["exponential"]["array"]["x0"])
-    res = solve(prob, x0, TrustRegion(DBFGS(), Dogleg()), OptimizationOptions())
+    res = solve(prob, x0, TrustRegion(DBFGS(inverse=false), Dogleg()), OptimizationOptions())
     @test res.info.minimum == 2.0
 
     x0 = copy(OPT_PROBS["exponential"]["array"]["x0"])

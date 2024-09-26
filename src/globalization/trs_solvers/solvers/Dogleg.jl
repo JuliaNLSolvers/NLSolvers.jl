@@ -25,8 +25,11 @@ function (dogleg::Dogleg)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxite
     n = length(∇f)
 
     # find the Cauchy point; assumes ∇f is not ≈ 0
-    d_cauchy = -∇f * norm(∇f)^2 / (∇f' * H * ∇f)
-
+    d_cauchy = if isa(scheme.approx, Direct)
+         -∇f * norm(∇f)^2 / (∇f' * H * ∇f)
+    else
+        -∇f * norm(∇f)^2 / (∇f' * (H\∇f))
+    end
     # If it lies outside of the trust region, accept the Cauchy point and
     # move on
     norm_d_cauchy = norm(d_cauchy)
@@ -80,8 +83,11 @@ function (dogleg::Dogleg)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxite
             interior = false
         end
     end
-    m = dot(∇f, p) + dot(p, H * p) / 2
-
+    m = if isa(scheme.approx, Direct)
+        dot(∇f, p) + dot(p, H * p) / 2
+    else
+        dot(∇f, p) + dot(p, Symmetric(H)\p) / 2
+    end
     return (
         p = p,
         mz = m,

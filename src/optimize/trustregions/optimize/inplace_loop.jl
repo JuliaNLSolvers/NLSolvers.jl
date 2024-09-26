@@ -59,7 +59,7 @@ function solve(
         iter += 1
         objvars, Δkp1, reject, qnvars =
             iterate!(p, objvars, Δkp1, approach, problem, options, qnvars, false)
-
+        
         # Check for convergence
         is_converged = converged(approach, objvars, ∇f0, options, reject, Δkp1)
         print_trace(approach, options, iter, t0, objvars, Δkp1)
@@ -159,6 +159,7 @@ function iterate!(
         # and will cause quasinewton updates to not update
         # this seems incorrect as it's already updated, should hold off here
     end
+
     return (x = x, fx = fx, ∇fx = ∇fx, z = z, fz = fz, ∇fz = ∇fz, B = B, Pg = nothing),
     Δkp1,
     reject_step,

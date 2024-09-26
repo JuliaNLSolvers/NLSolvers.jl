@@ -21,6 +21,7 @@ function update(scheme::DFP{<:Inverse}, H, s, y)
     H
 end
 function update(scheme::DFP{<:Direct}, B, s, y)
+
     σ = dot(s, y)
     ρ = inv(σ)
 
@@ -31,8 +32,9 @@ end
 function update!(scheme::DFP{<:Inverse}, H, s, y)
     σ = dot(s, y)
     ρ = inv(σ)
-
-    H .+= ρ * s * s' - H * (y * y') * H / (y' * H * y)
+    if ρ < 1e300
+        H .+= ρ * s * s' - H * (y * y') * H / (y' * H * y)
+    end
     H
 end
 function update!(scheme::DFP{<:Direct}, B, s, y)
