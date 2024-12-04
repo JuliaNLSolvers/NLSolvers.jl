@@ -3,7 +3,7 @@ using Documenter, DocumenterMarkdown, NLSolvers
 makedocs(
     doctest = false,
     sitename = "NLSolvers.jl",
-    pages = ["index.md", "optimization.md",],
+    pages = ["index.md", "optimization.md"],
     format = Markdown(),
 )
 

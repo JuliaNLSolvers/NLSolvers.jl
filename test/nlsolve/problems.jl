@@ -45,7 +45,7 @@ NLE_PROBS["rosenbrock"]["static"] = Dict()
 function F_rosenbrock_static(Fx, x)
     Fx1 = 1 - x[1]
     Fx2 = 10(x[2] - x[1]^2)
-    return @SVector([Fx1,Fx2])
+    return @SVector([Fx1, Fx2])
 end
 function J_rosenbrock_static(Jx, x)
     Jx11 = -1

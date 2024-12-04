@@ -447,17 +447,14 @@ end
 @testset "scalar nlsolves" begin
     function ff(x)
         x^2
-     end
-     
-     function fgg(Jx, x)
-         x^2, 2x
-     end
-     
-     prob_obj = NLSolvers.ScalarObjective(
-         f=ff,
-         fg=fgg,
-     )
-     
+    end
+
+    function fgg(Jx, x)
+        x^2, 2x
+    end
+
+    prob_obj = NLSolvers.ScalarObjective(f = ff, fg = fgg)
+
     prob = NEqProblem(prob_obj; inplace = false)
 
     x0 = 0.3
@@ -468,7 +465,7 @@ function solve_static()
     function F_rosenbrock_static(Fx, x)
         Fx1 = 1 - x[1]
         Fx2 = 10(x[2] - x[1]^2)
-        return @SVector([Fx1,Fx2])
+        return @SVector([Fx1, Fx2])
     end
     function J_rosenbrock_static(Jx, x)
         Jx11 = -1
@@ -489,7 +486,7 @@ function solve_static()
         nothing,
     )
 
-    prob_static =  NEqProblem(obj; inplace=false)
+    prob_static = NEqProblem(obj; inplace = false)
     x0_static = @SVector([-1.2, 1.0])
     res = solve(prob_static, x0_static, TrustRegion(Newton(), Dogleg()), NEqOptions())
 end
