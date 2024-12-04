@@ -863,7 +863,7 @@ end
         GradientDescent(),
         BFGS(Inverse()),
         BFGS(Direct()),
-        DBFGS(),
+        DBFGS(Direct()),
         SR1(Inverse()),
         SR1(Direct()),
         DFP(),

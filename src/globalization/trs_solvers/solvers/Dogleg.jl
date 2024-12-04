@@ -25,8 +25,6 @@ function (dogleg::Dogleg)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxite
     n = length(∇f)
 
     # find the Cauchy point; assumes ∇f is not ≈ 0
-    @show isa(scheme.approx, Direct)
-    @show H
     d_cauchy = if isa(scheme.approx, Direct)
         -∇f * norm(∇f)^2 / (∇f' * H * ∇f)
     else

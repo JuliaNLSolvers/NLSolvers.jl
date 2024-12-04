@@ -6,7 +6,7 @@ struct LineSearch{S,LS,K}
     linesearcher::LS
     scaling::K
 end
-LineSearch() = LineSearch(DBFGS(), Backtracking(), InitialScaling(ShannoPhua()))
+LineSearch() = LineSearch(DBFGS(Direct()), Backtracking(), InitialScaling(ShannoPhua()))
 LineSearch(m) = LineSearch(m, Backtracking(), InitialScaling(ShannoPhua()))
 LineSearch(m, ls) = LineSearch(m, ls, InitialScaling(ShannoPhua()))
 
