@@ -36,7 +36,7 @@ end
 function jacobian(nleq::NEqProblem{<:ScalarObjective}, J, x)
     gradient(nleq.R, J, x)
 end
-function value_jacobian(nleq::NEqProblem{<:ScalarObjective, <:Any, <:Any, OutOfPlace}, F, J, x)
+function value_jacobian(nleq::NEqProblem{<:ScalarObjective,<:Any,<:Any,OutOfPlace}, F, J, x)
     nleq.R.fg(J, x)
 end
 

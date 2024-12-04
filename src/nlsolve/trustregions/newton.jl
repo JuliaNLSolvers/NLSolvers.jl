@@ -48,7 +48,7 @@ function solve(
     approach::TrustRegion{<:Union{SR1,DBFGS,BFGS,Newton},<:Any,<:Any},
     options::NEqOptions,
 )
-  if !(mstyle(prob) === InPlace()) && !(approach.spsolve isa Dogleg)
+    if !(mstyle(prob) === InPlace()) && !(approach.spsolve isa Dogleg)
         throw(
             ErrorException(
                 "solve() not defined for OutOfPlace() with Trustregion for NEqProblem",
@@ -76,5 +76,5 @@ function solve(
         time = res.info.time,
         iter = res.info.iter,
     )
-    return  ConvergenceInfo(approach, newinfo, options)
+    return ConvergenceInfo(approach, newinfo, options)
 end
