@@ -324,7 +324,7 @@ end
 function x_converged(x, z, options)
     x_converged = false
     if x !== nothing # if not calling from initial_converged
-        y = x .- z
+        y = (xi-zi for (xi,zi) in zip(x,z)) #do not allocate if necessary
         ynorm = options.x_norm(y)
         x_converged = x_converged || ynorm ≤ options.x_abstol
         x_converged = x_converged || ynorm ≤ options.x_norm(x) * options.x_reltol
