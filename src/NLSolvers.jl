@@ -1,7 +1,7 @@
 module NLSolvers
 
 import Base: show, summary
-import Statistics: var # for var in statistics... probably not worth it
+using Statistics: var # for var in statistics... probably not worth it
 
 #============================ LinearAlgebra ===========================
   We use often use the LinearAlgebra functions dot and norm for opera-
@@ -54,7 +54,7 @@ import LinearAlgebra:
     dot, # need to extend for preconditioners
     factorize # for ActiveBox
 
-import Printf: @sprintf # for nice output formatting
+using Printf: @sprintf # for nice output formatting
 
 function solve end
 export solve
@@ -146,7 +146,7 @@ include("quasinewton/quasinewton.jl")
 export DBFGS, BFGS, SR1, DFP, GradientDescent, Newton, BB, LBFGS, ActiveBox
 
 # To globalize Newton's method
-import PositiveFactorizations: Positive
+using PositiveFactorizations: Positive
 include("extras/positive_cholesky.jl")
 export positive_linsolve
 
