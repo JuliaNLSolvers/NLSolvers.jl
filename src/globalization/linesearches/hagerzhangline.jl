@@ -218,7 +218,7 @@ function secant²(hzl::HZAW, φ, a, b, ϵk)
     φb, dφb = φ(b, true)
     _c = secant(hzl, a, dφa, b, dφb)
 
-    φc, dφc = φ(c, true)
+    φc, dφc = φ(_c, true)
     A, B, updates = update(hzl, a, b, _c, φ, φc, dφc, ϵk)
     if updates.b # B == c
         #== S2: c is the upper bound ==#
