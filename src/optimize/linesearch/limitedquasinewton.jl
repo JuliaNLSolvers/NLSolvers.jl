@@ -160,7 +160,7 @@ end
 function iterate(
     mstyle::OutOfPlace,
     cache,
-    objvars,
+    objvars::NamedTuple,
     P,
     approach::LineSearch{<:LBFGS{<:Inverse,<:TwoLoop},<:Any,<:QNScaling},
     prob::OptimizationProblem,

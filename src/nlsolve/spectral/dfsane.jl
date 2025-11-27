@@ -76,14 +76,15 @@ DFSANE(;
     sigma_0 = 1.0,
 ) = DFSANE(memory, sigma_limits, taus, nexp, decrease, sigma_0)
 
+# FIXME init or prepare_variables...
 init(::NEqProblem, ::DFSANE; x, Fx = copy(x), y = copy(x), d = copy(x), z = copy(x)) =
     (; x, Fx, y, d, z)
 function solve(
     prob::NEqProblem,
-    x0,
+    x0::AbstractArray,
     method::DFSANE,
     options::NEqOptions = NEqOptions(),
-    state = init(prob, method; x = copy(x0)),
+    state::NamedTuple = init(prob, method; x = copy(x0)),
 )
     if !(mstyle(prob) === InPlace())
         throw(ErrorException("solve() not defined for OutOfPlace() with DFSANE"))

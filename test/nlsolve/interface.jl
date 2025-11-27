@@ -58,7 +58,7 @@ end
         Fx, Jx
     end
 
-    jv = JacVec(F_fletcher_powell!, rand(3); autodiff = false)
+    jv = JacVec(F_fletcher_powell!, rand(3); autodiff = AutoFiniteDiff())
     function jvop(x)
         jv.x .= x
         jv
@@ -423,7 +423,7 @@ end
     Fc, Jc = zeros(3), zeros(3, 3)
     F_jacobian_powell!(Fc, Jc, x0)
 
-    jv = JacVec(F_powell!, rand(3); autodiff = false)
+    jv = JacVec(F_powell!, rand(3); autodiff = AutoFiniteDiff())
     function jvop(x)
         jv.x .= x
         jv

@@ -2,7 +2,7 @@
   OptimizationProblem(...)
 A OptimizationProblem (Minimization Problem), is used to represent the mathematical problem
 of finding local minima of the given objective function. The problem is defined by `objective`
-which is an appropriate objective type (for example `NonDiffed`, `OnceDiffed`, ...)
+which is an appropriate objective type (for example `ScalarObjective`, `VectorObjective`, ...)
 for the types of algorithm to be used. The constraints of the problem are encoded
 in `constraints`. See the documentation for supported types of constraints
 including convex sets, and more. It is possible to explicitly state that there

@@ -4,7 +4,7 @@
 
 mathematical problem of finding zeros in the residual function of square systems
 of equations. The problem is defined by `residuals` which is an appropriate objective
-type (for example `NonDiffed`, `OnceDiffed`, ...) for the types of algorithm to be used.
+type (for example `ScalarObjective`, `VectorObjective`, ...) for the types of algorithm to be used.
 
 Options are stored in `options` and are of the `NEqOptions` type. See more information
 about options using `?NEqOptions`.
@@ -34,7 +34,7 @@ function value(nleq::NEqProblem, F, x)
     value(nleq.R, F, x)
 end
 function jacobian(nleq::NEqProblem{<:ScalarObjective}, J, x)
-    gradient(nleq.R, J, x)
+    nleq.R.g(J, x)
 end
 function value_jacobian(nleq::NEqProblem{<:ScalarObjective,<:Any,<:Any,OutOfPlace}, F, J, x)
     nleq.R.fg(J, x)

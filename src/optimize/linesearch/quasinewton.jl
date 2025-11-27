@@ -35,7 +35,7 @@ end
 function solve(
     problem::OptimizationProblem,
     s0::Tuple,
-    approach::LineSearch,
+    approach::LineSearch{<:QuasiNewton},
     options::OptimizationOptions,
     cache = preallocate_qn_caches(mstyle(problem), first(s0)),
 )

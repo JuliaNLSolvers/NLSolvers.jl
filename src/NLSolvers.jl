@@ -1,7 +1,7 @@
 module NLSolvers
 
 import Base: show, summary
-using Statistics # for var in statistics... probably not worth it
+import Statistics: var # for var in statistics... probably not worth it
 
 #============================ LinearAlgebra ===========================
   We use often use the LinearAlgebra functions dot and norm for opera-
@@ -54,7 +54,7 @@ import LinearAlgebra:
     dot, # need to extend for preconditioners
     factorize # for ActiveBox
 
-using Printf
+import Printf: @sprintf # for nice output formatting
 
 function solve end
 export solve
@@ -109,7 +109,7 @@ include("Manifolds.jl")
 include("objectives.jl")
 export LeastSquaresObjective
 include("linearalgebra.jl")
-export NonDiffed, OnceDiffed, TwiceDiffed, ScalarObjective, VectorObjective
+export ScalarObjective, VectorObjective
 
 # make this struct that has scheme and approx
 abstract type QuasiNewton{T1} end
@@ -146,7 +146,7 @@ include("quasinewton/quasinewton.jl")
 export DBFGS, BFGS, SR1, DFP, GradientDescent, Newton, BB, LBFGS, ActiveBox
 
 # To globalize Newton's method
-using PositiveFactorizations
+import PositiveFactorizations: Positive
 include("extras/positive_cholesky.jl")
 export positive_linsolve
 
@@ -165,7 +165,7 @@ include("optimize/univariate/root.jl")
 export BrentMin
 
 include("optimize/trustregions/trustregions.jl")
-export minimize, minimize!, OptProblem, LineSearch, TrustRegion
+export LineSearch, TrustRegion
 
 include("optimize/projected/root.jl")
 
@@ -174,7 +174,7 @@ export Anderson
 
 include("nlsolve/root.jl")
 export NEqProblem, NEqOptions
-export InexactNewton, KrylovNEqProblem
+export InexactNewton
 export DFSANE
 include("nlsolve/acceleration/anderson.jl")
 
