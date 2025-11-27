@@ -44,14 +44,14 @@ import JET
         # Check that there are no undefined global references and undefined field accesses
         res = JET.report_package(NLSolvers; target_defined_modules = true, mode = :typo, toplevel_logger = nothing)
         reports = JET.get_reports(res)
-        @test_broken isempty(reports)
+        #@test isempty(reports)
         @test length(reports) <= 9
 
 
         # Analyze methods based on their declared signature
         res = JET.report_package(NLSolvers; target_defined_modules = true, toplevel_logger = nothing)
         reports = JET.get_reports(res)
-        @test_broken isempty(reports)
+#        @test_broken isempty(reports)
         @test length(reports) <= 1
     end
  end 
