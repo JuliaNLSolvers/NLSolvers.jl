@@ -236,7 +236,6 @@ function secant²(hzl::HZAW, φ, a, b, ϵk)
         return _a, _b
     else
         #== S4.otherwise: c was neither ==#
-        @assert isnan(_c) "Expected _c to be NaN when c is neither upper nor lower bound."
         return A, B
     end
 end
