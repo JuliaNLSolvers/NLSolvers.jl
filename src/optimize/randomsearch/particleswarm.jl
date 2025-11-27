@@ -59,8 +59,11 @@ function solve(
     Fs, Fs_best = zeros(T, n_particles), zeros(T, n_particles)
 
     x = copy(x0)
-    if method.elitist_learning
-        x_learn = copy(x0)
+    x_learn = if method.elitist_learning
+        copy(x0)
+    else
+        # I suppose this does not work with something like fixed size arrays
+        similar(x0, 0)
     end
     current_state = 0
 

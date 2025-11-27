@@ -1,5 +1,3 @@
-using PositiveFactorizations
-
 function positive_linsolve(d, B, ∇f)
     cholesky!(Positive, B)
     Bchol = Cholesky(B, 'L', 0)
@@ -14,5 +12,5 @@ function positive_factorize(B)
     Cholesky(B, 'L', 0)
 end
 
-Base.summary(::NLSolvers.Newton{<:Direct,typeof(positive_linsolve)}) =
+Base.summary(::Newton{<:Direct,typeof(positive_linsolve)}) =
     "Newton's method with PositiveFactorizations.jl linsolve"

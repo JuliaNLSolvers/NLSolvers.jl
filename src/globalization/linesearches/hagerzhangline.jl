@@ -216,10 +216,10 @@ function secant²(hzl::HZAW, φ, a, b, ϵk)
     #== S1 ==#
     φa, dφa = φ(a, true)
     φb, dφb = φ(b, true)
-    c = secant(hzl, a, dφa, b, dφb)
+    _c = secant(hzl, a, dφa, b, dφb)
 
-    φc, dφc = φ(c, true)
-    A, B, updates = update(hzl, a, b, c, φ, φc, dφc, ϵk)
+    φc, dφc = φ(_c, true)
+    A, B, updates = update(hzl, a, b, _c, φ, φc, dφc, ϵk)
     if updates.b # B == c
         #== S2: c is the upper bound ==#
         φB, dφB = φc, dφc
@@ -229,7 +229,6 @@ function secant²(hzl::HZAW, φ, a, b, ϵk)
         φA, dφA = φc, dφc
         _c = secant(hzl, a, dφa, A, dφA)
     end
-    updates
     if any(updates)
         #== S4.if: c was upper or lower bound ==#
         φ_c, dφ_c = φ(_c, true)

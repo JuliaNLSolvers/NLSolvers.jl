@@ -13,7 +13,7 @@ function solve(
     problem::OptimizationProblem,
     approach::TrustRegion,
     options::OptimizationOptions,
-    objvars;
+    objvars::NamedTuple;
     initial_Δ = 20.0,
 )
     if !(mstyle(problem) === InPlace()) && !(approach.spsolve == Dogleg())

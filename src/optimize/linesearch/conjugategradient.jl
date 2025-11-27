@@ -141,10 +141,13 @@ summary(::PRP) = "Polak-Ribiére-Polyak"
 function update_parameter(mstyle, ::PRP, d, ∇fz, ∇fx, y, P, P∇fz)
     dot(y, P∇fz) / dot(∇fx, ∇fx)
 end
+#=
+FIXME: was RP removed at some point? 
 function update_parameter(::PRP{true}, d, ∇fz, ∇fx, y, P, P∇fz)
     βPR = update_parameter(RP{false}(), d, ∇fz, ∇fx, y, P, P∇fz)
     max(0, β)
 end
+=#
 
 #===============================================================================
   Liu-Storey (LS)
@@ -199,7 +202,7 @@ end
 # using an "initial vectors" function we can initialize s if necessary or nothing if not to save on vectors
 function solve(
     problem::OptimizationProblem,
-    x0,
+    x0::AbstractArray,
     cg::ConjugateGradient,
     options::OptimizationOptions,
 )
@@ -207,7 +210,7 @@ function solve(
 end
 function solve(
     problem::OptimizationProblem,
-    x0,
+    x0::AbstractArray,
     approach::LineSearch{<:ConjugateGradient,<:LineSearcher},
     options::OptimizationOptions,
 )
@@ -215,7 +218,7 @@ function solve(
 end
 function _solve(
     problem::OptimizationProblem,
-    x0,
+    x0::AbstractArray,
     approach::LineSearch{<:ConjugateGradient,<:LineSearcher},
     options::OptimizationOptions,
     mstyle::MutateStyle,

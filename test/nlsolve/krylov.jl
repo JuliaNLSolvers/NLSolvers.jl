@@ -1,10 +1,10 @@
-using Revise
 using NLSolvers
 using LinearAlgebra
 using SparseDiffTools
 using SparseArrays
 using IterativeSolvers
 using ForwardDiff
+using IterativeSolvers
 
 # Start with a stupid example
 n = 10
@@ -68,7 +68,6 @@ x0 = [-1.0, 0.0, 0.0]
 res = solve(prob, copy(x0), LineSearch(Newton(), Backtracking()))
 @test norm(res.info.best_residual) < 1e-15
 
-using IterativeSolvers
 function inexact_linsolve(x0, JvOp, Fx, ηₖ)
     krylov_iter = IterativeSolvers.gmres_iterable!(x0, JvOp, Fx; maxiter = 50)
     res = copy(Fx)

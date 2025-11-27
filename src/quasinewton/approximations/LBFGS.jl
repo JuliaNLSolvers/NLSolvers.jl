@@ -60,14 +60,14 @@ function find_direction!(
     negate(InPlace(), d)
 end
 function update_obj!(
-    problem,
+    problem::OptimizationProblem,
     qnvars,
     α,
     x,
     ∇fx,
     z,
     ∇fz,
-    current_memory,
+    current_memory::Integer,
     scheme::LBFGS{<:Inverse,<:TwoLoop},
     scale = nothing,
 )

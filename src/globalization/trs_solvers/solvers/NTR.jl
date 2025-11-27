@@ -44,7 +44,8 @@ function initial_λs(∇f, H, Δ)
     λU = max(T(0), norm_to_Δ + min(max_i_m, Hfrob, Hinf))
     return λL, λU
 end
-λ⁺_newton(λ, w, Δ) = λ + (s₂^2 / dot(w, w)) * (s₂ - Δ) / Δ
+# FIXME why is this not used?
+#λ⁺_newton(λ, w, Δ) = λ + (s₂^2 / dot(w, w)) * (s₂ - Δ) / Δ
 function (ms::NTR)(
     ∇f,
     H,
@@ -194,6 +195,9 @@ function (ms::NTR)(
             elseif abs(s₂ - Δ) ≤ κeasy * Δ # implicitly "if in 𝓕" since we're in that branch
                 # u and α comes from linpack
                 if linpack
+                    # FIXME check history if this name was changed 
+                    # sλ not defined so this cannot be hit ever.....
+                    sλ = λ
                     if α^2 * dot(u, H * u) ≤ κhard * (dot(sλ, H * sλ) * Δ^2)
                         s .= s .+ α * u
                         H = update_H!(H, h)

@@ -6,8 +6,7 @@ Only Q[:, 1:(k-1)] and R[1:(k-1), 1:(k-1)] are valid on exit.
 function qrdelete!(Q::AbstractMatrix, R::AbstractMatrix, k::Int)
     n, m = size(Q)
     m == checksquare(R) || throw(DimensionMismatch())
-    1 ≤ k ≤ m || throw(ArgumentError())
-
+    1 ≤ k ≤ m || throw(ArgumentError(LazyString("The chosen k must be between 1 and m=",m," where m is the dimension of the Q matrix.")))
     # apply Givens rotations
     for i = 2:k
         g = first(givens(R, i - 1, i, i))
@@ -35,7 +34,7 @@ function qradd!(Q::AbstractMatrix, R::AbstractMatrix, v::AbstractVector, k::Int)
     n, m = size(Q)
     n == length(v) || throw(DimensionMismatch())
     m == checksquare(R) || throw(DimensionMismatch())
-    1 ≤ k ≤ m || throw(ArgumentError())
+    1 ≤ k ≤ m || throw(ArgumentError(LazyString("The chosen k must be between 1 and m=",m,", where m is the dimension of the Q matrix.")))
 
     @inbounds for i = 1:(k-1)
         q = view(Q, :, i)

@@ -37,7 +37,7 @@ function PureRandomSearch(; draw = nothing, lb = nothing, ub = nothing)
     end
     PureRandomSearch(_draw)
 end
-function solve(prob, prs::PureRandomSearch, options)
+function solve(prob::OptimizationProblem, prs::PureRandomSearch, options::OptimizationOptions = OptimizationOptions())
     xbest = prs.draw()
     fbest = value(prob, xbest)
     for i = 1:options.maxiter

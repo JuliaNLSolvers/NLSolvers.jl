@@ -21,6 +21,7 @@ TrustRegion(m, sp = NTR(); deltamin = nothing) = TrustRegion(m, sp, BTR(deltamin
 modelscheme(tr::TrustRegion) = tr.scheme
 algorithm(tr::TrustRegion) = tr.spsolve
 
+# annotate scheme here
 solve(problem::OptimizationProblem, x0, scheme, options::OptimizationOptions) =
     solve(problem, (x0, nothing), TrustRegion(scheme, NWI()), options)
 
