@@ -13,8 +13,8 @@ function update(scheme::SR1{<:Inverse}, H, s, y)
     w = s - H * y
     θ = dot(w, y) # angle between residual and change in gradient
     ρy = norm(y)
-    if abs(θ) ≥ T(1e-12) * norm(w) * ρy && !iszero(ρy)
-        H = H + (w * w') / θ
+    if abs(θ) ≥ T(1e-12) * norm(w) * ρy && !iszero(ρy) # why iszero here?
+        H = H + (w * w') / θ # N&W2E
     end
     H
 end
@@ -22,9 +22,9 @@ function update(scheme::SR1{<:Direct}, B, s, y)
     T = real(eltype(s))
     res = y - B * s # resesidual in secant equation
     θ = dot(res, s) # angle between residual and change in state
-    if abs(inv(θ)) ≥ T(1e-12) * norm(res) * norm(s)
+    if abs(θ) ≥ T(1e-12) * norm(res) * norm(s)
         if true #abs(θ) ≥ 1e-12
-            B = B + (res * res') / θ
+            B = B + (res * res') / θ # checked against N&W2E
         end
     end
     B
