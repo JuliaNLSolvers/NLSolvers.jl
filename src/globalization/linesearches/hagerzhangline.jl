@@ -1,5 +1,3 @@
-# fix eta k cchoice
-# fix quadstep?
 """
     HZAW
 
@@ -19,223 +17,368 @@ correspond to those used in section 5 of [^HZ2005].
  - `theta`: parameter between 0 and 1 that controls the bracketing interval
    update. Defaults to 1/2, which indicates bisection. (See step U3 of the
    interval update procedure in section 4 of [^HZ2005].)
- - `gamma`: factor by which the length of the bracketing interval decreases
-   at each iteration of the algorithm. Defaults to 2/3.
+ - `gamma`: factor by which the length of the bracketing interval should
+   decrease at each iteration of the algorithm. Defaults to `2/3`. If such
+   a decrease is not achieved, the interval is bisected instead of using the
+   output of the secant^2 step.
+ - `epsilon`: parameter that controls the approximate Wolfe conditions.
+   Defaults to `1e-6`. See [p. 122, CG_DESCENT_851] for more details.
+ - `maxiter`: maximum number of iterations in the main loop. Defaults to `50`.
+ - `maxiter_U3`: maximum number of iterations in the U3 bisection step.
+   Defaults to `50`.
+ - `maxiter_finite_check`: maximum backtracking iterations to find a finite
+   function value from a non-finite initial step. Defaults to `100`.
+ - `rho`: expansion factor in the bracket procedure. Defaults to `5.0`.
+ - `rho_finite_check`: contraction factor for backtracking from non-finite
+   step. Defaults to `1/10`.
 
 We tweak the original algorithm slightly, by backtracking into a feasible
 region if the original step length results in function values that are not
-finite.
+finite. This allows us to set up an interval from this point that satisfies
+the `bracket` procedure (bottom of [p. 123, CG_DESCENT_851]).
 
 [^HZ2005]: Hager, W. W., & Zhang, H. (2005). A New Conjugate Gradient Method
            with Guaranteed Descent and an Efficient Line Search. SIAM Journal
-           on Optimization, 16(1), 170–192. doi:10.1137/030601880
+           on Optimization, 16(1), 170-192. doi:10.1137/030601880
+[^CG_DESCENT_851]: Hager, W. W., & Zhang, H. (2006). Algorithm 851: CG_DESCENT,
+                   a Conjugate Gradient Method with Guaranteed Descent. ACM
+                   Transactions on Mathematical Software, 32(1), 113-137.
+                   doi:10.1145/1139480.1139484
 """
 struct HZAW{T} <: LineSearcher
     decrease::T
     curvature::T
     θ::T
     γ::T
-end
-Base.summary(::HZAW) = "Approximate Wolfe Line Search (Hager & Zhang)"
-function HZAW(; decrease = 0.1, curvature = 0.9, theta = 0.5, gamma = 2 / 3)
-    if !(0 < decrease ≤ curvature)
-        println(
-            "Decrease constant must be positive and smaller than the curvature condition.",
-        )
-    end
-    if !(curvature < 1)
-        println("Curvature constant must be smaller than one.")
-    end
-    HZAW(decrease, curvature, theta, gamma)
+    ϵ::T
+    maxiter::Int
+    maxiter_U3::Int
+    maxiter_finite_check::Int
+    ρ::T
+    ρ_finite_check::T
 end
 
-function find_steplength(mstyle, hzl::HZAW, φ, c, ϵk = 1e-6; maxiter = 100)
-    # c = initial(k) but this is done outisde
-    T = typeof(φ.φ0)
-    ϵk = T(ϵk)
-    δ = T(hzl.decrease)
-    σ = T(hzl.curvature)
-    ρ = T(5)
-    φ0, dφ0 = φ.φ0, φ.dφ0
-    φc, dφc = φ(c, true)
+Base.summary(::HZAW) = "Approximate Wolfe Line Search (Hager & Zhang)"
+
+HZAW{T}(h::HZAW) where {T} = HZAW(
+    T(h.decrease), T(h.curvature), T(h.θ), T(h.γ), T(h.ϵ),
+    h.maxiter, h.maxiter_U3, h.maxiter_finite_check,
+    T(h.ρ), T(h.ρ_finite_check),
+)
+
+function HZAW(;
+    decrease = 0.1,
+    curvature = 0.9,
+    theta = 0.5,
+    gamma = 2 / 3,
+    epsilon = 1e-6,
+    maxiter = 50,
+    maxiter_U3 = 50,
+    maxiter_finite_check = 100,
+    rho = 5.0,
+    rho_finite_check = 1 / 10,
+)
+    if !(0 < decrease ≤ curvature)
+        throw(ArgumentError(
+            "Decrease constant must be positive and ≤ curvature. Got decrease=$decrease, curvature=$curvature.",
+        ))
+    end
+    if decrease >= 1 / 2
+        throw(ArgumentError(
+            "Decrease constant must be < 1/2. Got decrease=$decrease.",
+        ))
+    end
+    if curvature >= 1
+        throw(ArgumentError(
+            "Curvature constant must be < 1. Got curvature=$curvature.",
+        ))
+    end
+    HZAW(
+        decrease, curvature, theta, gamma, epsilon,
+        maxiter, maxiter_U3, maxiter_finite_check,
+        rho, rho_finite_check,
+    )
+end
+
+struct TrialBundle{T}
+    p::T
+    φ::T
+    dφ::T
+end
+Base.isfinite(tb::TrialBundle) = isfinite(tb.φ) && isfinite(tb.dφ)
+
+function _evaltrial(φ, c)
+    r = φ(c, true)
+    TrialBundle(promote(c, r.ϕ, r.dϕ)...)
+end
+
+# At the core of this line search we have the (approximate) Wolfe conditions.
+struct WolfeSetup{T}
+    φ0::T
+    dφ0::T
+    δ::T
+    σ::T
+    ϵ::T
+end
+function WolfeSetup(Σ0::TrialBundle, δ, σ, ϵ)
+    WolfeSetup(Σ0.φ, Σ0.dφ, δ, σ, ϵ)
+end
+
+# Wolfe conditions [eq (22), p.120, CG_DESCENT_851]
+function _is_wolfe(wc::WolfeSetup, Σc::TrialBundle)
+    (; φ0, dφ0, δ, σ) = wc
+    φc, dφc, c = Σc.φ, Σc.dφ, Σc.p
+    δ * dφ0 ≥ (φc - φ0) / c && dφc ≥ σ * dφ0
+end
+
+# Approximate Wolfe conditions [eq (23), p.120, CG_DESCENT_851]
+function _is_approx_wolfe(wc::WolfeSetup, Σc::TrialBundle)
+    (; φ0, dφ0, δ, σ, ϵ) = wc
+    φc, dφc = Σc.φ, Σc.dφ
+    # Satisfies T2 and eqn (27) [p. 122, CG_DESCENT_851]
+    (2 * δ - 1) * dφ0 ≥ dφc ≥ σ * dφ0 && φc ≤ φ0 + ϵ * abs(φ0)
+end
+
+_is_converged(ws::WolfeSetup, Σ::TrialBundle) = _is_wolfe(ws, Σ) || _is_approx_wolfe(ws, Σ)
+
+_in_bounds(c, Σa, Σb) = Σa.p <= c <= Σb.p
+
+function find_steplength(mstyle, hzl::HZAW, φ, c::T) where {T}
+    hzl = HZAW{T}(hzl)
+    δ = hzl.decrease
+    σ = hzl.curvature
+    ρ = hzl.ρ
+    ρ_finite_check = hzl.ρ_finite_check
+    ϵ = hzl.ϵ
+    φ0, dφ0 = T(φ.φ0), T(φ.dφ0)
+
+    Σ0 = TrialBundle(T(0), φ0, dφ0)
+    if !isfinite(Σ0)
+        return T(NaN), T(NaN), false
+    end
+
+    Σc = _evaltrial(φ, c)
 
     # Backtrack into feasible region; not part of original algorithm
-    ctmp, c = c, c
     iter = 0
-    while !isfinite(φc) && iter <= maxiter
+    while !isfinite(Σc) && iter <= hzl.maxiter_finite_check
         iter += 1
-        # don't use interpolation, this is vanilla backtracking
-        ctmp, c, φc = interpolate(FixedInterp(), φ, φ0, dφ0, c, φc, T(1) / 10)
+        c = c * ρ_finite_check
+        Σc = _evaltrial(φ, c)
+    end
+    if iter > hzl.maxiter_finite_check
+        return T(NaN), T(NaN), false
     end
 
-    # initial convergence
-    # Wolfe conditions
-    if δ * dφ0 ≥ (φc - φ0) / c && dφc ≥ σ * dφ0
-        return c, φc, true
+    wolfesetup = WolfeSetup(Σ0, δ, σ, ϵ)
+
+    # Check initial convergence
+    _is_converged(wolfesetup, Σc) && return Σc.p, Σc.φ, true
+
+    # Set up bracket
+    Σaj, Σbj, wolfe_in_bracket = _hz_bracket(hzl, Σ0, Σc, φ, ρ, wolfesetup)
+    if wolfe_in_bracket
+        return Σaj.p, Σaj.φ, true
     end
-    # Approximate Wolfe conditions
-    if (2 * δ - 1) * dφ0 ≥ dφc ≥ σ * dφ0 && φc ≤ φ0 + ϵk
-        return c, φc, true
-    end
-    # Set up interval
-    a0, b0 = bracket(hzl, c, φ, ϵk, ρ)
-    j = 0
-    aj, bj = a0, b0
+
     # Main loop
-    while j < 50
-        a, b = secant²(hzl, φ, aj, bj, ϵk)
-        if b - a > hzl.γ * (bj - aj)
-            c = (a + b) / 2
-            φc, dφc = φ(c, true)
-            a, b = update(hzl, a, b, c, φ, φc, dφc, ϵk)
+    for j = 1:hzl.maxiter
+        # === Step L1: Secant^2 update ===
+        Σa, Σb, iswolfe = _hz_secant²(hzl, φ, φ0, Σaj, Σbj, ϵ, wolfesetup)
+        if iswolfe
+            return Σa.p, Σa.φ, true
         end
 
-        aj, bj = a, b
-        j += 1
-        if _wolfe(φ0, dφ0, c, φc, dφc, δ, σ, ϵk) ||
-           _approx_wolfe(φ0, dφ0, c, φc, dφc, δ, σ, ϵk)
-            return c, φc, true
+        # === Step L2: Bisection if insufficient decrease ===
+        aj, bj = Σaj.p, Σbj.p
+        a, b = Σa.p, Σb.p
+        Σaj, Σbj = if b - a > hzl.γ * (bj - aj)
+            c = (a + b) / 2
+            _hz_update(hzl, Σa, Σb, c, φ, φ0, ϵ)
+        else
+            Σa, Σb
+        end
+
+        # Check bracket endpoints for convergence
+        a_conv = _is_converged(wolfesetup, Σaj)
+        b_conv = _is_converged(wolfesetup, Σbj)
+        if a_conv && b_conv
+            if Σaj.φ < Σbj.φ
+                return Σaj.p, Σaj.φ, true
+            else
+                return Σbj.p, Σbj.φ, true
+            end
+        elseif a_conv
+            return Σaj.p, Σaj.φ, true
+        elseif b_conv
+            return Σbj.p, Σbj.φ, true
         end
     end
     return T(NaN), T(NaN), false
 end
-_wolfe(φ0, dφ0, c, φc, dφc, δ, σ, ϵk) = δ * dφ0 ≥ (φc - φ0) / c && dφc ≥ σ * dφ0
-_approx_wolfe(φ0, dφ0, c, φc, dφc, δ, σ, ϵk) =
-    (2 * δ - 1) * dφ0 ≥ dφc ≥ σ * dφ0 && φc ≤ φ0 + ϵk
-"""
-   _U3
 
-Used to take step U3 of the updating procedure [HZ, p.123]. The other steps
-are in update, but this step is separated out to be able to use it in
-step B2 of bracket.
 """
-function _U3(hzl::HZAW, φ, a::T, b::T, c::T, ϵk) where {T}
+    _hz_update_U3
+
+Step U3 of the updating procedure [p.123, CG_DESCENT_851]. The other steps
+are in `_hz_update`, but this step is separated out to be able to use it in
+step B2 of `_hz_bracket`. Initialization of a_bar and b_bar is done outside
+this call.
+"""
+function _hz_update_U3(hzl::HZAW, φ, φ0, Σā::TrialBundle{T}, Σb̄::TrialBundle{T}, ϵ) where {T}
     # verified against paper description [p. 123, CG_DESCENT_851]
-    φ0 = φ.φ0
-    _a, _b = a, c
-    # a)
-    searching = true
-    j = 1
-    while searching && j < 50
-        # convex combination of _a and _b; 0.5 implies bisection
-        d = (1 - hzl.θ) * _a + hzl.θ * _b
-        φd, dφd = φ(d, true)
-        if dφd ≥ T(0) # found point of increasing objective; return with upper bound d
-            _b = d
-            return _a, _b
-        else # now dφd < T(0)
-            if φd ≤ φ0 + ϵk
-                _a = d
-            else # φ(d) ≥ φ0 + ϵk
-                _b = d
+    θ = hzl.θ
+
+    for j = 1:hzl.maxiter_U3
+        # === Step U3.a === convex combination of a_bar and b_bar
+        ā, b̄ = Σā.p, Σb̄.p
+        d = (1 - θ) * ā + θ * b̄
+        Σd = _evaltrial(φ, d)
+
+        if Σd.dφ ≥ T(0)
+            # found point of increasing objective; return with upper bound d
+            return Σā, Σd
+        else # now Σd.dφ < T(0)
+            if Σd.φ ≤ φ0 + ϵ * abs(φ0)
+                # === Step U3.b ===
+                Σā = Σd
+            else
+                # === Step U3.c ===
+                Σb̄ = Σd
             end
         end
-        j += 1
     end
-    _a, _b # throw error?
+    return Σā, Σb̄
 end
 
-function update(hzl::HZ, a::T, b::T, c::T, φ, φc, dφc, ϵk) where {HZ<:HZAW,T}
+# Full update: bounds check + evaluate + U1-U3. Used by L2 bisection.
+function _hz_update(hzl::HZAW, Σa, Σb, c, φ, φ0, ϵ)
+    # === Step U0: Check c is interior to interval ===
+    if !_in_bounds(c, Σa, Σb)
+        return Σa, Σb
+    end
+    Σc = _evaltrial(φ, c)
+    _hz_update_inner(hzl, Σa, Σb, Σc, φ, φ0, ϵ)
+end
 
+# Inner update with pre-evaluated Σc: U1-U3 only. Used by secant^2 after Wolfe check.
+function _hz_update_inner(hzl::HZAW, Σa, Σb, Σc::TrialBundle{T}, φ, φ0, ϵ) where {T}
     # verified against paper description [p. 123, CG_DESCENT_851]
-    φ0 = φ.φ0
-    #== U0 ==#
-    if c ≤ a || c ≥ b # c ∉ (a, b)
-        return a, b, (a = false, b = false)
-    end
-    #== U1 ==#
-    if dφc ≥ T(0)
-        return a, c, (a = false, b = true)
-    else # dφc < T(0)
-        #== U2 ==#
-        if φc ≤ φ0 + ϵk
-            return c, b, (a = true, b = false)
+    # === Step U1: Positive derivative (update upper bound) ===
+    if Σc.dφ ≥ T(0)
+        return Σa, Σc
+    else # Σc.dφ < T(0)
+        # === Step U2: Negative derivative with sufficient decrease ===
+        if Σc.φ ≤ φ0 + ϵ * abs(φ0)
+            return Σc, Σb
         end
-        #== U3 ==#
-        a, b = _U3(hzl, φ, a, b, c, ϵk)
-        return a, b, (a = a == c, b = b == c)
+        # === Step U3: Negative derivative without sufficient decrease ===
+        Σā, Σb̄ = Σa, Σc
+        Σa, Σb = _hz_update_U3(hzl, φ, φ0, Σā, Σb̄, ϵ)
+        return Σa, Σb
     end
 end
-"""
-  bracket
 
-Find an interval satisfying the opposite slope condition [OSC] starting from
+"""
+    _hz_bracket
+
+Find an interval satisfying the opposite slope condition starting from
 [0, c] [pp. 123-124, CG_DESCENT_851].
 """
-function bracket(hzl::HZAW, c::T, φ, ϵk, ρ) where {T}
+function _hz_bracket(hzl::HZAW, Σ0::TrialBundle{T}, Σc::TrialBundle{T}, φ, ρ, wolfesetup) where {T}
     # verified against paper description [pp. 123-124, CG_DESCENT_851]
-    # Note, we know that dφ(0) < 0 since we're accepted that the current step is in a
-    # direction of descent.
-    φ0 = φ.φ0
+    φ0 = Σ0.φ
+    ϵ = hzl.ϵ
+    # === Step B0: Initialize bracket search ===
+    Σcj = Σc
 
-    #== B0 ==#
-    cj = c
-    φcj, dφcj = φ(cj, true)
-    # we only want to store a number, so we don't store all iterates
-    ci, φi = T(0), φ0
+    # Note, we know that dφ(0) < 0 since we accepted that the current step is in a
+    # direction of descent.
+    Σci = Σ0
 
     maxj = 100
-    for j = 1:maxj
-        #==================================================
-          B1: φ is increasing at c, set b to cj as this is
-              an upper bound, since φ is initially decrea-
-              sing.
-        ==================================================#
-        if dφcj ≥ T(0)
-            a, b = ci, cj
-            return a, b
-        else # dφcj < T(0)
-            #== B2 : φ is decreasing at cj but function value is sufficiently larger than
-            # φ0, use U3 to update. ==#
-            if φcj > φ0 + ϵk
-                a, b = _U3(hzl, φ, T(0), cj, c, ϵk)
-                return a, b
-            end
-            #== B3 ==#
-            # update ci instead of keeping all c's
-            if φcj ≤ φ0 + ϵk
-                ci = cj
-                φci = φcj
-            end
-            # expand by factor ρ > 0 (shouldn't this be > 1?)
-            cj = ρ * cj
-            φcj, dφcj = φ(cj, true)
+    j = 0
+    while j < maxj && Σcj.dφ < T(0)
+        j += 1
+        if Σcj.φ > φ0 + ϵ * abs(φ0)
+            # === Step B2: Decreasing derivative without sufficient decrease ===
+            # φ is decreasing at cj but function value is sufficiently larger than
+            # φ0 so we must have passed a place with increasing φ, use U3 to update.
+            Σa, Σb = _hz_update_U3(hzl, φ, φ0, Σ0, Σcj, ϵ)
+            return Σa, Σb, false
+        end
+
+        # === Step B3: Decreasing derivative with sufficient decrease ===
+        # Move lower bound up to cj, expand by factor ρ > 1
+        Σci = Σcj
+
+        cj = ρ * Σcj.p
+        Σcj = _evaltrial(φ, cj)
+        # Check if the new point satisfies Wolfe before continuing expansion
+        if _is_converged(wolfesetup, Σcj)
+            return Σcj, Σcj, true
         end
     end
+    if j == maxj
+        @warn "Failed to find a bracket satisfying the opposite slope condition after $maxj iterations."
+    end
+
+    # Implicitly Σcj.dφ ≥ T(0) since we exited the loop =>
+    # === Step B1: Positive derivative found (opposite slope condition) ===
+    return Σci, Σcj, false
 end
 
-function secant(hzl::HZAW, a, dφa, b, dφb)
+function _hz_secant(Σa::TrialBundle{T}, Σb::TrialBundle{T}) where {T}
     # verified against paper description [p. 123, CG_DESCENT_851]
-    #(a*dφb - b*dφa)/(dφb - dφa)
+    # (a*dφb - b*dφa)/(dφb - dφa)
     # It has been observed that dφa can be very close to dφb,
     # so we avoid taking the difference
-    a / (1 - dφa / dφb) + b / (1 - dφb / dφa)
+    a, dφa, b, dφb = Σa.p, Σa.dφ, Σb.p, Σb.dφ
+    sec = a / (1 - dφa / dφb) + b / (1 - dφb / dφa)
+    if isnan(sec)
+        return (a * dφb - b * dφa) / (dφb - dφa)
+    end
+    return sec
 end
-function secant²(hzl::HZAW, φ, a, b, ϵk)
-    # verified against paper description [p. 123, CG_DESCENT_851]
-    #== S1 ==#
-    φa, dφa = φ(a, true)
-    φb, dφb = φ(b, true)
-    _c = secant(hzl, a, dφa, b, dφb)
 
-    φc, dφc = φ(_c, true)
-    A, B, updates = update(hzl, a, b, _c, φ, φc, dφc, ϵk)
-    if updates.b # B == c
-        #== S2: c is the upper bound ==#
-        φB, dφB = φc, dφc
-        _c = secant(hzl, b, dφb, B, dφB)
-    elseif updates.a # A == c
-        #== S3: c is the lower bound ==#
-        φA, dφA = φc, dφc
-        _c = secant(hzl, a, dφa, A, dφA)
+function _hz_secant²(hzl::HZAW, φ, φ0, Σa::TrialBundle{T}, Σb::TrialBundle{T}, ϵ, wolfesetup) where {T}
+    # verified against paper description [p. 123, CG_DESCENT_851]
+    # === Step S1: First secant step ===
+    c = _hz_secant(Σa, Σb)
+    if !_in_bounds(c, Σa, Σb)
+        return Σa, Σb, false
     end
-    if any(updates)
-        #== S4.if: c was upper or lower bound ==#
-        φ_c, dφ_c = φ(_c, true)
-        _a, _b = update(hzl, A, B, _c, φ, φ_c, dφ_c, ϵk)
-        return _a, _b
-    else
-        #== S4.otherwise: c was neither ==#
-        return A, B
+    Σc = _evaltrial(φ, c)
+    if _is_converged(wolfesetup, Σc)
+        return Σc, Σc, true
     end
+    # First update (U1-U3 with pre-evaluated Σc)
+    ΣA, ΣB = _hz_update_inner(hzl, Σa, Σb, Σc, φ, φ0, ϵ)
+    updated = false
+    c̄ = c
+    if c == ΣB.p # B == c
+        # === Step S2: Second secant with new upper bound ===
+        c̄ = _hz_secant(Σb, ΣB)
+        updated = true
+    elseif c == ΣA.p # A == c
+        # === Step S3: Second secant with new lower bound ===
+        c̄ = _hz_secant(Σa, ΣA)
+        updated = true
+    end
+
+    # === Step S4 ===
+    if !updated
+        # === Step S4 (variant 2): Return without second secant ===
+        return ΣA, ΣB, false
+    end
+    if !_in_bounds(c̄, ΣA, ΣB)
+        return ΣA, ΣB, false
+    end
+    Σc̄ = _evaltrial(φ, c̄)
+    if _is_converged(wolfesetup, Σc̄)
+        return Σc̄, Σc̄, true
+    end
+    # === Step S4 (variant 1): Update with second secant point ===
+    Σā, Σb̄ = _hz_update_inner(hzl, ΣA, ΣB, Σc̄, φ, φ0, ϵ)
+    return Σā, Σb̄, false
 end
