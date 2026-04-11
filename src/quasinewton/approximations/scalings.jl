@@ -1,7 +1,7 @@
 abstract type QNScaling end
-struct ShannoPhua <: QNScaling end # Matrix Conditionig and Nonlinear Optimization, 1978 Math. Prog
+struct ShannoPhua <: QNScaling end # Nocedal & Wright eq. 6.20; Shanno & Phua, Math. Prog. 1978
 function (::ShannoPhua)(s, y)
-    real(dot(s, s)) / sum(abs2, s)
+    real(dot(s, y)) / real(dot(y, y))
 end
 struct InitialScaling{S} <: QNScaling
     scaling::S
