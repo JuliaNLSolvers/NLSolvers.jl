@@ -139,19 +139,20 @@ function iterate(
 
     # Update current gradient and calculate the search direction
     d = find_direction!(scheme, copy(∇fz), qnvars, current_memory, K, P) # solve Bd = -∇fx
-    φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, real(dot(∇fx, d))) # real is needed to convert complex dots to actually being real
+    dφ0 = real(dot(∇fx, d))
+    φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, dφ0) # real is needed to convert complex dots to actually being real
 
     # Perform line search along d
     α, f_α, ls_success = find_steplength(mstyle, linesearch, φ, Tf(1))
 
     if ls_success
-        s = current_memory == length(qnvars.S) ? qnvars.S[1] : qnvars.S[1+current_memory]
-        @. s = α * d
-        z = retract(problem, z, x, s)
+        @. qnvars.d = α * d  # use d as temporary for the step
+        z = retract(problem, z, x, qnvars.d)
 
-        # Update approximation
+        # Update approximation (writes s into S array only if not skipped)
+        _skip_data = skip_aux(qn_skip(scheme), dφ0, ∇fx)
         fz, ∇fz, qnvars =
-            update_obj!(problem, qnvars, α, x, ∇fx, z, ∇fz, current_memory, scheme)
+            update_obj!(problem, qnvars, α, x, ∇fx, z, ∇fz, current_memory, scheme; skip_data = _skip_data)
     else
         # Reset L-BFGS memory — next iteration uses steepest descent
         qnvars = TwoLoopVars(qnvars.d, qnvars.S, qnvars.Y, qnvars.α, qnvars.ρ, 0)

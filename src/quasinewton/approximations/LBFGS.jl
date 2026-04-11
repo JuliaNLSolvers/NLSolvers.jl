@@ -2,11 +2,12 @@
 # Specialized S and Y matrices are constructed and updated
 struct TwoLoop end
 struct CompactLimited end
-struct LBFGS{TA,F,T,TP}
+struct LBFGS{TA,F,T,TP,Tskip}
     approx::TA
     type::F
     memory::T
     P::TP
+    skip::Tskip
 end
 summary(lbfgs::LBFGS{Inverse}) = "Inverse LBFGS"
 summary(lbfgs::LBFGS{Direct}) = "Direct LBFGS"
@@ -14,8 +15,10 @@ summary(lbfgs::LBFGS{Direct}) = "Direct LBFGS"
 hasprecon(::LBFGS{<:Inverse,<:Any,<:Any,<:Nothing}) = NoPrecon()
 hasprecon(::LBFGS{<:Inverse,<:Any,<:Any,<:Any}) = HasPrecon()
 
-LBFGS(m::Int = 5) = LBFGS(Inverse(), TwoLoop(), m, nothing)
-LBFGS(approx, m = 5) = LBFGS(approx, TwoLoop(), m, nothing)
+LBFGS(m::Int) = LBFGS(Inverse(), TwoLoop(), m, nothing, NoSkip())
+LBFGS(approx, m::Int) = LBFGS(approx, TwoLoop(), m, nothing, NoSkip())
+LBFGS(approx, type, memory, P) = LBFGS(approx, type, memory, P, NoSkip())
+LBFGS(; memory = 5, inverse = true, skip = NoSkip()) = LBFGS(inverse ? Inverse() : Direct(), TwoLoop(), memory, nothing, skip)
 init_B(aproach::LBFGS, ::Nothing, x0) = nothing
 """
 	q holds gradient at current state
@@ -69,14 +72,15 @@ function update_obj!(
     ∇fz,
     current_memory::Integer,
     scheme::LBFGS{<:Inverse,<:TwoLoop},
-    scale = nothing,
+    scale = nothing;
+    skip_data = nothing,
 )
     # Calculate final step vector and update the state
     fz, ∇fz = upto_gradient(problem, ∇fz, z)
     # add Project gradient
 
     # Quasi-Newton update
-    qnvars = update!(scheme, qnvars, ∇fx, ∇fz, current_memory)
+    qnvars = update!(scheme, qnvars, ∇fx, ∇fz, current_memory, skip_data)
 
     return fz, ∇fz, qnvars
 end
@@ -86,10 +90,22 @@ end
     ∇fx,
     ∇fz,
     current_memory,
+    skip_data = nothing,
 )
     S, Y, ρ = qnvars.S, qnvars.Y, qnvars.ρ
+    d = qnvars.d  # holds α * d (the step vector) from the caller
     n = length(S)
     m = min(n, 1 + current_memory)
+
+    # Compute y as a temporary before deciding whether to store the pair
+    y_candidate = ∇fz - ∇fx
+
+    # Check skip condition — if triggered, don't store this (s, y) pair
+    if skip_data !== nothing && should_skip(scheme.skip, d, y_candidate, skip_data)
+        return TwoLoopVars(d, S, Y, qnvars.α, ρ, current_memory)
+    end
+
+    # Rotate memory if full
     if current_memory == n
         s1, y1 = S[1], Y[1] # hoisting, no allocation
         for i = 2:n
@@ -100,7 +116,9 @@ end
         S[end] = s1
         Y[end] = y1
     end
-    @. Y[m] = ∇fz - ∇fx
+    # Store the (s, y) pair
+    @. S[m] = d
+    @. Y[m] = y_candidate
     ρ[m] = 1 / dot(S[m], Y[m])
-    TwoLoopVars(qnvars.d, S, Y, qnvars.α, ρ, m)
+    TwoLoopVars(d, S, Y, qnvars.α, ρ, m)
 end

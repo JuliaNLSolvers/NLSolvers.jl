@@ -6,10 +6,12 @@
 # The direct update can be written as
 #  B = B = yy'/y's-Bss'B'/s'B*s
 
-struct BFGS{T1} <: QuasiNewton{T1}
+struct BFGS{T1,Tskip} <: QuasiNewton{T1}
     approx::T1
+    skip::Tskip
 end
-BFGS(; inverse = true) = BFGS(inverse ? Inverse() : Direct())
+BFGS(approx::HessianApproximation) = BFGS(approx, NoSkip())
+BFGS(; inverse = true, skip = NoSkip()) = BFGS(inverse ? Inverse() : Direct(), skip)
 hasprecon(::BFGS{<:Any}) = NoPrecon()
 
 summary(bfgs::BFGS{Inverse}) = "Inverse BFGS"

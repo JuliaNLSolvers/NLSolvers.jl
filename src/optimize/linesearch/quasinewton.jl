@@ -176,7 +176,8 @@ function iterate(
     # Update current gradient and calculate the search direction
     d = find_direction!(d, B, P, ∇fx, scheme) # solve Bd = -∇fx
     # real is needed to convert complex dots to actually being real
-    φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, real(dot(∇fx, d)))
+    dφ0 = real(dot(∇fx, d))
+    φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, dφ0)
 
     # Perform line search along d
     # Also returns final step vector and update the state
@@ -187,7 +188,8 @@ function iterate(
         z = retract(problem, z, x, s)
 
         # Update approximation
-        fz, ∇fz, B, s, y = update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme, is_first)
+        _skip_data = skip_aux(qn_skip(scheme), dφ0, ∇fx)
+        fz, ∇fz, B, s, y = update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme, is_first; skip_data = _skip_data)
     else
         # Reset B to identity — next iteration uses steepest descent
         B = one(B)
@@ -235,7 +237,8 @@ function iterate(
     # Update current gradient and calculate the search direction
     d = find_direction(B, P, ∇fx, scheme) # solve Bd = -∇fx
     # real is needed to convert complex dots to actually being real
-    φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, real(dot(∇fx, d)))
+    dφ0 = real(dot(∇fx, d))
+    φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, dφ0)
 
     # Perform line search along d
     α, f_α, ls_success = find_steplength(mstyle, linesearch, φ, Tf(1))
@@ -246,7 +249,8 @@ function iterate(
         z = retract(problem, z, x, s)
 
         # Update approximation
-        fz, ∇fz, B, s, y = update_obj(problem, s, ∇fx, z, ∇fz, B, scheme, is_first)
+        _skip_data = skip_aux(qn_skip(scheme), dφ0, ∇fx)
+        fz, ∇fz, B, s, y = update_obj(problem, s, ∇fx, z, ∇fz, B, scheme, is_first; skip_data = _skip_data)
     else
         # Reset B to identity — next iteration uses steepest descent
         B = one(B)
