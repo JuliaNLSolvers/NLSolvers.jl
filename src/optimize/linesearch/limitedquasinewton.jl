@@ -4,6 +4,7 @@ struct TwoLoopVars{T,TR,M}
     Y::TR # change in successive gradients
     α::M
     ρ::M
+    current_memory::Int
 end
 function TwoLoopVars(x, memory)
     d = copy(x)
@@ -12,7 +13,7 @@ function TwoLoopVars(x, memory)
     Y = [copy(x) for i = 1:memory]
     α = similar(x, memory)
     ρ = similar(x, memory)
-    TwoLoopVars(d, S, Y, α, ρ)
+    TwoLoopVars(d, S, Y, α, ρ, 0)
 end
 lbfgs_vars(method, x) = TwoLoopVars(x, method.memory)
 function solve(
@@ -57,6 +58,8 @@ function _solve(
     f0 = objvars.fz
     P = initial_preconditioner(approach, x0)
 
+    restarts = 0
+
     #========================
          First iteration
     ========================#
@@ -65,8 +68,9 @@ function _solve(
     iter = 1
     # Check for gradient convergence
     is_converged = converged(approach, objvars, ∇f0, options)
-    while iter <= options.maxiter && !any(is_converged)
+    while iter <= options.maxiter && !any(is_converged) && restarts < options.max_restarts
         iter += 1
+        prev_memory = qnvars.current_memory
         # take a step and update approximation
         objvars, qnvars, P = iterate(
             mstyle,
@@ -80,6 +84,10 @@ function _solve(
             options,
             false,
         )
+        # Track restarts (memory was reset to 0 by a failed line search)
+        if qnvars.current_memory == 0 && prev_memory > 0
+            restarts += 1
+        end
         # Check for gradient convergence
         is_converged = converged(approach, objvars, ∇f0, options)
     end
@@ -117,7 +125,7 @@ function iterate(
 )
     # split up the approach into the hessian approximation scheme and line search
     scheme, linesearch, K = modelscheme(approach), algorithm(approach), approach.scaling # make grabber and get a better name than K
-    current_memory = min(iter - 1, scheme.memory)
+    current_memory = qnvars.current_memory
     x, fx, ∇fx, z, fz, ∇fz, B, Pg = objvars
     Tf = typeof(fz)
 
@@ -136,13 +144,18 @@ function iterate(
     # Perform line search along d
     α, f_α, ls_success = find_steplength(mstyle, linesearch, φ, Tf(1))
 
-    s = current_memory == length(qnvars.S) ? qnvars.S[1] : qnvars.S[1+current_memory]
-    @. s = α * d
-    z = retract(problem, z, x, s)
+    if ls_success
+        s = current_memory == length(qnvars.S) ? qnvars.S[1] : qnvars.S[1+current_memory]
+        @. s = α * d
+        z = retract(problem, z, x, s)
 
-    # Update approximation
-    fz, ∇fz, qnvars =
-        update_obj!(problem, qnvars, α, x, ∇fx, z, ∇fz, current_memory, scheme)
+        # Update approximation
+        fz, ∇fz, qnvars =
+            update_obj!(problem, qnvars, α, x, ∇fx, z, ∇fz, current_memory, scheme)
+    else
+        # Reset L-BFGS memory — next iteration uses steepest descent
+        qnvars = TwoLoopVars(qnvars.d, qnvars.S, qnvars.Y, qnvars.α, qnvars.ρ, 0)
+    end
     return (
         x = x,
         fx = fx,
@@ -185,12 +198,14 @@ function iterate(
     # # Perform line search along d
     α, f_α, ls_success = find_steplength(linesearch, φ, Tf(1))
 
-    # # Calculate final step vector and update the state
-    s = @. α * d
-    z = retract(problem, z, x, s)
+    if ls_success
+        # # Calculate final step vector and update the state
+        s = @. α * d
+        z = retract(problem, z, x, s)
 
-    # Update approximation
-    fz, ∇fz, B = update_obj(problem, s, ∇fx, z, ∇fz, B, scheme, is_first)
+        # Update approximation
+        fz, ∇fz, B = update_obj(problem, s, ∇fx, z, ∇fz, B, scheme, is_first)
+    end
 
     return x, fx, ∇fx, z, fz, ∇fz, B, P
 end

@@ -7,7 +7,7 @@ struct LineSearch{S,LS,K}
     scaling::K
 end
 LineSearch() = LineSearch(DBFGS(), Backtracking(), InitialScaling(ShannoPhua()))
-LineSearch(m) = LineSearch(m, Backtracking(), InitialScaling(ShannoPhua()))
+LineSearch(m) = LineSearch(m, HZAW(), InitialScaling(ShannoPhua()))
 LineSearch(m, ls) = LineSearch(m, ls, InitialScaling(ShannoPhua()))
 
 hasprecon(ls::LineSearch) = hasprecon(modelscheme(ls))
