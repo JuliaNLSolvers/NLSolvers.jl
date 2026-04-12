@@ -144,7 +144,7 @@ export NWI, Dogleg, NTR
 # Quasi-Newton (including Newton and gradient descent) functionality
 include("quasinewton/quasinewton.jl")
 export DBFGS, BFGS, SR1, DFP, GradientDescent, Newton, BB, LBFGS, ActiveBox
-export NoSkip, LBFGSBSkip, LiFukushimaSkip
+export NoPDSkip, LBFGSBSkip, LiFukushimaSkip
 
 # To globalize Newton's method
 using PositiveFactorizations: Positive

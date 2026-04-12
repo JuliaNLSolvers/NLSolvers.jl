@@ -28,9 +28,9 @@ using Test
     @testset "should_skip unit tests" begin
         s = [1.0, 0.0]
         y = [1.0, 1.0]
-        # NoSkip never skips
-        @test NLSolvers.should_skip(NoSkip(), s, y, 1.0) == false
-        @test NLSolvers.should_skip(NoSkip(), s, y, 0.0) == false
+        # NoPDSkip never skips
+        @test NLSolvers.should_skip(NoPDSkip(), s, y, 1.0) == false
+        @test NLSolvers.should_skip(NoPDSkip(), s, y, 0.0) == false
 
         # LBFGSBSkip: skip when s'y ≤ eps * |dφ0|
         # s'y = 1.0, dφ0 = 1.0 → 1.0 ≤ eps * 1.0 is false
@@ -56,31 +56,32 @@ using Test
     @testset "skip_aux dispatch" begin
         ∇f = [3.0, 4.0]
         dφ0 = -5.0
-        @test NLSolvers.skip_aux(NoSkip(), dφ0, ∇f) === nothing
+        @test NLSolvers.skip_aux(NoPDSkip(), dφ0, ∇f) === nothing
         @test NLSolvers.skip_aux(LBFGSBSkip(), dφ0, ∇f) == 5.0
         @test NLSolvers.skip_aux(LiFukushimaSkip(), dφ0, ∇f) == 5.0
     end
 
     @testset "qn_skip dispatch" begin
-        @test NLSolvers.qn_skip(BFGS()) isa NoSkip
+        @test NLSolvers.qn_skip(BFGS()) isa NoPDSkip
         @test NLSolvers.qn_skip(BFGS(; skip=LBFGSBSkip())) isa LBFGSBSkip
         @test NLSolvers.qn_skip(BFGS(; skip=LiFukushimaSkip())) isa LiFukushimaSkip
-        @test NLSolvers.qn_skip(LBFGS()) isa NoSkip
+        @test NLSolvers.qn_skip(LBFGS()) isa NoPDSkip
         @test NLSolvers.qn_skip(LBFGS(; skip=LBFGSBSkip())) isa LBFGSBSkip
         @test NLSolvers.qn_skip(LBFGS(; skip=LiFukushimaSkip())) isa LiFukushimaSkip
-        @test NLSolvers.qn_skip(SR1()) isa NoSkip
-        @test NLSolvers.qn_skip(DFP()) isa NoSkip
+        @test NLSolvers.qn_skip(DFP()) isa NoPDSkip
+        @test NLSolvers.qn_skip(DFP(; skip=LBFGSBSkip())) isa LBFGSBSkip
+        @test NLSolvers.qn_skip(SR1()) isa NoPDSkip
     end
 
     @testset "BFGS with skip strategies converges" begin
-        for skip in (NoSkip(), LBFGSBSkip(), LiFukushimaSkip())
+        for skip in (NoPDSkip(), LBFGSBSkip(), LiFukushimaSkip())
             res = solve(prob, copy(x0), LineSearch(BFGS(; skip)), opts)
             @test res.info.minimum < 1e-10
         end
     end
 
     @testset "L-BFGS with skip strategies converges" begin
-        for skip in (NoSkip(), LBFGSBSkip(), LiFukushimaSkip())
+        for skip in (NoPDSkip(), LBFGSBSkip(), LiFukushimaSkip())
             res = solve(prob, copy(x0), LineSearch(LBFGS(; skip)), opts)
             @test res.info.minimum < 1e-10
         end

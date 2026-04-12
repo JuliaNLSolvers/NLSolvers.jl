@@ -1,7 +1,9 @@
-struct DFP{T1} <: QuasiNewton{T1}
+struct DFP{T1,Tskip} <: QuasiNewton{T1}
     approx::T1
+    skip::Tskip
 end
-DFP(; inverse = true) = DFP(inverse ? Inverse() : Direct())
+DFP(approx::HessianApproximation) = DFP(approx, NoPDSkip())
+DFP(; inverse = true, skip = NoPDSkip()) = DFP(inverse ? Inverse() : Direct(), skip)
 hasprecon(::DFP) = NoPrecon()
 
 summary(dfp::DFP{Inverse}) = "Inverse DFP"

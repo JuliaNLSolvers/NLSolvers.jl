@@ -10,8 +10,8 @@ struct BFGS{T1,Tskip} <: QuasiNewton{T1}
     approx::T1
     skip::Tskip
 end
-BFGS(approx::HessianApproximation) = BFGS(approx, NoSkip())
-BFGS(; inverse = true, skip = NoSkip()) = BFGS(inverse ? Inverse() : Direct(), skip)
+BFGS(approx::HessianApproximation) = BFGS(approx, NoPDSkip())
+BFGS(; inverse = true, skip = NoPDSkip()) = BFGS(inverse ? Inverse() : Direct(), skip)
 hasprecon(::BFGS{<:Any}) = NoPrecon()
 
 summary(bfgs::BFGS{Inverse}) = "Inverse BFGS"

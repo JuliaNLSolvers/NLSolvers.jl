@@ -15,10 +15,10 @@ summary(lbfgs::LBFGS{Direct}) = "Direct LBFGS"
 hasprecon(::LBFGS{<:Inverse,<:Any,<:Any,<:Nothing}) = NoPrecon()
 hasprecon(::LBFGS{<:Inverse,<:Any,<:Any,<:Any}) = HasPrecon()
 
-LBFGS(m::Int) = LBFGS(Inverse(), TwoLoop(), m, nothing, NoSkip())
-LBFGS(approx, m::Int) = LBFGS(approx, TwoLoop(), m, nothing, NoSkip())
-LBFGS(approx, type, memory, P) = LBFGS(approx, type, memory, P, NoSkip())
-LBFGS(; memory = 5, inverse = true, skip = NoSkip()) = LBFGS(inverse ? Inverse() : Direct(), TwoLoop(), memory, nothing, skip)
+LBFGS(m::Int) = LBFGS(Inverse(), TwoLoop(), m, nothing, NoPDSkip())
+LBFGS(approx, m::Int) = LBFGS(approx, TwoLoop(), m, nothing, NoPDSkip())
+LBFGS(approx, type, memory, P) = LBFGS(approx, type, memory, P, NoPDSkip())
+LBFGS(; memory = 5, inverse = true, skip = NoPDSkip()) = LBFGS(inverse ? Inverse() : Direct(), TwoLoop(), memory, nothing, skip)
 init_B(aproach::LBFGS, ::Nothing, x0) = nothing
 """
 	q holds gradient at current state
