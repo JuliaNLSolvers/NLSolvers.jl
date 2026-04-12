@@ -58,25 +58,40 @@ function update(scheme::DBFGS{<:Direct,<:Any}, B, s, y)
         return B = B .+ (inv(dot(s, r)) * r) * r' .- ρbb * b'
     end
 end
-function update(scheme::DBFGS{<:Inverse,<:Any}, H, s, y)
+# For the inverse form, we need Bs = H\s to evaluate the damping condition.
+# Powell (1978) damping: if s'y < θ·s'Bs, replace y with ȳ = θ_d·y + (1-θ_d)·Bs
+# where θ_d = 0.8·s'Bs / (s'Bs - s'y), ensuring s'ȳ ≥ θ·s'Bs > 0.
+function _damp_y(scheme::DBFGS, H, s, y)
+    Bs = H \ s
     σ = dot(s, y)
+    sb = dot(s, Bs)
+    if σ ≥ scheme.theta * sb
+        return y
+    else
+        θ_d = oftype(σ, 0.8) * sb / (sb - σ)
+        return θ_d * y + (1 - θ_d) * Bs
+    end
+end
+
+function update(scheme::DBFGS{<:Inverse,<:Any}, H, s, y)
+    ȳ = _damp_y(scheme, H, s, y)
+    σ = dot(s, ȳ)
     ρ = inv(σ)
-    #   if isfinite(ρ)
-    C = (I - ρ * s * y')
+    C = (I - ρ * s * ȳ')
     H = C * H * C' + ρ * s * s'
-    #   end
     H
 end
 function update!(scheme::DBFGS{<:Inverse,<:Any}, H, s, y)
-    σ = dot(s, y)
+    ȳ = _damp_y(scheme, H, s, y)
+    σ = dot(s, ȳ)
     ρ = inv(σ)
 
     if isfinite(ρ)
-        Hy = H * y
-        H .= H .+ ((σ + y' * Hy) .* ρ^2) * (s * s')
-        Hys = Hy * s'
-        Hys .= Hys .+ Hys'
-        H .= H .- Hys .* ρ
+        Hȳ = H * ȳ
+        H .= H .+ ((σ + ȳ' * Hȳ) .* ρ^2) * (s * s')
+        Hȳs = Hȳ * s'
+        Hȳs .= Hȳs .+ Hȳs'
+        H .= H .- Hȳs .* ρ
     end
     H
 end
