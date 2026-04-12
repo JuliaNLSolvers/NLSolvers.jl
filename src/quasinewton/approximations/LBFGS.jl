@@ -8,6 +8,16 @@ struct LBFGS{TA,F,T,TP,Tskip}
     memory::T
     P::TP
     skip::Tskip
+    function LBFGS(approx::TA, type::F, memory::T, P::TP, skip::Tskip) where {TA,F,T,TP,Tskip}
+        if approx isa Direct && type isa TwoLoop
+            throw(ArgumentError(
+                "Direct L-BFGS with TwoLoop is not supported. " *
+                "The two-loop recursion only works with the inverse Hessian approximation. " *
+                "Use LBFGS(Inverse(), ...) or LBFGS() instead."
+            ))
+        end
+        new{TA,F,T,TP,Tskip}(approx, type, memory, P, skip)
+    end
 end
 summary(lbfgs::LBFGS{Inverse}) = "Inverse LBFGS"
 summary(lbfgs::LBFGS{Direct}) = "Direct LBFGS"
