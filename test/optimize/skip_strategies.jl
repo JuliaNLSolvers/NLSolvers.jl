@@ -104,6 +104,34 @@ using Test
         @test LBFGS(; memory=10).memory == 10
     end
 
+    @testset "Shanno-Phua scaling" begin
+        s = [1.0, 2.0]
+        y = [3.0, 4.0]
+        sp = NLSolvers.ShannoPhua()
+        # γ = s'y / y'y = (3+8) / (9+16) = 11/25
+        @test sp(s, y) ≈ 11.0 / 25.0
+        # Verify it uses y, not just s (old bug returned 1.0 for real vectors)
+        @test sp(s, y) != 1.0
+    end
+
+    @testset "max_restarts option" begin
+        @test OptimizationOptions().max_restarts == 10
+        @test OptimizationOptions(max_restarts=3).max_restarts == 3
+    end
+
+    @testset "QN restart on line search failure" begin
+        # Use HZAW which returns NaN on failure, triggering the restart path
+        # Use very tight maxiter on HZAW to force failures
+        tight_hz = HZAW(maxiter=1)
+        res = solve(prob, copy(x0), LineSearch(BFGS(), tight_hz), OptimizationOptions(maxiter=200, max_restarts=5))
+        # Should still run without error (restarts handle the LS failures)
+        @test isfinite(res.info.minimum)
+
+        # Same for L-BFGS
+        res_l = solve(prob, copy(x0), LineSearch(LBFGS(), tight_hz), OptimizationOptions(maxiter=200, max_restarts=5))
+        @test isfinite(res_l.info.minimum)
+    end
+
     @testset "L-BFGS memory not incremented on skip" begin
         # Use LiFukushimaSkip with a huge ε so it always skips
         always_skip = LiFukushimaSkip(ε=Inf)

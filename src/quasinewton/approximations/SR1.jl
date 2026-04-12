@@ -1,40 +1,45 @@
-# make QuasiNewton{SR1, approx} callable and then pass that as the
-# "update" parameter
-# the minimize can take a single SR1 input as -> QuasiNewton{SR1, Approx}
-struct SR1{T1} <: QuasiNewton{T1}
+# Symmetric Rank-1 (SR1) quasi-Newton update.
+#
+# The update is skipped when the denominator is too small relative to
+# the numerator vectors. The safeguard condition [Nocedal & Wright, eq. 6.26]:
+#
+#   |s'(y - Bs)| ≥ r · ||s|| · ||y - Bs||      (Direct form)
+#   |w'y|        ≥ r · ||w|| · ||y||             (Inverse form, w = s - Hy)
+#
+# with r ≈ 1e-8. When violated, the update is skipped.
+struct SR1{T1,Tr} <: QuasiNewton{T1}
     approx::T1
+    r::Tr
 end
-SR1() = SR1(Direct())
+SR1(approx::HessianApproximation) = SR1(approx, 1e-8)
+SR1(; inverse = false, r = 1e-8) = SR1(inverse ? Inverse() : Direct(), r)
 hasprecon(::SR1) = NoPrecon()
 
 summary(::SR1) = "SR1"
+
 function update(scheme::SR1{<:Inverse}, H, s, y)
     T = real(eltype(s))
     w = s - H * y
-    θ = dot(w, y) # angle between residual and change in gradient
-    ρy = norm(y)
-    if abs(θ) ≥ T(1e-12) * norm(w) * ρy && !iszero(ρy)
+    θ = real(dot(w, y))
+    if abs(θ) ≥ T(scheme.r) * norm(w) * norm(y)
         H = H + (w * w') / θ
     end
     H
 end
 function update(scheme::SR1{<:Direct}, B, s, y)
     T = real(eltype(s))
-    res = y - B * s # resesidual in secant equation
-    θ = dot(res, s) # angle between residual and change in state
-    if abs(inv(θ)) ≥ T(1e-12) * norm(res) * norm(s)
-        if true #abs(θ) ≥ 1e-12
-            B = B + (res * res') / θ
-        end
+    res = y - B * s
+    θ = real(dot(res, s))
+    if abs(θ) ≥ T(scheme.r) * norm(res) * norm(s)
+        B = B + (res * res') / θ
     end
     B
 end
 function update!(scheme::SR1{<:Inverse}, H, s, y)
     T = real(eltype(s))
     w = s - H * y
-    θ = dot(w, y) # angle between residual and change in gradient
-    ρy = norm(y)
-    if abs(θ) ≥ T(1e-12) * norm(w) * ρy && !iszero(ρy)
+    θ = real(dot(w, y))
+    if abs(θ) ≥ T(scheme.r) * norm(w) * norm(y)
         H .= H .+ (w * w') / θ
     end
     H
@@ -42,11 +47,9 @@ end
 function update!(scheme::SR1{<:Direct}, B, s, y)
     T = real(eltype(s))
     res = y - B * s
-    θ = dot(res, s) # angle between residual and change in state
-    if abs(inv(θ)) ≥ max(T(1e-12) * norm(res, 2) * norm(s, 2), sqrt(eps(T)))
-        if true #abs(θ) ≥ 1e-12
-            B .= B .+ (res * res') / θ
-        end
+    θ = real(dot(res, s))
+    if abs(θ) ≥ T(scheme.r) * norm(res) * norm(s)
+        B .= B .+ (res * res') / θ
     end
     B
 end
