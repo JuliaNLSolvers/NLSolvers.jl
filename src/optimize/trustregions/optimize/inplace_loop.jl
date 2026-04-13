@@ -53,9 +53,11 @@ function solve(
         iterate!(p, objvars, Δk, approach, problem, options, qnvars, false)
 
     iter = 1
+    callback_stopped = false
     # Check for convergence
     is_converged = converged(approach, objvars, ∇f0, options, reject, Δkp1)
-    while iter <= options.maxiter && !any(is_converged)
+    callback_stopped = _check_callback(options.callback, (iter=iter, time=time()-t0, state=(objvars..., Δ=Δkp1, rejected=reject)))
+    while iter <= options.maxiter && !any(is_converged) && !callback_stopped
         iter += 1
         objvars, Δkp1, reject, qnvars =
             iterate!(p, objvars, Δkp1, approach, problem, options, qnvars, false)
@@ -63,6 +65,7 @@ function solve(
         # Check for convergence
         is_converged = converged(approach, objvars, ∇f0, options, reject, Δkp1)
         print_trace(approach, options, iter, t0, objvars, Δkp1)
+        callback_stopped = _check_callback(options.callback, (iter=iter, time=time()-t0, state=(objvars..., Δ=Δkp1, rejected=reject)))
     end
     x, fx, ∇fx, z, fz, ∇fz, B, Pg = objvars
     return ConvergenceInfo(

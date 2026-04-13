@@ -199,7 +199,7 @@ function Base.show(io::IO, ci::ConvergenceInfo)
     println(io, "  Iterations:    $(info.iter)")
 end
 
-struct OptimizationOptions{T1,T2,T3,T4,Txn,Tgn}
+struct OptimizationOptions{T1,T2,T3,T4,Txn,Tgn,Tcb}
     x_abstol::T1
     x_reltol::T1
     x_norm::Txn
@@ -212,6 +212,7 @@ struct OptimizationOptions{T1,T2,T3,T4,Txn,Tgn}
     nm_tol::T3
     maxiter::T4
     show_trace::Bool
+    callback::Tcb
 end
 
 OptimizationOptions(;
@@ -222,11 +223,12 @@ OptimizationOptions(;
     g_reltol = 0.0,
     g_norm = x -> norm(x, Inf),
     f_limit = -Inf,
-    f_abstol = -Inf, # 
+    f_abstol = -Inf, #
     f_reltol = -Inf, # Not useful at 0 if for example we have quadric and trust region accept but objective is the same
     nm_tol = 1e-8,
     maxiter = 10000,
     show_trace = false,
+    callback = nothing,
 ) = OptimizationOptions(
     x_abstol,
     x_reltol,
@@ -240,7 +242,15 @@ OptimizationOptions(;
     nm_tol,
     maxiter,
     show_trace,
+    callback,
 )
+
+_check_callback(::Nothing, info) = false
+function _check_callback(cb, info)
+    result = cb(info)
+    result isa Bool || throw(ArgumentError("callback must return Bool, got $(typeof(result))"))
+    return result
+end
 
 struct MinResults{Tr,Tc<:ConvergenceInfo,Th,Ts,To}
     res::Tr

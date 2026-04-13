@@ -54,8 +54,9 @@ function solve(
     f0 = f_now
     temperature = f_best
     iter = 0
+    callback_stopped = false
     is_converged = converged(method, f_now, options)
-    while iter ≤ options.maxiter && !(is_converged)
+    while iter ≤ options.maxiter && !(is_converged) && !callback_stopped
         iter += 1
         # Determine the temperature for current iteration
         temperature = method.temperature(iter)
@@ -87,6 +88,7 @@ function solve(
             end
         end # n_per_temperature
         is_converged = converged(method, f_now, options)
+        callback_stopped = _check_callback(options.callback, (iter=iter, time=time()-t0, state=(x_best=x_best, f_best=f_best, x_now=x_now, f_now=f_now, temperature=temperature)))
     end
 
     ConvergenceInfo(
