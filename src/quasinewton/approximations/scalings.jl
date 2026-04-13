@@ -65,9 +65,33 @@ struct ShannoPhua <: QNScaling end # Nocedal & Wright eq. 6.20; Shanno & Phua, M
 function (::ShannoPhua)(s, y)
     real(dot(s, y)) / real(dot(y, y))
 end
+# Approx-aware forms used by update_obj. ShannoPhua does not need B;
+# γ_H = s'y / y'y and γ_B = y'y / s'y are reciprocal under B = H⁻¹.
+# `dot` is left complex-valued so γ promotes B's eltype on complex problems.
+(::ShannoPhua)(::Inverse, s, y, _) = dot(s, y) / dot(y, y)
+(::ShannoPhua)(::Direct,  s, y, _) = dot(y, y) / dot(s, y)
+
+"""
+    OrenLuenberger
+
+Self-scaling variable-metric sizing from Oren & Luenberger (Management Science, 1974).
+Uses the current `B`/`H` in the scaling factor:
+    γ_H = y'Hy / s'y        (Inverse form, scales H)
+    γ_B = s'y / y'By        (Direct form,  scales B)
+Note: these are not reciprocals of one another under B = H⁻¹ — each form is the
+standard self-scaling for that representation.
+"""
+struct OrenLuenberger <: QNScaling end
+(::OrenLuenberger)(::Inverse, s, y, H) = dot(y, H * y) / dot(s, y)
+(::OrenLuenberger)(::Direct,  s, y, B) = dot(s, y) / dot(y, B * y)
+
 struct InitialScaling{S} <: QNScaling
     scaling::S
 end
 (is::InitialScaling)(s, y) = is.scaling(s, y)
 next(qns::QNScaling) = qns
 next(is::InitialScaling) = is.scaling
+
+# Dispatch helper: the scaling used by a given scheme. Schemes that carry a
+# `scaling` field override this (see BFGS/DFP/SR1/DBFGS); default is OrenLuenberger.
+qn_scaling(scheme) = ShannoPhua()

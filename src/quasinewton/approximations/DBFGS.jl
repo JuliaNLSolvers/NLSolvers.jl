@@ -1,12 +1,15 @@
-struct DBFGS{T1,T2,T3} <: QuasiNewton{T1}
+struct DBFGS{T1,T2,T3,Tscaling} <: QuasiNewton{T1}
     approx::T1
     theta::T2
     P::T3
+    scaling::Tscaling
 end
-DBFGS(approx) = DBFGS(approx, 0.2, nothing)
-DBFGS(; inverse = true, theta = 0.2) = DBFGS(inverse ? Inverse() : Direct(), theta, nothing)
+DBFGS(approx) = DBFGS(approx, 0.2, nothing, ShannoPhua())
+DBFGS(; inverse = true, theta = 0.2, scaling = ShannoPhua()) =
+    DBFGS(inverse ? Inverse() : Direct(), theta, nothing, scaling)
 hasprecon(::DBFGS{<:Any,<:Any,<:Nothing}) = NoPrecon()
 hasprecon(::DBFGS{<:Any,<:Any,<:Any}) = HasPrecon()
+qn_scaling(scheme::DBFGS) = scheme.scaling
 summary(dbfgs::DBFGS{Inverse}) = "Inverse Damped BFGS"
 summary(dbfgs::DBFGS{Direct}) = "Direct Damped BFGS"
 
@@ -48,7 +51,7 @@ function update(scheme::DBFGS{<:Direct,<:Any}, B, s, y)
         # Calculate one vector divided by dot(s, b)
         ρbb = inv(sb) * b
         # And calculate
-        return B = B .+ (inv(σ) * y) * y' .- ρbb * b'
+        return B .+ (inv(σ) * y) * y' .- ρbb * b'
     else
         θ = 0.8 * sb / (sb - σ)
         r = y * θ + (1 - θ) * b

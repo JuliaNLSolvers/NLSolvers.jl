@@ -1,10 +1,13 @@
-struct DFP{T1,Tskip} <: QuasiNewton{T1}
+struct DFP{T1,Tskip,Tscaling} <: QuasiNewton{T1}
     approx::T1
     skip::Tskip
+    scaling::Tscaling
 end
-DFP(approx::HessianApproximation) = DFP(approx, NoPDSkip())
-DFP(; inverse = true, skip = NoPDSkip()) = DFP(inverse ? Inverse() : Direct(), skip)
+DFP(approx::HessianApproximation) = DFP(approx, NoPDSkip(), ShannoPhua())
+DFP(; inverse = true, skip = NoPDSkip(), scaling = ShannoPhua()) =
+    DFP(inverse ? Inverse() : Direct(), skip, scaling)
 hasprecon(::DFP) = NoPrecon()
+qn_scaling(scheme::DFP) = scheme.scaling
 
 summary(dfp::DFP{Inverse}) = "Inverse DFP"
 summary(dfp::DFP{Direct}) = "Direct DFP"

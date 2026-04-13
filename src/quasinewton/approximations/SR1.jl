@@ -7,13 +7,16 @@
 #   |w'y|        ≥ r · ||w|| · ||y||             (Inverse form, w = s - Hy)
 #
 # with r ≈ 1e-8. When violated, the update is skipped.
-struct SR1{T1,Tr} <: QuasiNewton{T1}
+struct SR1{T1,Tr,Tscaling} <: QuasiNewton{T1}
     approx::T1
     r::Tr
+    scaling::Tscaling
 end
-SR1(approx::HessianApproximation) = SR1(approx, 1e-8)
-SR1(; inverse = false, r = 1e-8) = SR1(inverse ? Inverse() : Direct(), r)
+SR1(approx::HessianApproximation) = SR1(approx, 1e-8, ShannoPhua())
+SR1(; inverse = false, r = 1e-8, scaling = ShannoPhua()) =
+    SR1(inverse ? Inverse() : Direct(), r, scaling)
 hasprecon(::SR1) = NoPrecon()
+qn_scaling(scheme::SR1) = scheme.scaling
 
 summary(::SR1) = "SR1"
 
