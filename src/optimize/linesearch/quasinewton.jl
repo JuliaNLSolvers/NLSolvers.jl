@@ -97,6 +97,7 @@ function _solve(
     # Check for gradient convergence
     is_converged = converged(approach, objvars, ∇f0, options)
     print_trace(approach, options, iter, t0, objvars)
+    callback_stopped = _check_callback(options.callback, (iter=iter, time=time()-t0, state=objvars))
     while iter < options.maxiter && !any(is_converged) && restarts < options.max_restarts && !callback_stopped
         iter += 1
         #==============================
