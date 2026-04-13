@@ -164,6 +164,9 @@ function _solve(
                 options,
             )
         end
+        if _check_callback(options.callback, (iter=iter, time=time()-t0, state=(x=x, z=z, fz=fz, ∇fz=∇fz, B=B, activeset=activeset)))
+            break
+        end
     end
     iter = options.maxiter
     return ConvergenceInfo(

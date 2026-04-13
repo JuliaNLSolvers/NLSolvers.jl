@@ -80,7 +80,8 @@ function solve(
     X_best[1] .= x0
     X[1] .= x0
     iter = 0
-    while iter < options.maxiter
+    callback_stopped = false
+    while iter < options.maxiter && !callback_stopped
         iter += 1
         limit_X!(X, lower, upper)
         Fs = batched_value(problem, Fs, X)
@@ -125,6 +126,7 @@ function solve(
         current_state, swarm_f = get_swarm_state(X, Fs, x, current_state)
         ω, c₁, c₂ = update_swarm_params!(c₁, c₂, ω, current_state, swarm_f)
         update_swarm!(X, X_best, x, n, V, ω, c₁, c₂)
+        callback_stopped = _check_callback(options.callback, (iter=iter, time=time()-t0, state=(X=X, X_best=X_best, Fs=Fs, Fs_best=Fs_best, x=x, best_f=best_f, swarm_f=swarm_f)))
     end
     best_f, x
     ConvergenceInfo(

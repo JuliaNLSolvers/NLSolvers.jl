@@ -57,8 +57,9 @@ function _solve(prob, bm::BrentMin, options)
 
     p = q = r = 0 * x
     brent_iter = 0
+    callback_stopped = false
 
-    while brent_iter < options.maxiter
+    while brent_iter < options.maxiter && !callback_stopped
 
         brent_iter += 1
         m = (a + b) / 2
@@ -135,6 +136,7 @@ function _solve(prob, bm::BrentMin, options)
         else
             break
         end
+        callback_stopped = _check_callback(options.callback, (iter=brent_iter, time=time()-time0, state=(x=x, fx=fx, a=a, b=b, v=v, w=w, fv=fv, fw=fw)))
     end
     if bm.evaluate_bounds
         # Even if we stopped it can still be the case that x is not a or b even if they're the lowest.

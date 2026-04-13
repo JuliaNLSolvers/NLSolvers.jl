@@ -193,7 +193,8 @@ function _solve(
     iter = 0
     nm_obj = f0
     is_converged = false
-    while iter <= options.maxiter && !any(is_converged)
+    callback_stopped = false
+    while iter <= options.maxiter && !any(is_converged) && !callback_stopped
         iter += 1
         nm_obj, x_centroid = iterate!(
             prob,
@@ -213,6 +214,7 @@ function _solve(
         if nm_obj ≤ options.nm_tol
             is_converged = true
         end
+        callback_stopped = _check_callback(options.callback, (iter=iter, time=time()-t0, state=(simplex_vector=simplex_vector, simplex_value=simplex_value, x_centroid=x_centroid, nm_obj=nm_obj)))
     end
     f_centroid_min = value(prob, x_centroid)
     f_min, i_f_min = findmin(simplex_value)
@@ -385,8 +387,9 @@ function _solve(
     is_converged = false
     iter = 0
     nm_obj = f0
+    callback_stopped = false
 
-    while iter <= options.maxiter && !any(is_converged)
+    while iter <= options.maxiter && !any(is_converged) && !callback_stopped
         iter += 1
 
         # Augment the iteration counter
@@ -467,10 +470,10 @@ function _solve(
         x_centroid = centroid(simplex_vector, i_order[end])
 
         nm_obj = nmobjective(simplex_value)
-        # if nm_x < 1e-18
-        #     break
-        # end
-        # check conv
+        if nm_obj ≤ options.nm_tol
+            is_converged = true
+        end
+        callback_stopped = _check_callback(options.callback, (iter=iter, time=time()-t0, state=(simplex_vector=simplex_vector, simplex_value=simplex_value, x_centroid=x_centroid, nm_obj=nm_obj)))
     end
     f_centroid_min = value(prob, x_centroid)
     f_min, i_f_min = findmin(simplex_value)
