@@ -696,7 +696,7 @@ using DoubleFloats
         res = solve(
             f_obj,
             Double64.([1, 2]),
-            LineSearch(DFP(Inverse())),
+            LineSearch(DFP(; inverse = true, scaling = OrenLuenberger())),
             OptimizationOptions(; g_abstol = 1e-32),
         )
     @test res.info.minimum < 1e-45
@@ -803,11 +803,10 @@ using GeometryTypes
     @test res.info.minimum < 1e-9
     res = solve(f_obj, Point(1.3, 1.3), LineSearch(BFGS(Inverse())), OptimizationOptions())
     @test res.info.minimum < 1e-10
-    res = solve(f_obj, Point(1.3, 1.3), LineSearch(DFP(Inverse())), OptimizationOptions())
+    res = solve(f_obj, Point(1.3, 1.3), LineSearch(DFP(; inverse = true, scaling = OrenLuenberger())), OptimizationOptions())
     @test res.info.minimum < 1e-10
-    # TODO: Look into this. Maybe SR1 updates are just not PSD and thus inappropriate with line search
     res = solve(f_obj, Point(1.3, 1.3), LineSearch(SR1(Inverse())), OptimizationOptions())
-    @test_broken res.info.minimum < 1e-10
+    @test res.info.minimum < 1e-10
 
     res = solve(
         f_obj,
@@ -818,7 +817,7 @@ using GeometryTypes
     @test res.info.minimum < 1e-9
     res = solve(f_obj, Point(1.3, 1.3), LineSearch(BFGS(Direct())), OptimizationOptions())
     @test res.info.minimum < 1e-10
-    res = solve(f_obj, Point(1.3, 1.3), LineSearch(DFP(Direct())), OptimizationOptions())
+    res = solve(f_obj, Point(1.3, 1.3), LineSearch(DFP(; inverse = false, scaling = OrenLuenberger())), OptimizationOptions())
     @test res.info.minimum < 1e-10
     # TODO: Look into this. Maybe SR1 updates are just not PSD and thus inappropriate with line search
     res = solve(f_obj, Point(1.3, 1.3), LineSearch(SR1(Direct())), OptimizationOptions())

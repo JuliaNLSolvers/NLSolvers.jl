@@ -145,6 +145,7 @@ export NWI, Dogleg, NTR
 include("quasinewton/quasinewton.jl")
 export DBFGS, BFGS, SR1, DFP, GradientDescent, Newton, BB, LBFGS, ActiveBox
 export NoPDSkip, LBFGSBSkip, LiFukushimaSkip
+export ShannoPhua, OrenLuenberger
 
 # To globalize Newton's method
 using PositiveFactorizations: Positive

@@ -24,7 +24,7 @@ function update(scheme::SR1{<:Inverse}, H, s, y)
     T = real(eltype(s))
     w = s - H * y
     θ = real(dot(w, y))
-    if abs(θ) ≥ T(scheme.r) * norm(w) * norm(y)
+    if !iszero(θ) && abs(θ) ≥ T(scheme.r) * norm(w) * norm(y)
         H = H + (w * w') / θ
     end
     H
@@ -33,7 +33,7 @@ function update(scheme::SR1{<:Direct}, B, s, y)
     T = real(eltype(s))
     res = y - B * s
     θ = real(dot(res, s))
-    if abs(θ) ≥ T(scheme.r) * norm(res) * norm(s)
+    if !iszero(θ) && abs(θ) ≥ T(scheme.r) * norm(res) * norm(s)
         B = B + (res * res') / θ
     end
     B
@@ -42,7 +42,7 @@ function update!(scheme::SR1{<:Inverse}, H, s, y)
     T = real(eltype(s))
     w = s - H * y
     θ = real(dot(w, y))
-    if abs(θ) ≥ T(scheme.r) * norm(w) * norm(y)
+    if !iszero(θ) && abs(θ) ≥ T(scheme.r) * norm(w) * norm(y)
         H .= H .+ (w * w') / θ
     end
     H
@@ -51,7 +51,7 @@ function update!(scheme::SR1{<:Direct}, B, s, y)
     T = real(eltype(s))
     res = y - B * s
     θ = real(dot(res, s))
-    if abs(θ) ≥ T(scheme.r) * norm(res) * norm(s)
+    if !iszero(θ) && abs(θ) ≥ T(scheme.r) * norm(res) * norm(s)
         B .= B .+ (res * res') / θ
     end
     B
