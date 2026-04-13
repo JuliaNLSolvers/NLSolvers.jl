@@ -199,7 +199,7 @@ function Base.show(io::IO, ci::ConvergenceInfo)
     println(io, "  Iterations:    $(info.iter)")
 end
 
-struct OptimizationOptions{T1,T2,T3,T4,Txn,Tgn}
+struct OptimizationOptions{T1,T2,T3,T4,Txn,Tgn,Tcb}
     x_abstol::T1
     x_reltol::T1
     x_norm::Txn
@@ -213,6 +213,7 @@ struct OptimizationOptions{T1,T2,T3,T4,Txn,Tgn}
     maxiter::T4
     max_restarts::Int
     show_trace::Bool
+    callback::Tcb
 end
 
 OptimizationOptions(;
@@ -229,6 +230,7 @@ OptimizationOptions(;
     maxiter = 10000,
     max_restarts = 10,
     show_trace = false,
+    callback = nothing,
 ) = OptimizationOptions(
     x_abstol,
     x_reltol,
@@ -243,7 +245,15 @@ OptimizationOptions(;
     maxiter,
     max_restarts,
     show_trace,
+    callback,
 )
+
+_check_callback(::Nothing, info) = false
+function _check_callback(cb, info)
+    result = cb(info)
+    result isa Bool || throw(ArgumentError("callback must return Bool, got $(typeof(result))"))
+    return result
+end
 
 struct MinResults{Tr,Tc<:ConvergenceInfo,Th,Ts,To}
     res::Tr

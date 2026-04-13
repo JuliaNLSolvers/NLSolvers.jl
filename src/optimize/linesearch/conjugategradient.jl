@@ -236,13 +236,16 @@ function _solve(
     cgvars = CGVars(y, d, α, β, true)
 
     k = 1
+    callback_stopped = false
     objvars, P, cgvars = iterate(mstyle, cgvars, objvars, approach, problem, options)
     is_converged = converged(approach, objvars, ∇f0, options)
-    while k < options.maxiter && !any(is_converged)
+    callback_stopped = _check_callback(options.callback, (iter=k, time=time()-t0, state=objvars))
+    while k < options.maxiter && !any(is_converged) && !callback_stopped
         k += 1
         objvars, P, cgvars =
             iterate(mstyle, cgvars, objvars, approach, problem, options, P, false)
         is_converged = converged(approach, objvars, ∇f0, options)
+        callback_stopped = _check_callback(options.callback, (iter=k, time=time()-t0, state=objvars))
     end
     x, fx, ∇fx, z, fz, ∇fz, B = objvars
     return ConvergenceInfo(

@@ -66,9 +66,12 @@ function _solve(
     objvars, qnvars, P =
         iterate(mstyle, 1, qnvars, objvars, P, approach, problem, problem, options)
     iter = 1
+    callback_stopped = false
     # Check for gradient convergence
     is_converged = converged(approach, objvars, ∇f0, options)
-    while iter <= options.maxiter && !any(is_converged) && restarts < options.max_restarts
+
+    callback_stopped = _check_callback(options.callback, (iter=iter, time=time()-t0, state=objvars))
+    while iter <= options.maxiter && !any(is_converged) && restarts < options.max_restarts && !callback_stopped
         iter += 1
         prev_memory = qnvars.current_memory
         # take a step and update approximation
@@ -90,6 +93,7 @@ function _solve(
         end
         # Check for gradient convergence
         is_converged = converged(approach, objvars, ∇f0, options)
+        callback_stopped = _check_callback(options.callback, (iter=iter, time=time()-t0, state=objvars))
     end
     x, fx, ∇fx, z, fz, ∇fz, B, Pg = objvars
     return ConvergenceInfo(

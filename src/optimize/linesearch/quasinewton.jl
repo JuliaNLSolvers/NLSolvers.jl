@@ -93,10 +93,11 @@ function _solve(
     ==============================#
     objvars, P, qnvars = iterate(mstyle, qnvars, objvars, P, approach, problem, options)
     iter = 1
+    callback_stopped = false
     # Check for gradient convergence
     is_converged = converged(approach, objvars, ∇f0, options)
     print_trace(approach, options, iter, t0, objvars)
-    while iter < options.maxiter && !any(is_converged) && restarts < options.max_restarts
+    while iter < options.maxiter && !any(is_converged) && restarts < options.max_restarts && !callback_stopped
         iter += 1
         #==============================
                      iterate
@@ -114,6 +115,7 @@ function _solve(
         ==============================#
         is_converged = converged(approach, objvars, ∇f0, options)
         print_trace(approach, options, iter, t0, objvars)
+        callback_stopped = _check_callback(options.callback, (iter=iter, time=time()-t0, state=objvars))
     end
     x, fx, ∇fx, z, fz, ∇fz, B, Pg = objvars
     return ConvergenceInfo(
