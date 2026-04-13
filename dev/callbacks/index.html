@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  
+  
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <meta name="author" content="Patrick Kofod Mogensen">
+    
+    <link rel="shortcut icon" href="../img/favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
+    <title>Callbacks - NLSolvers.jl</title>
+    <link href="../css/bootstrap-3.3.7.min.css" rel="stylesheet">
+    <link href="../css/font-awesome-4.7.0.css" rel="stylesheet">
+    <link href="../css/base.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/highlight.css">
+    <link href="../assets/Documenter.css" rel="stylesheet">
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
+    <![endif]-->
+
+    <script src="../js/jquery-3.2.1.min.js"></script>
+    <script src="../js/bootstrap-3.3.7.min.js"></script>
+    <script src="../js/highlight.pack.js"></script>
+    
+    <base target="_top">
+    <script>
+      var base_url = '..';
+      var is_top_frame = false;
+        
+        var pageToc = [
+          {title: "Callbacks", url: "#_top", children: [
+              {title: "Basic usage", url: "#basic-usage" },
+              {title: "What the callback receives", url: "#what-the-callback-receives" },
+              {title: "Solver-specific state", url: "#solver-specific-state" },
+              {title: "Examples", url: "#examples" },
+              {title: "Performance", url: "#performance" },
+          ]},
+        ];
+
+    </script>
+    <script src="../js/base.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS_HTML"></script>
+      <script src="../assets/mathjaxhelper.js"></script> 
+</head>
+
+<body>
+<script>
+if (is_top_frame) { $('body').addClass('wm-top-page'); }
+</script>
+
+
+
+<div class="container-fluid wm-page-content">
+  <a name="_top"></a>
+    
+
+    
+    
+      
+    
+
+  <div class="row wm-article-nav-buttons" role="navigation" aria-label="navigation">
+    
+    <div class="wm-article-nav">
+      <a href="../nonlineareq/" class="btn btn-xs btn-default pull-left">
+        <i class="fa fa-chevron-left" aria-hidden="true"></i>
+        Previous</a><a href="../nonlineareq/" class="btn btn-xs btn-link">
+        Solving non-linear equations
+      </a>
+    </div>
+    
+  </div>
+
+    
+
+    <p><a id='Callbacks'></a></p>
+<p><a id='Callbacks-1'></a></p>
+<h1 id="callbacks">Callbacks</h1>
+<p>NLSolvers.jl supports user-defined callbacks that are invoked after every iteration of any optimization solver. Callbacks let you monitor progress, log intermediate state, build a convergence trace, or stop the solver early based on custom criteria.</p>
+<p><a id='Basic-usage'></a></p>
+<p><a id='Basic-usage-1'></a></p>
+<h2 id="basic-usage">Basic usage</h2>
+<p>A callback is any function (or callable object) that takes a single <code>info</code> argument and returns a <code>Bool</code>:</p>
+<pre><code class="language-julia">using NLSolvers
+
+callback = info -&gt; begin
+    println(&quot;iter=$(info.iter), f=$(info.state.fz)&quot;)
+    return false   # continue optimization
+end
+
+solve(prob, x0, LineSearch(BFGS()),
+      OptimizationOptions(callback = callback))
+</code></pre>
+<p>Returning <code>true</code> stops the solver early; returning <code>false</code> lets it continue. The default <code>callback = nothing</code> disables the mechanism with zero overhead.</p>
+<p><a id='What-the-callback-receives'></a></p>
+<p><a id='What-the-callback-receives-1'></a></p>
+<h2 id="what-the-callback-receives">What the callback receives</h2>
+<p>The <code>info</code> argument is a <code>NamedTuple</code> with three fields:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Field</th>
+<th style="text-align: right;">Type</th>
+<th style="text-align: right;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;"><code>iter</code></td>
+<td style="text-align: right;"><code>Int</code></td>
+<td style="text-align: right;">Current iteration count (1-based)</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>time</code></td>
+<td style="text-align: right;"><code>Float64</code></td>
+<td style="text-align: right;">Elapsed seconds since <code>solve</code> started</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>state</code></td>
+<td style="text-align: right;"><code>NamedTuple</code></td>
+<td style="text-align: right;">Solver-specific state (see below)</td>
+</tr>
+</tbody>
+</table>
+<p><a id='Solver-specific-state'></a></p>
+<p><a id='Solver-specific-state-1'></a></p>
+<h2 id="solver-specific-state">Solver-specific <code>state</code></h2>
+<p>The contents of <code>info.state</code> depend on which solver is running. Use <code>haskey</code> if you write generic callbacks.</p>
+<p><a id='Line-search-solvers-(BFGS,-DBFGS,-DFP,-SR1,-L-BFGS,-CG,-Gradient-Descent,-Newton)'></a></p>
+<p><a id='Line-search-solvers-(BFGS,-DBFGS,-DFP,-SR1,-L-BFGS,-CG,-Gradient-Descent,-Newton)-1'></a></p>
+<h3 id="line-search-solvers-bfgs-dbfgs-dfp-sr1-l-bfgs-cg-gradient-descent-newton">Line search solvers (BFGS, DBFGS, DFP, SR1, L-BFGS, CG, Gradient Descent, Newton)</h3>
+<p><code>state</code> is the internal <code>objvars</code> named tuple:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Field</th>
+<th style="text-align: right;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;"><code>x</code></td>
+<td style="text-align: right;">Previous iterate</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>fx</code></td>
+<td style="text-align: right;">Objective value at <code>x</code></td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>∇fx</code></td>
+<td style="text-align: right;">Gradient at <code>x</code></td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>z</code></td>
+<td style="text-align: right;">New iterate (after line search)</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>fz</code></td>
+<td style="text-align: right;">Objective value at <code>z</code></td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>∇fz</code></td>
+<td style="text-align: right;">Gradient at <code>z</code></td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>B</code></td>
+<td style="text-align: right;">Current Hessian (or inverse) approximation; <code>nothing</code> for L-BFGS/CG</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>Pg</code></td>
+<td style="text-align: right;">Preconditioned gradient if using a preconditioner; otherwise <code>nothing</code></td>
+</tr>
+</tbody>
+</table>
+<p><a id='Trust-region-solvers'></a></p>
+<p><a id='Trust-region-solvers-1'></a></p>
+<h3 id="trust-region-solvers">Trust region solvers</h3>
+<p>Same fields as line search, plus:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Field</th>
+<th style="text-align: right;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;"><code>Δ</code></td>
+<td style="text-align: right;">Current trust region radius</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>rejected</code></td>
+<td style="text-align: right;"><code>true</code> if the previous step was rejected by the trust region rule</td>
+</tr>
+</tbody>
+</table>
+<p><a id='Nelder-Mead'></a></p>
+<p><a id='Nelder-Mead-1'></a></p>
+<h3 id="nelder-mead">Nelder-Mead</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Field</th>
+<th style="text-align: right;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;"><code>simplex_vector</code></td>
+<td style="text-align: right;">Vector of simplex vertices</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>simplex_value</code></td>
+<td style="text-align: right;">Function values at each vertex</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>x_centroid</code></td>
+<td style="text-align: right;">Centroid of the simplex (excluding the worst vertex)</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>nm_obj</code></td>
+<td style="text-align: right;">Convergence metric — standard deviation of <code>simplex_value</code></td>
+</tr>
+</tbody>
+</table>
+<p><a id='Simulated-Annealing'></a></p>
+<p><a id='Simulated-Annealing-1'></a></p>
+<h3 id="simulated-annealing">Simulated Annealing</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Field</th>
+<th style="text-align: right;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;"><code>x_best</code></td>
+<td style="text-align: right;">Best point found so far</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>f_best</code></td>
+<td style="text-align: right;">Best objective value found so far</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>x_now</code></td>
+<td style="text-align: right;">Current state of the chain</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>f_now</code></td>
+<td style="text-align: right;">Objective value at <code>x_now</code></td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>temperature</code></td>
+<td style="text-align: right;">Current temperature</td>
+</tr>
+</tbody>
+</table>
+<p><a id='Particle-Swarm'></a></p>
+<p><a id='Particle-Swarm-1'></a></p>
+<h3 id="particle-swarm">Particle Swarm</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Field</th>
+<th style="text-align: right;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;"><code>X</code></td>
+<td style="text-align: right;">Current particle positions</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>X_best</code></td>
+<td style="text-align: right;">Each particle's personal best</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>Fs</code></td>
+<td style="text-align: right;">Function values at <code>X</code></td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>Fs_best</code></td>
+<td style="text-align: right;">Function values at <code>X_best</code></td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>x</code></td>
+<td style="text-align: right;">Global best particle</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>best_f</code></td>
+<td style="text-align: right;">Global best objective value</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>swarm_f</code></td>
+<td style="text-align: right;">Convergence metric for the swarm</td>
+</tr>
+</tbody>
+</table>
+<p><a id='Brent's-method-(univariate)'></a></p>
+<p><a id='Brent's-method-(univariate)-1'></a></p>
+<h3 id="brents-method-univariate">Brent's method (univariate)</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Field</th>
+<th style="text-align: right;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;"><code>x</code></td>
+<td style="text-align: right;">Current best point</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>fx</code></td>
+<td style="text-align: right;">Function value at <code>x</code></td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>a</code>, <code>b</code></td>
+<td style="text-align: right;">Current bracketing interval <code>[a, b]</code></td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>v</code>, <code>w</code></td>
+<td style="text-align: right;">Two previous iterates</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>fv</code>, <code>fw</code></td>
+<td style="text-align: right;">Function values at <code>v</code> and <code>w</code></td>
+</tr>
+</tbody>
+</table>
+<p><a id='Active-Box-(projected-Newton)'></a></p>
+<p><a id='Active-Box-(projected-Newton)-1'></a></p>
+<h3 id="active-box-projected-newton">Active Box (projected Newton)</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Field</th>
+<th style="text-align: right;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;"><code>x</code></td>
+<td style="text-align: right;">Previous iterate</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>z</code></td>
+<td style="text-align: right;">New iterate</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>fz</code></td>
+<td style="text-align: right;">Objective value at <code>z</code></td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>∇fz</code></td>
+<td style="text-align: right;">Gradient at <code>z</code></td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>B</code></td>
+<td style="text-align: right;">Hessian approximation</td>
+</tr>
+<tr>
+<td style="text-align: right;"><code>activeset</code></td>
+<td style="text-align: right;">Boolean vector indicating active bound constraints</td>
+</tr>
+</tbody>
+</table>
+<p><a id='Examples'></a></p>
+<p><a id='Examples-1'></a></p>
+<h2 id="examples">Examples</h2>
+<p><a id='Build-a-convergence-trace'></a></p>
+<p><a id='Build-a-convergence-trace-1'></a></p>
+<h3 id="build-a-convergence-trace">Build a convergence trace</h3>
+<pre><code class="language-julia">trace = Float64[]
+solve(prob, x0, LineSearch(BFGS()),
+      OptimizationOptions(
+          callback = info -&gt; (push!(trace, info.state.fz); false),
+          maxiter = 100,
+      ))
+</code></pre>
+<p><a id='Stop-when-the-gradient-is-sufficiently-small'></a></p>
+<p><a id='Stop-when-the-gradient-is-sufficiently-small-1'></a></p>
+<h3 id="stop-when-the-gradient-is-sufficiently-small">Stop when the gradient is sufficiently small</h3>
+<pre><code class="language-julia">gtol = 1e-6
+solve(prob, x0, LineSearch(BFGS()),
+      OptimizationOptions(
+          callback = info -&gt; norm(info.state.∇fz, Inf) &lt; gtol,
+          g_abstol = 0.0,  # disable built-in g-tolerance so callback wins
+      ))
+</code></pre>
+<p><a id='Time-limited-optimization'></a></p>
+<p><a id='Time-limited-optimization-1'></a></p>
+<h3 id="time-limited-optimization">Time-limited optimization</h3>
+<pre><code class="language-julia">time_limit = 5.0  # seconds
+solve(prob, x0, LineSearch(BFGS()),
+      OptimizationOptions(callback = info -&gt; info.time &gt; time_limit))
+</code></pre>
+<p><a id='Save-iterates-for-plotting-later'></a></p>
+<p><a id='Save-iterates-for-plotting-later-1'></a></p>
+<h3 id="save-iterates-for-plotting-later">Save iterates for plotting later</h3>
+<p>Arrays in <code>info.state</code> (such as <code>z</code>, <code>∇fz</code>, <code>simplex_vector</code>) are aliases of live solver buffers — they will be overwritten on the next iteration. <strong>Copy them if you need to retain them past the callback call.</strong></p>
+<pre><code class="language-julia">history = Vector{Vector{Float64}}()
+solve(prob, x0, LineSearch(BFGS()),
+      OptimizationOptions(
+          callback = info -&gt; (push!(history, copy(info.state.z)); false),
+      ))
+</code></pre>
+<p>Scalar fields like <code>info.iter</code>, <code>info.time</code>, <code>info.state.fz</code> are values and do not need copying.</p>
+<p><a id='Performance'></a></p>
+<p><a id='Performance-1'></a></p>
+<h2 id="performance">Performance</h2>
+<p>The callback machinery has zero runtime overhead when <code>callback === nothing</code> (the default). The callback type is captured as a type parameter on <code>OptimizationOptions</code>, so the compiler eliminates the dispatch entirely. Passing a concrete callback function adds only the cost of calling that function once per iteration.</p>
+
+  <br>
+    
+
+    
+    
+      
+    
+
+  <div class="row wm-article-nav-buttons" role="navigation" aria-label="navigation">
+    
+    <div class="wm-article-nav">
+      <a href="../nonlineareq/" class="btn btn-xs btn-default pull-left">
+        <i class="fa fa-chevron-left" aria-hidden="true"></i>
+        Previous</a><a href="../nonlineareq/" class="btn btn-xs btn-link">
+        Solving non-linear equations
+      </a>
+    </div>
+    
+  </div>
+
+    <br>
+</div>
+
+<footer class="container-fluid wm-page-content">
+      <p>
+        <a href="https://github.com/JuliaNLSolvers/NLSolvers.jl/edit/master/docs/callbacks.md"><i class="fa fa-github"></i>
+Edit on GitHub</a>
+      </p>
+  <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a> using <a href="https://github.com/gristlabs/mkdocs-windmill">Windmill</a> theme by Grist Labs.</p>
+</footer>
+
+</body>
+</html>
