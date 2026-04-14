@@ -16,9 +16,10 @@ function solve(
     objvars::NamedTuple;
     initial_Δ = 20.0,
 )
-    if !(mstyle(problem) === InPlace()) && !(approach.spsolve == Dogleg())
+    ms = mstyle(problem)
+    if !(ms === InPlace()) && !(approach.spsolve isa Dogleg)
         throw(
-            ErrorException("solve() not defined for OutOfPlace() with TrustRegion solvers"),
+            ErrorException("solve() not defined for OutOfPlace() with TrustRegion solvers except Dogleg"),
         )
     end
     t0 = time()
@@ -47,10 +48,13 @@ function solve(
         )
     end
     qnvars = QNVars(objvars.z, objvars.z)
-    p = copy(objvars.x)
+    p = ms === InPlace() ? copy(objvars.x) : nothing
 
-    objvars, Δkp1, reject, qnvars =
+    objvars, Δkp1, reject, qnvars = if ms === InPlace()
         iterate!(p, objvars, Δk, approach, problem, options, qnvars, false)
+    else
+        iterate(ms, objvars, Δk, approach, problem, options, qnvars, false)
+    end
 
     iter = 1
     callback_stopped = false
@@ -59,8 +63,11 @@ function solve(
     callback_stopped = _check_callback(options.callback, (iter=iter, time=time()-t0, state=(objvars..., Δ=Δkp1, rejected=reject)))
     while iter <= options.maxiter && !any(is_converged) && !callback_stopped
         iter += 1
-        objvars, Δkp1, reject, qnvars =
+        objvars, Δkp1, reject, qnvars = if ms === InPlace()
             iterate!(p, objvars, Δkp1, approach, problem, options, qnvars, false)
+        else
+            iterate(ms, objvars, Δkp1, approach, problem, options, qnvars, false)
+        end
 
         # Check for convergence
         is_converged = converged(approach, objvars, ∇f0, options, reject, Δkp1)
@@ -161,6 +168,55 @@ function iterate!(
         y = _scale(mstyle(problem), y, y, 0) # ∇fz - ∇fx
         # and will cause quasinewton updates to not update
         # this seems incorrect as it's already updated, should hold off here
+    end
+    return (x = x, fx = fx, ∇fx = ∇fx, z = z, fz = fz, ∇fz = ∇fz, B = B, Pg = nothing),
+    Δkp1,
+    reject_step,
+    QNVars(d, s, y)
+end
+
+function iterate(
+    ::OutOfPlace,
+    objvars,
+    Δk,
+    approach::TrustRegion,
+    problem::OptimizationProblem,
+    options::OptimizationOptions,
+    qnvars,
+    scale = nothing,
+)
+    x, fx, ∇fx, z, fz, ∇fz, B, Pg = objvars
+    T = eltype(x)
+    scheme, subproblemsolver = modelscheme(approach), algorithm(approach)
+    y, d, s = qnvars.y, qnvars.d, qnvars.s
+    fx = fz
+
+    x = copy(z)
+    ∇fx = copy(∇fz)
+
+    p = copy(x)  # scratch for Dogleg (unused in OOP but needed for API)
+    spr = subproblemsolver(∇fx, B, Δk, p, scheme, problem.mstyle; abstol = 1e-10)
+    Δm = -spr.mz
+
+    if abs(spr.mz) < eps(spr.mz)
+        # set flag to check for problems
+    end
+
+    z = retract(problem, z, x, spr.p)
+
+    fz, ∇fz, B, s, y = update_obj(problem, spr.p, ∇fx, z, ∇fz, B, scheme, scale, nothing)
+
+    Δf = fx - fz
+    R = Δf / Δm
+
+    Δkp1, reject_step = update_trust_region(spr, R, spr.p)
+
+    if reject_step
+        z = copy(x)
+        ∇fz = copy(∇fx)
+        fz = fx
+        s = s .* 0
+        y = y .* 0
     end
     return (x = x, fx = fx, ∇fx = ∇fx, z = z, fz = fz, ∇fz = ∇fz, B = B, Pg = nothing),
     Δkp1,

@@ -51,7 +51,7 @@ function (dogleg::Dogleg)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxite
         # step. Otherwise find where the dog-leg path crosses the trust region
 
         # find the (quasi-)Newton step
-        p = find_direction!(p, H, nothing, ∇f, scheme)
+        p = mstyle === InPlace() ? find_direction!(p, H, nothing, ∇f, scheme) : find_direction(H, nothing, ∇f, scheme)
         norm_p = norm(p)
         if norm_p ≤ Δ # fixme really need to add the 20% slack here (see TR book and NTR)
             if norm_p < Δ
