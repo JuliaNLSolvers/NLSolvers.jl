@@ -278,6 +278,14 @@ const prob3 = OptimizationProblem(obj3, (-10.1, 9.0))
             @test result.info.minimum == -1.0
         end
     end
+
+    # Large flat region: minimum is 0 at x=0, but x>1 is flat at 2.
+    # Regression test from Optim.jl#828.
+    f_flat = x -> x > 1 ? 2.0 : x^2
+    obj_flat = ScalarObjective(; f = f_flat)
+    prob_flat = OptimizationProblem(obj_flat, (-1.0, 10.0))
+    result_flat = solve(prob_flat, BrentMin(), OptimizationOptions())
+    @test result_flat.info.minimum < 1e-8
 end
 
 

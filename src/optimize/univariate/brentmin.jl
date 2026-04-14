@@ -35,20 +35,26 @@ function _solve(prob, bm::BrentMin, options)
     #   - f0 is the first value observed
     fv = fw = fx = value(prob, x)
 
-    # We modify the algorith slightly here, and evaluate the objetive
+    # We modify the algorithm slightly here, and evaluate the objective
     # at the bounds initially. If this is not what the user wants, they
     # should set `evaluate_bounds = false`.
     if bm.evaluate_bounds
         fa = value(prob, a)
         fb = value(prob, b)
-        if fa < fx || fb < fx
-            if fa < fb
-                x = a
-                fx = fa
-            else
-                x = b
-                fx = fb
-            end
+        # Initialize (x, w, v) as Brent's best/second/third using all
+        # three evaluated points: (a, fa), (x_init, fx_init), (b, fb).
+        x_init, fx_init = x, fx
+        if fa <= fb && fa <= fx_init
+            x, fx = a, fa
+            w, fw = fb <= fx_init ? (b, fb) : (x_init, fx_init)
+            v, fv = fb <= fx_init ? (x_init, fx_init) : (b, fb)
+        elseif fb <= fa && fb <= fx_init
+            x, fx = b, fb
+            w, fw = fa <= fx_init ? (a, fa) : (x_init, fx_init)
+            v, fv = fa <= fx_init ? (x_init, fx_init) : (a, fa)
+        else # fx_init is best
+            w, fw = fa <= fb ? (a, fa) : (b, fb)
+            v, fv = fa <= fb ? (b, fb) : (a, fa)
         end
     end
 
@@ -139,21 +145,16 @@ function _solve(prob, bm::BrentMin, options)
         callback_stopped = _check_callback(options.callback, (iter=brent_iter, time=time()-time0, state=(x=x, fx=fx, a=a, b=b, v=v, w=w, fv=fv, fw=fw)))
     end
     if bm.evaluate_bounds
-        # Even if we stopped it can still be the case that x is not a or b even if they're the lowest.
-        # We check if fx is indeed the lowest point. If not, we return fa or fb. We tie break to exact
-        # bound.
-        if fx >= fa
-            if fx >= fb
-                if bm.tiebreak_down
-                    x = a
-                else
-                    x = b
-                end
-            else
+        # The algorithm may have converged to an interior point that is worse
+        # than a bound. Pick the overall best among (x, a, b).
+        if fa < fx || fb < fx
+            if fa < fb || (fa == fb && bm.tiebreak_down)
                 x = a
+                fx = fa
+            else
+                x = b
+                fx = fb
             end
-        elseif fx >= fb
-            x = b
         end
     end
     return ConvergenceInfo(
