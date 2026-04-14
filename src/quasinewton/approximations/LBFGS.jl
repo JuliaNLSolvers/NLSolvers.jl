@@ -82,16 +82,11 @@ function update_obj!(
     ∇fz,
     current_memory::Integer,
     scheme::LBFGS{<:Inverse,<:TwoLoop},
-    scale = nothing;
-    skip_data = nothing,
+    scale,
+    dφ0,
 )
-    # Calculate final step vector and update the state
     fz, ∇fz = upto_gradient(problem, ∇fz, z)
-    # add Project gradient
-
-    # Quasi-Newton update
-    qnvars = update!(scheme, qnvars, ∇fx, ∇fz, current_memory, skip_data)
-
+    qnvars = update!(scheme, qnvars, ∇fx, ∇fz, current_memory, dφ0)
     return fz, ∇fz, qnvars
 end
 @inbounds function update!(
@@ -100,18 +95,18 @@ end
     ∇fx,
     ∇fz,
     current_memory,
-    skip_data = nothing,
+    dφ0,
 )
     S, Y, ρ = qnvars.S, qnvars.Y, qnvars.ρ
     d = qnvars.d  # holds α * d (the step vector) from the caller
     n = length(S)
     m = min(n, 1 + current_memory)
 
-    # Compute y as a temporary before deciding whether to store the pair
+    # Compute y before deciding whether to store the pair
     y_candidate = ∇fz - ∇fx
 
-    # Check skip condition — if triggered, don't store this (s, y) pair
-    if skip_data !== nothing && should_skip(scheme.skip, d, y_candidate, skip_data)
+    # Check PD skip condition (dφ0 == nothing means no skip check)
+    if dφ0 !== nothing && should_skip(scheme.skip, d, y_candidate, skip_aux(scheme.skip, dφ0, ∇fx))
         return TwoLoopVars(d, S, Y, qnvars.α, ρ, current_memory)
     end
 

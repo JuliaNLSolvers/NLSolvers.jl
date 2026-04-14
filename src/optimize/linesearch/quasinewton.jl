@@ -191,8 +191,7 @@ function iterate(
         z = retract(problem, z, x, s)
 
         # Update approximation
-        _skip_data = skip_aux(qn_skip(scheme), dφ0, ∇fx)
-        fz, ∇fz, B, s, y = update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme, is_first; skip_data = _skip_data)
+        fz, ∇fz, B, s, y = update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme, is_first, dφ0)
     else
         # Reset B to identity — next iteration uses steepest descent
         B = one(B)
@@ -252,8 +251,7 @@ function iterate(
         z = retract(problem, z, x, s)
 
         # Update approximation
-        _skip_data = skip_aux(qn_skip(scheme), dφ0, ∇fx)
-        fz, ∇fz, B, s, y = update_obj(problem, s, ∇fx, z, ∇fz, B, scheme, is_first; skip_data = _skip_data)
+        fz, ∇fz, B, s, y = update_obj(problem, s, ∇fx, z, ∇fz, B, scheme, is_first, dφ0)
     else
         # Reset B to identity — next iteration uses steepest descent
         B = one(B)

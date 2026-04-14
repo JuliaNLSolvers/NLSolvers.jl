@@ -154,9 +154,8 @@ function iterate(
         z = retract(problem, z, x, qnvars.d)
 
         # Update approximation (writes s into S array only if not skipped)
-        _skip_data = skip_aux(qn_skip(scheme), dφ0, ∇fx)
         fz, ∇fz, qnvars =
-            update_obj!(problem, qnvars, α, x, ∇fx, z, ∇fz, current_memory, scheme; skip_data = _skip_data)
+            update_obj!(problem, qnvars, α, x, ∇fx, z, ∇fz, current_memory, scheme, nothing, dφ0)
     else
         # Reset L-BFGS memory — next iteration uses steepest descent
         qnvars = TwoLoopVars(qnvars.d, qnvars.S, qnvars.Y, qnvars.α, qnvars.ρ, 0)
@@ -209,7 +208,7 @@ function iterate(
         z = retract(problem, z, x, s)
 
         # Update approximation
-        fz, ∇fz, B = update_obj(problem, s, ∇fx, z, ∇fz, B, scheme, is_first)
+        fz, ∇fz, B = update_obj(problem, s, ∇fx, z, ∇fz, B, scheme, is_first, nothing)
     end
 
     return x, fx, ∇fx, z, fz, ∇fz, B, P
