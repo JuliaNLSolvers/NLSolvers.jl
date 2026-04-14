@@ -8,7 +8,7 @@ using LinearAlgebra: norm, I
 import Random
 Random.seed!(41234)
 include("qa.jl")
-include("nlsolve/runtests.jl")
+include("optimize/geometry_types.jl")
 include("optimize/problems.jl")
 include("optimize/interface.jl")
 include("optimize/preconditioning.jl")
@@ -18,3 +18,4 @@ include("optimize/param.jl")
 include("lsqfit/interface.jl")
 include("globalization/runtests.jl")
 include("optimize/callbacks.jl")
+include("nlsolve/runtests.jl")
