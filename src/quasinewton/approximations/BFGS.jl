@@ -6,11 +6,16 @@
 # The direct update can be written as
 #  B = B = yy'/y's-Bss'B'/s'B*s
 
-struct BFGS{T1} <: QuasiNewton{T1}
+struct BFGS{T1,Tskip,Tscaling} <: QuasiNewton{T1}
     approx::T1
+    skip::Tskip
+    scaling::Tscaling
 end
-BFGS(; inverse = true) = BFGS(inverse ? Inverse() : Direct())
+BFGS(approx::HessianApproximation) = BFGS(approx, NoPDSkip(), ShannoPhua())
+BFGS(; inverse = true, skip = NoPDSkip(), scaling = ShannoPhua()) =
+    BFGS(inverse ? Inverse() : Direct(), skip, scaling)
 hasprecon(::BFGS{<:Any}) = NoPrecon()
+qn_scaling(scheme::BFGS) = scheme.scaling
 
 summary(bfgs::BFGS{Inverse}) = "Inverse BFGS"
 summary(bfgs::BFGS{Direct}) = "Direct BFGS"

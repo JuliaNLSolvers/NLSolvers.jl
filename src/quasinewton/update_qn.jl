@@ -1,76 +1,55 @@
-function update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme, scale = nothing)
+function update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme, scale, dφ0)
     fz, ∇fz = upto_gradient(problem, ∇fz, z)
-    # add Project gradient
-
-    # Update y
     @. y = ∇fz - ∇fx
 
-    # Update B
+    # Check PD skip condition (dφ0 == nothing means no skip check)
+    if dφ0 !== nothing && should_skip(qn_skip(scheme), s, y, skip_aux(qn_skip(scheme), dφ0, ∇fx))
+        return fz, ∇fz, B, s, y
+    end
+
+    # Initial Hessian sizing (the scheme picks ShannoPhua, OrenLuenberger, …)
     if scale == nothing
-        if isa(scheme.approx, Direct)
-            yBy = dot(y, B * y)
-            if !iszero(yBy)
-                Badj = dot(y, s) / yBy .* B
-            end
-        else
-            ys = dot(y, s)
-            if !iszero(ys)
-                Badj = dot(y, B * y) / ys .* B
-            else
-                return fz, ∇fz, B, s, y
-            end
+        γ = qn_scaling(scheme)(scheme.approx, s, y, B)
+        if !isfinite(γ) || iszero(γ)
+            return fz, ∇fz, B, s, y
         end
+        Badj = γ * B
     else
         Badj = B
     end
-    # Quasi-Newton update
     B = update!(scheme, Badj, s, y)
-
     return fz, ∇fz, B, s, y
 end
 
-function update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme::Newton, scale = nothing)
+function update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme::Newton, scale, dφ0)
     fz, ∇fz, B = upto_hessian(problem, ∇fz, B, z)
-
     return fz, ∇fz, B, s, s
 end
 
-function update_obj(problem, s, ∇fx, z, ∇fz, B, scheme, scale = nothing)
+function update_obj(problem, s, ∇fx, z, ∇fz, B, scheme, scale, dφ0)
     fz, ∇fz = upto_gradient(problem, ∇fz, z)
-    # add Project gradient
-
-    # Update y
     y = ∇fz - ∇fx
 
-    # Update B
+    # Check PD skip condition (dφ0 == nothing means no skip check)
+    if dφ0 !== nothing && should_skip(qn_skip(scheme), s, y, skip_aux(qn_skip(scheme), dφ0, ∇fx))
+        return fz, ∇fz, B, s, y
+    end
+
+    # Initial Hessian sizing (the scheme picks ShannoPhua, OrenLuenberger, …)
     if scale == nothing
-        if isa(scheme.approx, Direct)
-            yBy = dot(y, B * y)
-            if !iszero(yBy) && isfinite(yBy)
-                Badj = dot(y, s) / yBy * B # this is different than above?
-            else
-                Badj = B
-            end
-        else
-            ys = dot(y, s)
-            if !iszero(ys) && isfinite(ys)
-                Badj = dot(y, B * y) / ys * B
-            else
-                Badj = B
-            end
+        γ = qn_scaling(scheme)(scheme.approx, s, y, B)
+        if !isfinite(γ) || iszero(γ)
+            return fz, ∇fz, B, s, y
         end
+        Badj = γ * B
     else
         Badj = B
     end
-
-    # Quasi-Newton update
     B = update(scheme, Badj, s, y)
-
     return fz, ∇fz, B, s, y
 end
 
-function update_obj(problem, s, ∇fx, z, ∇fz, B, scheme::Newton, is_first = nothing)
+function update_obj(problem, s, ∇fx, z, ∇fz, B, scheme::Newton, is_first, dφ0)
     fz, ∇fz, B = upto_hessian(problem, ∇fx, B, z)
-
     return fz, ∇fz, B, s, nothing
 end

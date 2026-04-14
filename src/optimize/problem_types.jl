@@ -211,6 +211,7 @@ struct OptimizationOptions{T1,T2,T3,T4,Txn,Tgn,Tcb}
     f_reltol::T3
     nm_tol::T3
     maxiter::T4
+    max_restarts::Int
     show_trace::Bool
     callback::Tcb
 end
@@ -227,6 +228,7 @@ OptimizationOptions(;
     f_reltol = -Inf, # Not useful at 0 if for example we have quadric and trust region accept but objective is the same
     nm_tol = 1e-8,
     maxiter = 10000,
+    max_restarts = 10,
     show_trace = false,
     callback = nothing,
 ) = OptimizationOptions(
@@ -241,6 +243,7 @@ OptimizationOptions(;
     f_reltol,
     nm_tol,
     maxiter,
+    max_restarts,
     show_trace,
     callback,
 )

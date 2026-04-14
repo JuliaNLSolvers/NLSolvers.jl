@@ -86,6 +86,8 @@ function _solve(
     end
     qnvars = QNVars(copy(objvars.∇fz), copy(objvars.∇fz), copy(objvars.∇fz))
 
+    restarts = 0
+
     #==============================
              First iteration
     ==============================#
@@ -96,13 +98,18 @@ function _solve(
     is_converged = converged(approach, objvars, ∇f0, options)
     print_trace(approach, options, iter, t0, objvars)
     callback_stopped = _check_callback(options.callback, (iter=iter, time=time()-t0, state=objvars))
-    while iter < options.maxiter && !any(is_converged) && !callback_stopped
+    while iter < options.maxiter && !any(is_converged) && restarts < options.max_restarts && !callback_stopped
         iter += 1
         #==============================
                      iterate
         ==============================#
         objvars, P, qnvars =
             iterate(mstyle, qnvars, objvars, P, approach, problem, options, false)
+
+        # Track restarts (ls_success=false ⟹ α=NaN and B was reset to I)
+        if !objvars.ls_success
+            restarts += 1
+        end
 
         #==============================
                 check convergence
@@ -172,19 +179,24 @@ function iterate(
     # Update current gradient and calculate the search direction
     d = find_direction!(d, B, P, ∇fx, scheme) # solve Bd = -∇fx
     # real is needed to convert complex dots to actually being real
-    φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, real(dot(∇fx, d)))
+    dφ0 = real(dot(∇fx, d))
+    φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, dφ0)
 
     # Perform line search along d
     # Also returns final step vector and update the state
     α, f_α, ls_success = find_steplength(mstyle, linesearch, φ, Tf(1))
 
+    if ls_success
+        @. s = α * d
+        z = retract(problem, z, x, s)
 
-    @. s = α * d
-    z = retract(problem, z, x, s)
-
-    # Update approximation
-    fz, ∇fz, B, s, y = update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme, is_first)
-    return (x = x, fx = fx, ∇fx = ∇fx, z = z, fz = fz, ∇fz = ∇fz, B = B, Pg = Pg, α = α),
+        # Update approximation
+        fz, ∇fz, B, s, y = update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme, is_first, dφ0)
+    else
+        # Reset B to identity — next iteration uses steepest descent
+        B = one(B)
+    end
+    return (x = x, fx = fx, ∇fx = ∇fx, z = z, fz = fz, ∇fz = ∇fz, B = B, Pg = Pg, α = α, ls_success = ls_success),
     P,
     QNVars(d, s, y)
 end
@@ -227,19 +239,27 @@ function iterate(
     # Update current gradient and calculate the search direction
     d = find_direction(B, P, ∇fx, scheme) # solve Bd = -∇fx
     # real is needed to convert complex dots to actually being real
-    φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, real(dot(∇fx, d)))
+    dφ0 = real(dot(∇fx, d))
+    φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, dφ0)
 
     # Perform line search along d
     α, f_α, ls_success = find_steplength(mstyle, linesearch, φ, Tf(1))
 
-    # # Calculate final step vector and update the state
-    s = @. α * d
-    z = retract(problem, z, x, s)
+    if ls_success
+        # Calculate final step vector and update the state
+        s = @. α * d
+        z = retract(problem, z, x, s)
 
-    # Update approximation
-    fz, ∇fz, B, s, y = update_obj(problem, s, ∇fx, z, ∇fz, B, scheme, is_first)
+        # Update approximation
+        fz, ∇fz, B, s, y = update_obj(problem, s, ∇fx, z, ∇fz, B, scheme, is_first, dφ0)
+    else
+        # Reset B to identity — next iteration uses steepest descent
+        B = one(B)
+        s = zero(d)
+        y = zero(d)
+    end
 
-    return (x = x, fx = fx, ∇fx = ∇fx, z = z, fz = fz, ∇fz = ∇fz, B = B, Pg = Pg),
+    return (x = x, fx = fx, ∇fx = ∇fx, z = z, fz = fz, ∇fz = ∇fz, B = B, Pg = Pg, α = α, ls_success = ls_success),
     P,
     QNVars(d, s, y)
 end

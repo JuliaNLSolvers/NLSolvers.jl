@@ -141,7 +141,7 @@ function iterate!(
     fx = fz
     # Should build a good code for picking update model.
 
-    fz, ∇fz, B, s, y = update_obj!(problem, spr.p, y, ∇fx, z, ∇fz, B, scheme, scale)
+    fz, ∇fz, B, s, y = update_obj!(problem, spr.p, y, ∇fx, z, ∇fz, B, scheme, scale, nothing)
 
     # Δf is often called ared or Ared for actual reduction. I prefer "change in"
     # f, or Delta f.

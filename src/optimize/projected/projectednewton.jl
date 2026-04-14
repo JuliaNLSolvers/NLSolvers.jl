@@ -143,7 +143,7 @@ function _solve(
         s = @. x - z
 
         # Update approximation
-        fz, ∇fz, B, s, y = update_obj(prob.objective, s, ∇fx, z, ∇fz, B, Newton(), is_first)
+        fz, ∇fz, B, s, y = update_obj(prob.objective, s, ∇fx, z, ∇fz, B, Newton(), is_first, nothing)
         if norm(x .- clamp.(x .- ∇fz, lower, upper), Inf) < options.g_abstol
             return ConvergenceInfo(
                 scheme,

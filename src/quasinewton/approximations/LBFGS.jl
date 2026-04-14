@@ -2,11 +2,22 @@
 # Specialized S and Y matrices are constructed and updated
 struct TwoLoop end
 struct CompactLimited end
-struct LBFGS{TA,F,T,TP}
+struct LBFGS{TA,F,T,TP,Tskip}
     approx::TA
     type::F
     memory::T
     P::TP
+    skip::Tskip
+    function LBFGS(approx::TA, type::F, memory::T, P::TP, skip::Tskip) where {TA,F,T,TP,Tskip}
+        if approx isa Direct && type isa TwoLoop
+            throw(ArgumentError(
+                "Direct L-BFGS with TwoLoop is not supported. " *
+                "The two-loop recursion only works with the inverse Hessian approximation. " *
+                "Use LBFGS(Inverse(), ...) or LBFGS() instead."
+            ))
+        end
+        new{TA,F,T,TP,Tskip}(approx, type, memory, P, skip)
+    end
 end
 summary(lbfgs::LBFGS{Inverse}) = "Inverse LBFGS"
 summary(lbfgs::LBFGS{Direct}) = "Direct LBFGS"
@@ -14,8 +25,10 @@ summary(lbfgs::LBFGS{Direct}) = "Direct LBFGS"
 hasprecon(::LBFGS{<:Inverse,<:Any,<:Any,<:Nothing}) = NoPrecon()
 hasprecon(::LBFGS{<:Inverse,<:Any,<:Any,<:Any}) = HasPrecon()
 
-LBFGS(m::Int = 5) = LBFGS(Inverse(), TwoLoop(), m, nothing)
-LBFGS(approx, m = 5) = LBFGS(approx, TwoLoop(), m, nothing)
+LBFGS(m::Int) = LBFGS(Inverse(), TwoLoop(), m, nothing, NoPDSkip())
+LBFGS(approx, m::Int) = LBFGS(approx, TwoLoop(), m, nothing, NoPDSkip())
+LBFGS(approx, type, memory, P) = LBFGS(approx, type, memory, P, NoPDSkip())
+LBFGS(; memory = 5, inverse = true, skip = NoPDSkip()) = LBFGS(inverse ? Inverse() : Direct(), TwoLoop(), memory, nothing, skip)
 init_B(aproach::LBFGS, ::Nothing, x0) = nothing
 """
 	q holds gradient at current state
@@ -69,15 +82,11 @@ function update_obj!(
     ∇fz,
     current_memory::Integer,
     scheme::LBFGS{<:Inverse,<:TwoLoop},
-    scale = nothing,
+    scale,
+    dφ0,
 )
-    # Calculate final step vector and update the state
     fz, ∇fz = upto_gradient(problem, ∇fz, z)
-    # add Project gradient
-
-    # Quasi-Newton update
-    qnvars = update!(scheme, qnvars, ∇fx, ∇fz, current_memory)
-
+    qnvars = update!(scheme, qnvars, ∇fx, ∇fz, current_memory, dφ0)
     return fz, ∇fz, qnvars
 end
 @inbounds function update!(
@@ -86,10 +95,22 @@ end
     ∇fx,
     ∇fz,
     current_memory,
+    dφ0,
 )
     S, Y, ρ = qnvars.S, qnvars.Y, qnvars.ρ
+    d = qnvars.d  # holds α * d (the step vector) from the caller
     n = length(S)
     m = min(n, 1 + current_memory)
+
+    # Compute y before deciding whether to store the pair
+    y_candidate = ∇fz - ∇fx
+
+    # Check PD skip condition (dφ0 == nothing means no skip check)
+    if dφ0 !== nothing && should_skip(scheme.skip, d, y_candidate, skip_aux(scheme.skip, dφ0, ∇fx))
+        return TwoLoopVars(d, S, Y, qnvars.α, ρ, current_memory)
+    end
+
+    # Rotate memory if full
     if current_memory == n
         s1, y1 = S[1], Y[1] # hoisting, no allocation
         for i = 2:n
@@ -100,7 +121,9 @@ end
         S[end] = s1
         Y[end] = y1
     end
-    @. Y[m] = ∇fz - ∇fx
+    # Store the (s, y) pair
+    @. S[m] = d
+    @. Y[m] = y_candidate
     ρ[m] = 1 / dot(S[m], Y[m])
-    TwoLoopVars(qnvars.d, S, Y, qnvars.α, ρ)
+    TwoLoopVars(d, S, Y, qnvars.α, ρ, m)
 end
