@@ -1,3 +1,4 @@
+using Test
 using StaticArrays, NLSolvers, LinearAlgebra
 OPT_PROBS = Dict()
 
