@@ -1,3 +1,11 @@
+# Compute B*v where B is the actual Hessian. For Direct form H=B so B*v = H*v.
+# For Inverse form H=B⁻¹ so B*v = H\v. Falls back to v (B=I) if H is singular.
+_hessian_product(scheme, H, v) = isa(scheme.approx, Direct) ? H * v : _safe_solve(H, v)
+function _safe_solve(H, v)
+    F = cholesky(Symmetric(H); check = false)
+    issuccess(F) ? F \ v : v
+end
+
 # TODO add double dog leg and subspace dogleg
 #===============================================================================
   Dogleg is a trust region sub-problem solver used to generate a cheap and crude
@@ -25,7 +33,10 @@ function (dogleg::Dogleg)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxite
     n = length(∇f)
 
     # find the Cauchy point; assumes ∇f is not ≈ 0
-    d_cauchy = -∇f * norm(∇f)^2 / (∇f' * H * ∇f)
+    # For Direct form H is B (Hessian), for Inverse form H is B⁻¹,
+    # so we need H\∇f to recover B*∇f.
+    B∇f = _hessian_product(scheme, H, ∇f)
+    d_cauchy = -∇f * norm(∇f)^2 / (∇f' * B∇f)
 
     # If it lies outside of the trust region, accept the Cauchy point and
     # move on
@@ -80,7 +91,9 @@ function (dogleg::Dogleg)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxite
             interior = false
         end
     end
-    m = dot(∇f, p) + dot(p, H * p) / 2
+    # Model value m(p) = ∇f'p + p'Bp/2. For Inverse form, B = H⁻¹.
+    Bp = _hessian_product(scheme, H, p)
+    m = dot(∇f, p) + dot(p, Bp) / 2
 
     return (
         p = p,

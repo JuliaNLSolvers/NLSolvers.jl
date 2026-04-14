@@ -65,7 +65,11 @@ end
 # Powell (1978) damping: if s'y < θ·s'Bs, replace y with ȳ = θ_d·y + (1-θ_d)·Bs
 # where θ_d = 0.8·s'Bs / (s'Bs - s'y), ensuring s'ȳ ≥ θ·s'Bs > 0.
 function _damp_y(scheme::DBFGS, H, s, y)
-    Bs = H \ s
+    F = cholesky(Symmetric(H); check = false)
+    if !issuccess(F)
+        return y  # H singular — skip damping, use y as-is
+    end
+    Bs = F \ s
     σ = dot(s, y)
     sb = dot(s, Bs)
     if σ ≥ scheme.theta * sb
