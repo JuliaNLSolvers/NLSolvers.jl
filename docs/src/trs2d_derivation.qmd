@@ -1,0 +1,706 @@
+---
+title: "Closed-Form 2D Trust Region Subproblem"
+format: html
+engine: julia
+---
+
+## Problem Statement
+
+The trust region subproblem in two dimensions is
+
+$$
+\min_{p \in \mathbb{R}^2} \; m(p) = \nabla f^\top p + \tfrac{1}{2} p^\top B p
+\quad \text{subject to} \quad \|p\|^2 \leq \Delta^2
+$$
+
+where $\nabla f \in \mathbb{R}^2$ is the gradient, $B \in \mathbb{R}^{2 \times 2}$ is a symmetric (not necessarily positive definite) Hessian approximation, and $\Delta > 0$ is the trust region radius.
+
+In higher dimensions this subproblem is solved iteratively (e.g., via Newton's method on the secular equation as in the NWI solver). In two dimensions, however, the secular equation reduces to a **quartic polynomial** that can be solved in closed form, yielding a non-iterative, non-allocating solver suitable for use with `StaticArrays`.
+
+## Reduction to Diagonal Form
+
+Since $B$ is real symmetric, it has an eigendecomposition $B = Q \Lambda Q^\top$ where $Q$ is orthogonal and $\Lambda = \operatorname{diag}(\lambda_1, \lambda_2)$.
+
+### 2x2 Eigendecomposition (Closed Form)
+
+For $B = \begin{pmatrix} B_{11} & B_{12} \\ B_{12} & B_{22} \end{pmatrix}$, the eigenvalues are
+
+$$
+\tau = \frac{B_{11} + B_{22}}{2}, \qquad
+r = \sqrt{\left(\frac{B_{11} - B_{22}}{2}\right)^2 + B_{12}^2}
+$$
+
+$$
+\lambda_1 = \tau - r, \qquad \lambda_2 = \tau + r
+$$
+
+An (unnormalized) eigenvector for $\lambda_i$ is $v_i = (B_{12},\; \lambda_i - B_{11})^\top$. When $B_{12} \neq 0$, normalizing gives the orthogonal matrix
+
+$$
+q_i = \frac{v_i}{\|v_i\|}, \qquad Q = \begin{pmatrix} q_1 & q_2 \end{pmatrix}
+$$
+
+When $B_{12} = 0$, $B$ is already diagonal: $\lambda_1 = \min(B_{11}, B_{22})$, $\lambda_2 = \max(B_{11}, B_{22})$, and $Q = I$ (or a permutation if $B_{22} < B_{11}$).
+
+### Change of Variables
+
+Substituting $p = Q \hat{p}$ and defining $g = Q^\top \nabla f$ (two dot products: $g_i = q_i^\top \nabla f$), the subproblem becomes
+
+$$
+\min_{\hat{p}} \; g_1 \hat{p}_1 + g_2 \hat{p}_2 + \tfrac{1}{2}(\lambda_1 \hat{p}_1^2 + \lambda_2 \hat{p}_2^2)
+\quad \text{s.t.} \quad \hat{p}_1^2 + \hat{p}_2^2 \leq \Delta^2
+$$
+
+since orthogonal transformations preserve the Euclidean norm.
+
+## KKT Conditions
+
+The Lagrangian is
+
+$$
+\mathcal{L}(\hat{p}, \mu) = g_1 \hat{p}_1 + g_2 \hat{p}_2
+  + \tfrac{1}{2}\lambda_1 \hat{p}_1^2 + \tfrac{1}{2}\lambda_2 \hat{p}_2^2
+  + \tfrac{\mu}{2}(\hat{p}_1^2 + \hat{p}_2^2 - \Delta^2)
+$$
+
+Setting $\partial \mathcal{L}/\partial \hat{p}_i = 0$ gives
+
+$$
+\hat{p}_i = -\frac{g_i}{\lambda_i + \mu}, \quad i = 1, 2
+$$
+
+with the complementarity condition $\mu \geq 0$ and $\mu(\|\hat{p}\|^2 - \Delta^2) = 0$.
+
+**Interior case ($\mu = 0$):** If $\lambda_1 > 0$ (i.e., $B$ is positive definite) and $\|\hat{p}(0)\|^2 = g_1^2/\lambda_1^2 + g_2^2/\lambda_2^2 \leq \Delta^2$, the unconstrained minimizer is feasible and optimal.
+
+**Boundary case ($\mu > 0$):** The constraint is active and $\mu$ satisfies the **secular equation**:
+
+$$
+\phi(\mu) \equiv \frac{g_1^2}{(\lambda_1 + \mu)^2} + \frac{g_2^2}{(\lambda_2 + \mu)^2} = \Delta^2
+$$
+
+## The Quartic
+
+Clearing the denominators by multiplying both sides by $(\lambda_1 + \mu)^2 (\lambda_2 + \mu)^2$:
+
+$$
+g_1^2 (\lambda_2 + \mu)^2 + g_2^2 (\lambda_1 + \mu)^2 = \Delta^2 (\lambda_1 + \mu)^2 (\lambda_2 + \mu)^2
+$$
+
+Expanding and collecting powers of $\mu$, this is a **quartic** in $\mu$:
+
+$$
+\Delta^2 \mu^4 + c_3 \mu^3 + c_2 \mu^2 + c_1 \mu + c_0 = 0
+$$
+
+where the coefficients are polynomial expressions in $g_1, g_2, \lambda_1, \lambda_2, \Delta^2$.
+
+### Explicit Coefficients
+
+Define the shorthand $\alpha = g_1^2$, $\gamma_2 = g_2^2$, $b = \lambda_1$, $d = \lambda_2$, $e = \Delta^2$. Then expanding the secular equation gives:
+
+| Power of $\mu$ | Coefficient |
+|---|---|
+| $\mu^4$ | $e$ |
+| $\mu^3$ | $2e(b + d)$ |
+| $\mu^2$ | $e(b^2 + 4bd + d^2) - \alpha - \gamma_2$ |
+| $\mu^1$ | $2ebd(b + d) - 2(\alpha d + \gamma_2 b)$ |
+| $\mu^0$ | $eb^2 d^2 - \alpha d^2 - \gamma_2 b^2$ |
+
+::: {.callout-note}
+In the code, `a` and `c` denote $\alpha = g_1^2$ and $\gamma_2 = g_2^2$ respectively — the **squared** gradient components, not the gradient values themselves.
+:::
+
+## Closed-Form Solution (Quartic Formula)
+
+The quartic is solved via the classical approach: reduce to a **resolvent cubic**, solve the cubic with **Cardano's formula**, then express the four roots in terms of the cubic root. We follow Ferrari's method throughout.
+
+### Intermediate Quantities
+
+Using $a = g_1^2$, $c = g_2^2$, $b = \lambda_1$, $d = \lambda_2$, $e = \Delta^2$:
+
+$$
+\begin{aligned}
+k_1 &= a + c - b^2 e - d^2 e \\
+k_2 &= d e \\
+K &= k_1 - 4 b k_2 \\
+J &= k_1 + 2 b k_2 \\
+L &= -bc - ad + b^2 k_2 + b d^2 e \\
+H &= b^2 c + a d^2 - b^2 d^2 e \\
+\mathcal{B} &= be + k_2 \\
+\gamma &= b + d
+\end{aligned}
+$$
+
+### Resolvent Cubic (Cardano's Formula)
+
+Define the Cardano discriminant argument:
+
+$$
+D_{\text{inner}} = -12eH + K^2 - 12\mathcal{B}L
+$$
+
+$$
+D_{\text{outer}} = 108\mathcal{B}^2 H + 72eHK + 2K^3 - 36\mathcal{B}KL - 108eL^2
+$$
+
+The resolvent cubic root is:
+
+$$
+\mathcal{C} = D_{\text{outer}} + \sqrt{-4 D_{\text{inner}}^3 + D_{\text{outer}}^2}
+$$
+
+### Four Roots
+
+From the resolvent cubic root $\mathcal{C}$, compute:
+
+$$
+\begin{aligned}
+U &= \frac{1}{e}\left(-2^{2/3}\mathcal{C}^{1/3} + 6e\gamma^2 - \frac{2 \cdot 2^{1/3} J^2}{\mathcal{C}^{1/3}} + 4K\right) \\[6pt]
+V &= \frac{\mathcal{C}^{1/3}}{3 \cdot 2^{1/3} e} + 2\gamma^2 + \frac{2^{1/3} J^2}{3 \mathcal{C}^{1/3} e} + \frac{4K}{3e} \\[6pt]
+Y &= 2\sqrt{6}\left(e\gamma^3 + \gamma K + 2L\right)
+\end{aligned}
+$$
+
+Then define the two inner square root arguments (corresponding to the $\pm$ sign on $\sqrt{U}$):
+
+$$
+\begin{aligned}
+\mathcal{Q} &= V - \frac{Y}{e\sqrt{U}} \\[4pt]
+\mathcal{R} &= V + \frac{Y}{e\sqrt{U}}
+\end{aligned}
+$$
+
+The four roots of the quartic are:
+
+$$
+\boxed{
+\begin{aligned}
+\mu_1 &= \tfrac{1}{12}\left(-6\gamma - \sqrt{6}\sqrt{U} - 6\sqrt{\mathcal{Q}}\right) \\[4pt]
+\mu_2 &= \tfrac{1}{12}\left(-6\gamma - \sqrt{6}\sqrt{U} + 6\sqrt{\mathcal{Q}}\right) \\[4pt]
+\mu_3 &= \tfrac{1}{12}\left(-6\gamma + \sqrt{6}\sqrt{U} - 6\sqrt{\mathcal{R}}\right) \\[4pt]
+\mu_4 &= \tfrac{1}{12}\left(-6\gamma + \sqrt{6}\sqrt{U} + 6\sqrt{\mathcal{R}}\right)
+\end{aligned}
+}
+$$
+
+Note: the first pair ($\mu_1, \mu_2$) uses $\sqrt{\mathcal{Q}}$ (with $-\sqrt{U}$) and the second pair ($\mu_3, \mu_4$) uses $\sqrt{\mathcal{R}}$ (with $+\sqrt{U}$). This is the standard Ferrari structure — each choice of sign on the first square root determines a different argument for the second.
+
+## Root Selection
+
+Not all four roots correspond to the global solution. The correct $\mu^*$ must satisfy:
+
+1. **Real-valued:** discard roots with nonzero imaginary part (within tolerance).
+2. **Feasibility:** $\mu^* \geq \max(0, -\lambda_1)$ to ensure $(\Lambda + \mu^* I)$ is positive semidefinite.
+3. **Optimality:** among feasible roots, pick the one yielding the smallest model value $m(\hat{p}(\mu))$.
+
+### Hard Case
+
+When $g_1 = 0$ (the gradient component along the eigenvector of $\lambda_1$ vanishes), the secular equation degenerates. In this case, the solution lies on a one-parameter family along the $\lambda_1$ eigendirection and must be handled separately. For $n = 2$, this reduces to picking the sign of $\hat{p}_1$ to minimize the model on the trust region boundary with $\mu = -\lambda_1$.
+
+### Interior Shortcut
+
+Before invoking the quartic, check whether $B \succ 0$ and $\|B^{-1} \nabla f\| \leq \Delta$. If so, $\mu^* = 0$ and $p = -B^{-1}\nabla f$. For $n = 2$ with the diagonal form, this is simply:
+
+$$
+\lambda_1 > 0 \quad \text{and} \quad \frac{g_1^2}{\lambda_1^2} + \frac{g_2^2}{\lambda_2^2} \leq \Delta^2
+$$
+
+## Recovery
+
+Given $\mu^*$, the solution in the eigenbasis is
+
+$$
+\hat{p}_i = -\frac{g_i}{\lambda_i + \mu^*}, \quad i = 1, 2
+$$
+
+and in the original coordinates:
+
+$$
+p = Q \hat{p} = q_1 \hat{p}_1 + q_2 \hat{p}_2
+$$
+
+The model value for the trust region ratio is:
+
+$$
+m(p) = \nabla f^\top p + \tfrac{1}{2} p^\top B p = \sum_{i=1}^{2} \left( g_i \hat{p}_i + \tfrac{1}{2}\lambda_i \hat{p}_i^2 \right)
+$$
+
+## Numerical Considerations
+
+1. **Catastrophic cancellation:** The quartic formula involves nested square roots and cube roots. For nearly-degenerate cases ($\lambda_1 \approx \lambda_2$ or $g_i \approx 0$), intermediate quantities can lose precision. A fallback to 3--4 Newton iterations on $\phi(\mu) = \Delta^2$ is cheap and robust.
+
+2. **Complex arithmetic:** The cube root $\mathcal{C}^{1/3}$ may involve a complex intermediate even when all roots are real (casus irreducibilis). Use `cbrt` for real cube roots when possible, or work in complex and take the real part at the end.
+
+3. **Cost:** The entire solve is $O(1)$ — a fixed number of scalar operations regardless of problem conditioning. No allocations, no iterations, no factorizations. This makes it ideal for hot inner loops or GPU kernels where branching and memory allocation are expensive.
+
+## Julia Implementation
+
+```{julia}
+#| output: false
+using LinearAlgebra: dot, norm, I
+
+"""
+    trs2d(∇f, B, Δ) -> (p, m, interior)
+
+Solve the 2D trust region subproblem
+
+    min  ∇f'p + ½ p'Bp   s.t.  ‖p‖ ≤ Δ
+
+exactly via closed-form quartic solution. Returns the step `p`,
+model value `m`, and whether the solution is interior to the trust region.
+"""
+function trs2d(∇f, B, Δ)
+    T = eltype(∇f)
+
+    # --- 2x2 eigendecomposition ---
+    B11, B12, B22 = T(B[1,1]), T(B[1,2]), T(B[2,2])
+    τ = (B11 + B22) / 2
+    δ = (B11 - B22) / 2
+    r = sqrt(δ^2 + B12^2)
+    λ1 = τ - r  # smaller eigenvalue
+    λ2 = τ + r  # larger eigenvalue
+
+    if abs(B12) > eps(T) * (abs(B11) + abs(B22))
+        # General case: eigenvectors from (B12, λᵢ - B11)
+        v1 = (B12, λ1 - B11)
+        v2 = (B12, λ2 - B11)
+        n1 = sqrt(v1[1]^2 + v1[2]^2)
+        n2 = sqrt(v2[1]^2 + v2[2]^2)
+        q1 = (v1[1] / n1, v1[2] / n1)
+        q2 = (v2[1] / n2, v2[2] / n2)
+    else
+        # Diagonal (or near-diagonal): eigenvectors are axis-aligned
+        if B11 <= B22
+            q1, q2 = (one(T), zero(T)), (zero(T), one(T))
+        else
+            q1, q2 = (zero(T), one(T)), (one(T), zero(T))
+        end
+    end
+
+    # Rotate gradient into eigenbasis
+    g1 = q1[1] * ∇f[1] + q1[2] * ∇f[2]
+    g2 = q2[1] * ∇f[1] + q2[2] * ∇f[2]
+
+    # --- Interior check ---
+    if λ1 > zero(T)
+        p̂1 = -g1 / λ1
+        p̂2 = -g2 / λ2
+        if p̂1^2 + p̂2^2 ≤ Δ^2
+            p1 = q1[1] * p̂1 + q2[1] * p̂2
+            p2 = q1[2] * p̂1 + q2[2] * p̂2
+            m = g1 * p̂1 + g2 * p̂2 + (λ1 * p̂1^2 + λ2 * p̂2^2) / 2
+            return (p1, p2), m, true
+        end
+    end
+
+    # --- Hard case check ---
+    if abs(g1) ≤ eps(T) * (abs(g2) + one(T))
+        # g₁ ≈ 0: secular equation degenerates.
+        # Set μ = -λ₁, solve for p̂₂ from constraint, pick sign to minimize model.
+        μ = -λ1
+        p̂2 = -g2 / (λ2 + μ)
+        p̂1_sq = Δ^2 - p̂2^2
+        p̂1_sq = max(p̂1_sq, zero(T))
+        # Two candidates: ±√(p̂1_sq). Pick the one with smaller model value.
+        p̂1_pos = sqrt(p̂1_sq)
+        m_pos = g1 * p̂1_pos + g2 * p̂2 + (λ1 * p̂1_pos^2 + λ2 * p̂2^2) / 2
+        m_neg = -g1 * p̂1_pos + g2 * p̂2 + (λ1 * p̂1_pos^2 + λ2 * p̂2^2) / 2
+        p̂1 = m_pos ≤ m_neg ? p̂1_pos : -p̂1_pos
+        m = min(m_pos, m_neg)
+        p1 = q1[1] * p̂1 + q2[1] * p̂2
+        p2 = q1[2] * p̂1 + q2[2] * p̂2
+        return (p1, p2), m, false
+    end
+
+    # --- Quartic solve for μ ---
+    a = g1^2  # squared gradient components
+    c = g2^2
+    b, d, e = λ1, λ2, Δ^2
+
+    k1 = a + c - b^2 * e - d^2 * e
+    k2 = d * e
+    K = k1 - 4 * b * k2
+    J = k1 + 2 * b * k2
+    L = -b * c - a * d + b^2 * k2 + b * d^2 * e
+    H = b^2 * c + a * d^2 - b^2 * d^2 * e
+    𝓑 = b * e + k2
+    γ = b + d
+
+    # Resolvent cubic via Cardano
+    D_inner = -12 * e * H + K^2 - 12 * 𝓑 * L
+    D_outer = 108 * 𝓑^2 * H + 72 * e * H * K + 2 * K^3 - 36 * 𝓑 * K * L - 108 * e * L^2
+
+    # Use complex arithmetic to handle casus irreducibilis
+    disc = Complex{T}(-4 * D_inner^3 + D_outer^2)
+    𝓒 = Complex{T}(D_outer) + sqrt(disc)
+    𝓒cbrt = 𝓒^(one(T) / 3)
+
+    # Ferrari intermediates
+    U_val = (1 / e) * (-2^(T(2)/3) * 𝓒cbrt + 6 * e * γ^2 - 2 * 2^(T(1)/3) * J^2 / 𝓒cbrt + 4 * K)
+    V_val = 𝓒cbrt / (3 * 2^(T(1)/3) * e) + 2 * γ^2 + 2^(T(1)/3) * J^2 / (3 * 𝓒cbrt * e) + 4 * K / (3 * e)
+    Y_val = 2 * sqrt(Complex{T}(6)) * (e * γ^3 + γ * K + 2 * L)
+
+    sqrtU = sqrt(U_val)
+    𝓠 = V_val - Y_val / (e * sqrtU)
+    𝓡 = V_val + Y_val / (e * sqrtU)
+    sqrt𝓠 = sqrt(𝓠)
+    sqrt𝓡 = sqrt(𝓡)
+
+    sqrt6 = sqrt(Complex{T}(6))
+    roots = (
+        (-6γ - sqrt6 * sqrtU - 6 * sqrt𝓠) / 12,
+        (-6γ - sqrt6 * sqrtU + 6 * sqrt𝓠) / 12,
+        (-6γ + sqrt6 * sqrtU - 6 * sqrt𝓡) / 12,
+        (-6γ + sqrt6 * sqrtU + 6 * sqrt𝓡) / 12,
+    )
+
+    # --- Root selection ---
+    # The quartic formula can produce NaN when U ≈ 0 (degenerate case in
+    # Ferrari's method). Fall back to Newton on the secular equation.
+    μ_min = max(zero(T), -λ1)
+    best_m = T(Inf)
+    best_p̂ = (zero(T), zero(T))
+    tol = eps(T) * max(one(T), abs(λ1), abs(λ2))
+
+    quartic_ok = all(r -> isfinite(real(r)) && isfinite(imag(r)), roots)
+    if quartic_ok
+        for μc in roots
+            abs(imag(μc)) > tol && continue  # skip complex roots
+            μ = real(μc)
+            μ < μ_min - tol && continue       # skip infeasible roots
+
+            denom1 = λ1 + μ
+            denom2 = λ2 + μ
+            (abs(denom1) < tol || abs(denom2) < tol) && continue
+
+            p̂1 = -g1 / denom1
+            p̂2 = -g2 / denom2
+            m_val = g1 * p̂1 + g2 * p̂2 + (λ1 * p̂1^2 + λ2 * p̂2^2) / 2
+            if m_val < best_m
+                best_m = m_val
+                best_p̂ = (p̂1, p̂2)
+            end
+        end
+    end
+
+    # Fallback: Newton iteration on the secular equation ϕ(μ) = Δ²
+    if !isfinite(best_m)
+        μ = μ_min + one(T)  # safe starting point
+        for _ in 1:50
+            d1, d2 = λ1 + μ, λ2 + μ
+            ϕ  = a / d1^2 + c / d2^2 - e
+            ϕ′ = -2a / d1^3 - 2c / d2^3
+            abs(ϕ′) < eps(T) && break
+            μ_new = μ - ϕ / ϕ′
+            μ_new = max(μ_new, μ_min)  # stay feasible
+            abs(μ_new - μ) < tol * (1 + abs(μ)) && break
+            μ = μ_new
+        end
+        d1, d2 = λ1 + μ, λ2 + μ
+        if abs(d1) > tol && abs(d2) > tol
+            best_p̂ = (-g1 / d1, -g2 / d2)
+            best_m = g1 * best_p̂[1] + g2 * best_p̂[2] +
+                     (λ1 * best_p̂[1]^2 + λ2 * best_p̂[2]^2) / 2
+        end
+    end
+
+    # Rotate back to original coordinates
+    p̂1, p̂2 = best_p̂
+    p1 = q1[1] * p̂1 + q2[1] * p̂2
+    p2 = q1[2] * p̂1 + q2[2] * p̂2
+    return (p1, p2), best_m, false
+end
+```
+
+## Examples
+
+### Positive Definite Hessian (Boundary Solution)
+
+The unconstrained minimizer lies outside the trust region, so the solution is on the boundary.
+
+```{julia}
+import Pkg; Pkg.add("CairoMakie")
+using CairoMakie
+
+# Problem data
+∇f = [2.0, 1.0]
+B = [4.0 1.0; 1.0 3.0]
+Δ = 0.5
+
+# Model function m(p) = ∇f'p + ½ p'Bp
+model(p1, p2) = ∇f[1]*p1 + ∇f[2]*p2 + (B[1,1]*p1^2 + 2*B[1,2]*p1*p2 + B[2,2]*p2^2) / 2
+
+# Solve
+p_sol, m_sol, interior = trs2d(∇f, B, Δ)
+
+# Plot
+fig = Figure(size = (500, 450))
+ax = Axis(fig[1, 1], xlabel = "p₁", ylabel = "p₂", aspect = DataAspect(),
+          title = "PD Hessian — boundary solution (Δ = $Δ)")
+
+# Model heatmap
+r = 0.8
+ps = range(-r, r, length = 200)
+zs = [model(p1, p2) for p1 in ps, p2 in ps]
+heatmap!(ax, ps, ps, zs, colormap = :viridis)
+contour!(ax, ps, ps, zs, levels = 15, color = :white, linewidth = 0.5)
+
+# Trust region boundary
+θs = range(0, 2π, length = 200)
+lines!(ax, Δ .* cos.(θs), Δ .* sin.(θs), color = :white, linewidth = 2, linestyle = :dash)
+
+# Solution point
+scatter!(ax, [p_sol[1]], [p_sol[2]], color = :red, markersize = 12, label = "TRS solution")
+
+# Unconstrained minimizer
+p_unc = -B \ ∇f
+scatter!(ax, [p_unc[1]], [p_unc[2]], color = :orange, marker = :xcross, markersize = 12, label = "unconstrained")
+
+axislegend(ax, position = :lt)
+fig
+```
+
+### Indefinite Hessian
+
+When the Hessian has a negative eigenvalue, the unconstrained problem is unbounded below. The trust region constraint is essential — the solution is always on the boundary with $\mu > -\lambda_{\min}$.
+
+```{julia}
+∇f_indef = [0.5, 1.5]
+B_indef = [2.0 1.5; 1.5 -1.0]
+Δ_indef = 1.0
+
+model_indef(p1, p2) = ∇f_indef[1]*p1 + ∇f_indef[2]*p2 +
+    (B_indef[1,1]*p1^2 + 2*B_indef[1,2]*p1*p2 + B_indef[2,2]*p2^2) / 2
+
+p_sol, m_sol, interior = trs2d(∇f_indef, B_indef, Δ_indef)
+
+fig = Figure(size = (500, 450))
+ax = Axis(fig[1, 1], xlabel = "p₁", ylabel = "p₂", aspect = DataAspect(),
+          title = "Indefinite Hessian — boundary solution (Δ = $Δ_indef)")
+
+r = 1.5
+ps = range(-r, r, length = 200)
+zs = [model_indef(p1, p2) for p1 in ps, p2 in ps]
+heatmap!(ax, ps, ps, zs, colormap = :viridis)
+contour!(ax, ps, ps, zs, levels = 20, color = :white, linewidth = 0.5)
+
+θs = range(0, 2π, length = 200)
+lines!(ax, Δ_indef .* cos.(θs), Δ_indef .* sin.(θs), color = :white, linewidth = 2, linestyle = :dash)
+
+scatter!(ax, [p_sol[1]], [p_sol[2]], color = :red, markersize = 12, label = "TRS solution")
+scatter!(ax, [0.0], [0.0], color = :white, marker = :cross, markersize = 10, label = "origin")
+
+axislegend(ax, position = :lt)
+fig
+```
+
+### Interior Solution
+
+When the Hessian is positive definite and $\Delta$ is large enough, the unconstrained minimizer is feasible and the trust region constraint is inactive ($\mu = 0$).
+
+```{julia}
+∇f_int = [1.0, 0.5]
+B_int = [3.0 0.5; 0.5 2.0]
+Δ_int = 2.0
+
+model_int(p1, p2) = ∇f_int[1]*p1 + ∇f_int[2]*p2 +
+    (B_int[1,1]*p1^2 + 2*B_int[1,2]*p1*p2 + B_int[2,2]*p2^2) / 2
+
+p_sol, m_sol, interior = trs2d(∇f_int, B_int, Δ_int)
+
+fig = Figure(size = (500, 450))
+ax = Axis(fig[1, 1], xlabel = "p₁", ylabel = "p₂", aspect = DataAspect(),
+          title = "PD Hessian — interior solution (Δ = $Δ_int, interior = $interior)")
+
+r = 2.5
+ps = range(-r, r, length = 200)
+zs = [model_int(p1, p2) for p1 in ps, p2 in ps]
+heatmap!(ax, ps, ps, zs, colormap = :viridis)
+contour!(ax, ps, ps, zs, levels = 15, color = :white, linewidth = 0.5)
+
+θs = range(0, 2π, length = 200)
+lines!(ax, Δ_int .* cos.(θs), Δ_int .* sin.(θs), color = :white, linewidth = 2, linestyle = :dash)
+
+scatter!(ax, [p_sol[1]], [p_sol[2]], color = :red, markersize = 12, label = "TRS solution")
+
+axislegend(ax, position = :lt)
+fig
+```
+
+### Hard Case (Gradient Aligned with Eigenvector)
+
+When the gradient is nearly parallel to an eigenvector, the secular equation degenerates. The solver must add a component along the other eigenvector to reach the trust region boundary. Here $\nabla f$ is almost aligned with the eigenvector of $\lambda_2$.
+
+```{julia}
+∇f_hard = [0.0, 2.0]  # exactly aligned with second axis
+B_hard = [-1.0 0.0; 0.0 3.0]
+Δ_hard = 1.0
+
+model_hard(p1, p2) = ∇f_hard[1]*p1 + ∇f_hard[2]*p2 +
+    (B_hard[1,1]*p1^2 + 2*B_hard[1,2]*p1*p2 + B_hard[2,2]*p2^2) / 2
+
+p_sol, m_sol, interior = trs2d(∇f_hard, B_hard, Δ_hard)
+
+fig = Figure(size = (500, 450))
+ax = Axis(fig[1, 1], xlabel = "p₁", ylabel = "p₂", aspect = DataAspect(),
+          title = "Hard case — g₁ = 0, indefinite (Δ = $Δ_hard)")
+
+r = 1.5
+ps = range(-r, r, length = 200)
+zs = [model_hard(p1, p2) for p1 in ps, p2 in ps]
+heatmap!(ax, ps, ps, zs, colormap = :viridis)
+contour!(ax, ps, ps, zs, levels = 20, color = :white, linewidth = 0.5)
+
+θs = range(0, 2π, length = 200)
+lines!(ax, Δ_hard .* cos.(θs), Δ_hard .* sin.(θs), color = :white, linewidth = 2, linestyle = :dash)
+
+scatter!(ax, [p_sol[1]], [p_sol[2]], color = :red, markersize = 12, label = "TRS solution")
+scatter!(ax, [0.0], [0.0], color = :white, marker = :cross, markersize = 10, label = "origin")
+
+axislegend(ax, position = :lt)
+fig
+```
+
+### Shrinking Trust Region
+
+As the trust region radius decreases, the solution transitions from the unconstrained minimizer (interior) to following the boundary. This panel shows the same PD problem at four different radii.
+
+```{julia}
+∇f_shrink = [2.0, 1.0]
+B_shrink = [4.0 1.0; 1.0 3.0]
+Δs = [2.0, 0.5, 0.2, 0.05]
+
+model_shrink(p1, p2) = ∇f_shrink[1]*p1 + ∇f_shrink[2]*p2 +
+    (B_shrink[1,1]*p1^2 + 2*B_shrink[1,2]*p1*p2 + B_shrink[2,2]*p2^2) / 2
+
+fig = Figure(size = (900, 900))
+for (idx, Δ) in enumerate(Δs)
+    row, col = fldmod1(idx, 2)
+    ax = Axis(fig[row, col], xlabel = "p₁", ylabel = "p₂", aspect = DataAspect(),
+              title = "Δ = $Δ")
+
+    r = max(0.7, 1.2 * Δ)
+    ps = range(-r, r, length = 200)
+    zs = [model_shrink(p1, p2) for p1 in ps, p2 in ps]
+    heatmap!(ax, ps, ps, zs, colormap = :viridis)
+    contour!(ax, ps, ps, zs, levels = 15, color = :white, linewidth = 0.5)
+
+    θs = range(0, 2π, length = 200)
+    lines!(ax, Δ .* cos.(θs), Δ .* sin.(θs), color = :white, linewidth = 2, linestyle = :dash)
+
+    p_sol, m_sol, int = trs2d(∇f_shrink, B_shrink, Δ)
+    scatter!(ax, [p_sol[1]], [p_sol[2]], color = :red, markersize = 12)
+
+    p_unc = -B_shrink \ ∇f_shrink
+    scatter!(ax, [p_unc[1]], [p_unc[2]], color = :orange, marker = :xcross, markersize = 10)
+end
+fig
+```
+
+### Negative Definite Hessian
+
+When both eigenvalues are negative, the model is concave — it curves downward in every direction. The solution exploits the most negative curvature direction, stepping to the boundary opposite to the gradient.
+
+```{julia}
+∇f_neg = [1.0, 0.5]
+B_neg = [-3.0 0.5; 0.5 -1.0]
+Δ_neg = 1.0
+
+model_neg(p1, p2) = ∇f_neg[1]*p1 + ∇f_neg[2]*p2 +
+    (B_neg[1,1]*p1^2 + 2*B_neg[1,2]*p1*p2 + B_neg[2,2]*p2^2) / 2
+
+p_sol, m_sol, interior = trs2d(∇f_neg, B_neg, Δ_neg)
+
+fig = Figure(size = (500, 450))
+ax = Axis(fig[1, 1], xlabel = "p₁", ylabel = "p₂", aspect = DataAspect(),
+          title = "Negative definite — exploits curvature (Δ = $Δ_neg)")
+
+r = 1.5
+ps = range(-r, r, length = 200)
+zs = [model_neg(p1, p2) for p1 in ps, p2 in ps]
+heatmap!(ax, ps, ps, zs, colormap = :viridis)
+contour!(ax, ps, ps, zs, levels = 20, color = :white, linewidth = 0.5)
+
+θs = range(0, 2π, length = 200)
+lines!(ax, Δ_neg .* cos.(θs), Δ_neg .* sin.(θs), color = :white, linewidth = 2, linestyle = :dash)
+
+scatter!(ax, [p_sol[1]], [p_sol[2]], color = :red, markersize = 12, label = "TRS solution")
+
+# Steepest descent direction for comparison
+p_sd = -∇f_neg / norm(∇f_neg) * Δ_neg
+scatter!(ax, [p_sd[1]], [p_sd[2]], color = :cyan, marker = :diamond, markersize = 10, label = "steepest descent")
+
+axislegend(ax, position = :lt)
+fig
+```
+
+### Comparison with Dogleg
+
+The Dogleg method is an approximation to the exact subproblem solution. Here we overlay both on the same problem to show how Dogleg follows the piecewise-linear path (Cauchy → Newton) while the exact solution follows the boundary.
+
+```{julia}
+∇f_cmp = [3.0, 1.0]
+B_cmp = [5.0 1.0; 1.0 2.0]
+
+# Helper: Dogleg path points for plotting
+function dogleg_path(∇f, B, Δ)
+    # Cauchy point
+    Bg = B * ∇f
+    gBg = dot(∇f, Bg)
+    d_cauchy = -∇f * dot(∇f, ∇f) / gBg
+    # Newton point
+    d_newton = -(B \ ∇f)
+    # Build path: origin → Cauchy → Newton (clipped to TR)
+    ts = range(0, 1, length = 100)
+    # Segment 1: origin to Cauchy
+    seg1 = [(t * d_cauchy[1], t * d_cauchy[2]) for t in ts]
+    # Segment 2: Cauchy to Newton
+    seg2 = [(d_cauchy[1] + t * (d_newton[1] - d_cauchy[1]),
+             d_cauchy[2] + t * (d_newton[2] - d_cauchy[2])) for t in ts]
+    return vcat(seg1, seg2), d_cauchy, d_newton
+end
+
+model_cmp(p1, p2) = ∇f_cmp[1]*p1 + ∇f_cmp[2]*p2 +
+    (B_cmp[1,1]*p1^2 + 2*B_cmp[1,2]*p1*p2 + B_cmp[2,2]*p2^2) / 2
+
+fig = Figure(size = (900, 450))
+for (idx, Δ) in enumerate([0.8, 0.3])
+    ax = Axis(fig[1, idx], xlabel = "p₁", ylabel = "p₂", aspect = DataAspect(),
+              title = "Δ = $Δ")
+
+    r = 1.0
+    ps_r = range(-r, r, length = 200)
+    zs = [model_cmp(p1, p2) for p1 in ps_r, p2 in ps_r]
+    heatmap!(ax, ps_r, ps_r, zs, colormap = :viridis)
+    contour!(ax, ps_r, ps_r, zs, levels = 15, color = :white, linewidth = 0.5)
+
+    θs = range(0, 2π, length = 200)
+    lines!(ax, Δ .* cos.(θs), Δ .* sin.(θs), color = :white, linewidth = 2, linestyle = :dash)
+
+    # Dogleg path
+    path, d_c, d_n = dogleg_path(∇f_cmp, B_cmp, Δ)
+    lines!(ax, [p[1] for p in path], [p[2] for p in path],
+           color = :cyan, linewidth = 1.5, linestyle = :dot, label = "Dogleg path")
+
+    # Exact solution
+    p_exact, _, _ = trs2d(∇f_cmp, B_cmp, Δ)
+    scatter!(ax, [p_exact[1]], [p_exact[2]], color = :red, markersize = 12, label = "exact TRS")
+
+    # Cauchy point
+    nc = norm(d_c)
+    d_c_clipped = nc > Δ ? d_c * Δ / nc : d_c
+    scatter!(ax, [d_c_clipped[1]], [d_c_clipped[2]], color = :yellow, marker = :utriangle,
+             markersize = 10, label = "Cauchy")
+
+    axislegend(ax, position = :lt, labelsize = 10)
+end
+fig
+```
+
+## References
+
+- Nocedal, J. and Wright, S. J. (2006). *Numerical Optimization*, 2nd ed. Chapter 4: Trust-Region Methods.
+- Conn, A. R., Gould, N. I. M., and Toint, P. L. (2000). *Trust-Region Methods*. SIAM. Section 7.3: The Two-Dimensional Subproblem.
+- More, J. J. and Sorensen, D. C. (1983). "Computing a Trust Region Step." *SIAM J. Sci. Stat. Comput.*, 4(3), 553--572.
+- Ferrari, L. (1545). Solution of the quartic equation. (As presented in Cardano's *Ars Magna*.)
