@@ -228,7 +228,7 @@ function (ms::NWI)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxiter = 50)
 
             tau = sqrt(Δ^2 - norm(pλ, 2)^2)
 
-            @. p = -pλ + tau * Q[:, 1]
+            @. p = pλ + tau * Q[:, 1]
 
             m = dot(∇f, p) + dot(p, H * p) / 2
 
