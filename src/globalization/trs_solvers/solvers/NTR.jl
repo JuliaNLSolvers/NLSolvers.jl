@@ -97,7 +97,7 @@ function (ms::NTR)(
     for iter = 1:maxiter
         H = update_H!(H, h, λ)
         F = cholesky(Symmetric(H); check = false)
-        in𝓖, linpack = false, false
+        in𝓖 = false
         #===========================================================================
          If F is successful, then H is positive definite, and we can safely look
          at the Newton step. If this is interior, we're done, if not, we're either
@@ -144,16 +144,15 @@ function (ms::NTR)(
             # Newton trial step
             λ⁺ = λ + ((s₂ - Δ) / Δ) * (s₂^2 / dot(w, w))
             if in𝓖
-                linpack = true
                 w, u = λL_with_linpack(F)
                 λL = max(λL, λ - dot(u, H * u))
 
                 α, s_g, m_g = 𝓖_root(u, s, Δ, ∇f, H)
-                s .= s_g
-
-                s₂ = norm(s)
-                # check hard case convergnce
+                # check hard case convergence (7.3.12 in [ConnGouldTointBook]);
+                # the test uses the uncorrected Newton step s, and s is only
+                # replaced by the boundary-crossing step on success
                 if α^2 * dot(u, H * u) ≤ κhard * (dot(s, H * s) + λ * Δ^2)
+                    s .= s_g
                     H = update_H!(H, h)
                     return tr_return(;
                         λ = λ,
@@ -179,8 +178,9 @@ function (ms::NTR)(
                 λ = λ⁺
             end
 
-            # check for convergence
-            if in𝓖 && abs(s₂ - Δ) ≤ κeasy * Δ
+            # check for convergence (the "easy case" termination criterion,
+            # 7.3.11 in [ConnGouldTointBook]; applies in 𝓛 as well as in 𝓖)
+            if abs(s₂ - Δ) ≤ κeasy * Δ
                 H = update_H!(H, h)
                 return tr_return(;
                     λ = λ,
@@ -192,27 +192,6 @@ function (ms::NTR)(
                     hard_case = false,
                     Δ = Δ,
                 )
-            elseif abs(s₂ - Δ) ≤ κeasy * Δ # implicitly "if in 𝓕" since we're in that branch
-                # u and α comes from linpack
-                if linpack
-                    # FIXME check history if this name was changed 
-                    # sλ not defined so this cannot be hit ever.....
-                    sλ = λ
-                    if α^2 * dot(u, H * u) ≤ κhard * (dot(sλ, H * sλ) * Δ^2)
-                        s .= s .+ α * u
-                        H = update_H!(H, h)
-                        return tr_return(;
-                            λ = λ,
-                            ∇f = ∇f,
-                            H = H,
-                            s = s,
-                            interior = false,
-                            solved = true,
-                            hard_case = false,
-                            Δ = Δ,
-                        )
-                    end
-                end
             end
         else # λ ∈ 𝓝, because the factorization failed (typo in CGT)
             # Use partial factorization to find δ and v such that
@@ -229,7 +208,7 @@ function (ms::NTR)(
         ∇f = ∇f,
         H = H,
         s = s,
-        interior = true,
+        interior = false,
         solved = false,
         hard_case = false,
         Δ = Δ,
@@ -255,23 +234,25 @@ end
 function λL_with_linpack(F)
     T = eltype(F)
     n = first(size(F))
+    U = F.U
     w = zeros(T, n)
-    num_p1 = inv(F.factors[end, end])
-    num_m1 = -inv(F.factors[end, end])
-    w[end] = max(num_p1, num_m1)
-    for k = n-1:-1:1
-        ukk = F.factors[k, k]
-        num = sum(abs2, view(F.factors, 1:(k-1), k))
-        w[k] = max((1 - num) / ukk, (-1 - num) / ukk)
+    # LINPACK-style estimate of the direction of smallest singular value:
+    # solve U'w = e where each eₖ = ±1 is chosen to maximize |wₖ|
+    for k = 1:n
+        num = dot(view(U, 1:(k-1), k), view(w, 1:(k-1)))
+        ukk = U[k, k]
+        w_p = (1 - num) / ukk
+        w_m = (-1 - num) / ukk
+        w[k] = abs(w_p) ≥ abs(w_m) ? w_p : w_m
     end
-    sol = F.factors \ w
+    sol = U \ w
     w, sol ./ norm(sol)
 end
 
 function 𝓖_root(u, s, Δ, ∇f, H)
     pa = sum(abs2, u)
     pb = 2 * dot(u, s)
-    pd = sqrt(4 * pb^2 - pa * (sum(abs2, s) - Δ^2))
+    pd = sqrt(pb^2 - 4 * pa * (sum(abs2, s) - Δ^2))
     α₁ = (-pb + pd) / 2pa
     α₂ = (-pb - pd) / 2pa
 
