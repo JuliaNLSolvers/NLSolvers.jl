@@ -1,7 +1,6 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-DocumenterMarkdown = "997ab1e6-3595-5248-9280-8efb232c3433"
+NLSolvers = "337daf1e-9722-11e9-073e-8b9effe078ba"
 
 [compat]
-Documenter = "0.27"
-DocumenterMarkdown = "0.2"
+Documenter = "1"
