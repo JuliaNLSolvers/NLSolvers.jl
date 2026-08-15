@@ -63,8 +63,8 @@ function (ms::NTR)(
     λ = T(λ0)
     θ = T(1) / 2
     n = length(∇f)
-    h = H isa UniformScaling ? copy(∇f) .* 0 .+ 1 : diag(H)
-    H = H isa UniformScaling ? Diagonal(copy(∇f) .* 0 .+ 1) : H
+    h = H isa UniformScaling ? fill!(similar(∇f), H.λ) : diag(H)
+    H = H isa UniformScaling ? Diagonal(fill!(similar(∇f), H.λ)) : H
 
     # Check for interior convergence
     if λ == T(0)
