@@ -76,6 +76,25 @@ using Test, NLSolvers, LinearAlgebra
         @test norm(r + λ̂ * res.p) < 1e-6
     end
 
+    @testset "UniformScaling Hessian keeps its scale" begin
+        g = [1.0, 2.0]
+        ntr = NLSolvers.NTR()
+        for (Hu, Hm) in ((2.0 * I, [2.0 0.0; 0.0 2.0]), (I, [1.0 0.0; 0.0 1.0]))
+            for Δ in (0.1, 10.0)
+                ru = ntr(g, Hu, Δ, zeros(2), NLSolvers.Newton(), NLSolvers.InPlace())
+                rm = ntr(
+                    g,
+                    copy(Hm),
+                    Δ,
+                    zeros(2),
+                    NLSolvers.Newton(),
+                    NLSolvers.InPlace(),
+                )
+                @test ru.p ≈ rm.p
+            end
+        end
+    end
+
     @testset "interior case" begin
         H = [2.0 0.3; 0.3 1.0]
         g = [1.0, 1.5]

@@ -151,7 +151,7 @@ Returns:
 function (ms::NWI)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxiter = 50)
     T = eltype(p)
     n = length(∇f)
-    H = H isa UniformScaling ? Diagonal(copy(∇f) .* 0 .+ 1) : H
+    H = H isa UniformScaling ? Diagonal(fill!(similar(∇f), H.λ)) : H
     h = diag(H)
 
     # Note that currently the eigenvalues are only sorted if H is perfectly
@@ -263,10 +263,15 @@ function (ms::NWI)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxiter = 50)
             H isa Diagonal ? cholesky(H; check = false) :
             cholesky(Hermitian(H); check = false)
         if !issuccess(F)
-            # We should not be here, but the lower bound might fail for
-            # numerical reasons.
-            if λ < λ_lb
-                λ = T(1) / 2 * (λ_previous - λ_lb) + λ_lb
+            # A failed factorization proves that H(λ) is not positive
+            # definite, so the current λ is itself a (numerical) lower
+            # bound for the target λ. Tighten the bound and step into
+            # the bracket (λ_lb, isg.U] instead of retrying the same λ.
+            λ_lb = max(λ_lb, λ)
+            λ = λ_lb + max(isg.U - λ_lb, zero(T)) / 2
+            if !(λ > λ_lb)
+                # the bracket has collapsed numerically; nudge upwards
+                λ = λ_lb + sqrt(eps(T)) * max(one(T), abs(λ_lb))
             end
             continue
         end
