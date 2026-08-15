@@ -148,10 +148,10 @@ function (ms::NTR)(
                 λL = max(λL, λ - dot(u, H * u))
 
                 α, s_g, m_g = 𝓖_root(u, s, Δ, ∇f, H)
-                # check hard case convergence (the κhard termination test in
-                # section 7.3 of [ConnGouldTointBook]);
-                # the test uses the uncorrected Newton step s, and s is only
-                # replaced by the boundary-crossing step on success
+                # check hard case convergence: Step 3 of Algorithm 7.3.5
+                # (termination rules) in [ConnGouldTointBook], condition
+                # (7.3.27). The test uses the uncorrected Newton step s(λ),
+                # and s is only replaced by s(λ) + αu on success
                 if α^2 * dot(u, H * u) ≤ κhard * (dot(s, H * s) + λ * Δ^2)
                     s .= s_g
                     H = update_H!(H, h)
@@ -179,8 +179,9 @@ function (ms::NTR)(
                 λ = λ⁺
             end
 
-            # check for convergence (the κeasy "easy case" termination criterion
-            # in section 7.3 of [ConnGouldTointBook]; applies in 𝓛 as well as 𝓖)
+            # check for convergence: the κeasy rule, Step 1 of Algorithm 7.3.5
+            # in [ConnGouldTointBook]. It is stated for any λ ∈ 𝓕, so it
+            # applies in 𝓛 as well as in 𝓖
             if abs(s₂ - Δ) ≤ κeasy * Δ
                 H = update_H!(H, h)
                 return tr_return(;
