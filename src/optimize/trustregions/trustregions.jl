@@ -25,20 +25,6 @@ algorithm(tr::TrustRegion) = tr.spsolve
 solve(problem::OptimizationProblem, x0, scheme, options::OptimizationOptions) =
     solve(problem, (x0, nothing), TrustRegion(scheme, NWI()), options)
 
-solve(
-    problem::OptimizationProblem{<:Any,<:Nothing,<:Nothing,<:Nothing},
-    x0,
-    approach::TrustRegion,
-    options::OptimizationOptions,
-) = solve(problem, (x0, nothing), approach, options)
-
-solve(
-    problem::OptimizationProblem{<:Any,<:Nothing,<:Nothing,<:Nothing},
-    s0::Tuple,
-    approach::TrustRegion,
-    options::OptimizationOptions,
-) = solve(problem, s0, approach, options)
-
 function solve(
     problem::OptimizationProblem,
     x0,
