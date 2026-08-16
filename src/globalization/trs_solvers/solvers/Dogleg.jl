@@ -18,17 +18,29 @@ end
   The Dogleg solver is only appropriate for positive definite Hessians.
 ===============================================================================#
 """
-    Dogleg()
+    Dogleg(; abstol = 1e-10, maxiter = 50)
 
 A trust region sub-problem solver that assumes positive definite hessians (exact
 or quasi-Newton approximations such as BFGS or variants).
 """
-struct Dogleg{T} <: TRSPSolver
+struct Dogleg{T,Ta} <: TRSPSolver
     γ::T # unused, for double-dogleg
+    abstol::Ta
+    maxiter::Int
 end
-Dogleg() = Dogleg(nothing)
+Dogleg(γ) = Dogleg(γ, 1e-10, 50)
+Dogleg(; abstol = 1e-10, maxiter = 50) = Dogleg(nothing, float(abstol), maxiter)
 
-function (dogleg::Dogleg)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxiter = 50)
+function (dogleg::Dogleg)(
+    ∇f,
+    H,
+    Δ,
+    p,
+    scheme,
+    mstyle;
+    abstol = dogleg.abstol,
+    maxiter = dogleg.maxiter,
+)
     T = eltype(p)
     n = length(∇f)
 

@@ -16,7 +16,27 @@
 # TODO allow passing in a lambda and previous cholesky if the
 # solution was not accepted
 # As described in Algorith, 7.3.4 in [CGTBOOK]
-struct NTR <: TRSPSolver end
+"""
+    NTR(; abstol = 1e-10, maxiter = 50, κeasy = 1/10, κhard = 2/10)
+
+Trust-region sub-problem solver based on a safeguarded Newton iteration on the
+secular equation with Cholesky factorizations, following Algorithm 7.3.4 of
+[ConnGouldTointBook]. `abstol` is the tolerance on the secular-equation root,
+`maxiter` bounds the Newton iterations, and `κeasy`/`κhard` are the
+termination-rule constants of Algorithm 7.3.5 (see the termination rules in
+section 7.3 of [ConnGouldTointBook]). Callers may override any of them per
+call through keywords of the same names.
+"""
+struct NTR{T} <: TRSPSolver
+    abstol::T
+    maxiter::Int
+    κeasy::T
+    κhard::T
+end
+function NTR(; abstol = 1e-10, maxiter = 50, κeasy = 1 / 10, κhard = 2 / 10)
+    abstol, κeasy, κhard = promote(float(abstol), float(κeasy), float(κhard))
+    NTR(abstol, maxiter, κeasy, κhard)
+end
 summary(::NTR) = "Trust Region (Newton, cholesky)"
 
 function initial_λs(∇f, H, Δ)
@@ -54,10 +74,10 @@ function (ms::NTR)(
     scheme,
     mstyle,
     λ0 = 0;
-    abstol = 1e-10,
-    maxiter = 50,
-    κeasy = T(1) / 10,
-    κhard = T(2) / 10,
+    abstol = T(ms.abstol),
+    maxiter = ms.maxiter,
+    κeasy = T(ms.κeasy),
+    κhard = T(ms.κhard),
 ) where {T}
     # λ0 might not be 0 if we come from a failed TRS solve
     λ = T(λ0)

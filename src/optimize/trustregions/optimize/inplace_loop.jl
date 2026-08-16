@@ -3,7 +3,7 @@ function solve(
     s0::Tuple,
     approach::TrustRegion,
     options::OptimizationOptions;
-    initial_Δ = 20.0,
+    initial_Δ = nothing,
 )
     x0, B0 = s0
     objvars = prepare_variables(problem, approach, copy(x0), copy(x0), B0)
@@ -14,9 +14,9 @@ function solve(
     approach::TrustRegion,
     options::OptimizationOptions,
     objvars::NamedTuple;
-    initial_Δ = 20.0,
+    initial_Δ = nothing,
 )
-    if !(mstyle(problem) === InPlace()) && !(approach.spsolve == Dogleg())
+    if !(mstyle(problem) === InPlace()) && !(approach.spsolve isa Dogleg)
         throw(
             ErrorException("solve() not defined for OutOfPlace() with TrustRegion solvers"),
         )
@@ -32,7 +32,7 @@ function solve(
     end
     t0 = time()
     T = eltype(objvars.z)
-    Δk = T(initial_Δ)
+    Δk = T(initial_Δ === nothing ? approach.Δupdate.Δ0 : initial_Δ)
     f0, ∇f0 = objvars.fz, norm(objvars.∇fz, Inf) # use user norm
 
     if any(initial_converged(approach, objvars, ∇f0, options, false, Δk))
@@ -135,7 +135,7 @@ function iterate!(
     x = _copyto(mstyle(problem), x, z)
     ∇fx = _copyto(mstyle(problem), ∇fx, ∇fz)
 
-    spr = subproblemsolver(∇fx, B, Δk, p, scheme, problem.mstyle; abstol = 1e-10)
+    spr = subproblemsolver(∇fx, B, Δk, p, scheme, problem.mstyle)
     Δm = -spr.mz
 
     z = retract(problem, z, x, spr.p)
@@ -160,7 +160,7 @@ function iterate!(
     # handles that case explicitly.
     Δf = fx - fz
     R, accept = tr_acceptance(Δf, Δm, T(approach.Δupdate.η))
-    Δkp1 = update_trust_region(spr, R, accept, p)
+    Δkp1 = update_trust_region(approach.Δupdate, spr, R, accept, p)
 
     if accept
         if approach.eval_f_first
@@ -218,22 +218,22 @@ function tr_acceptance(Δf, Δm, η)
     return R, !isnan(R) && R >= η
 end
 
-function update_trust_region(spr, R, accept, p)
+function update_trust_region(Δupdate::BTR, spr, R, accept, p)
     T = eltype(p)
-    t2 = T(1) / 4
-    t3 = t2 # could differ!
-    t4 = T(1) / 2
-    λ34 = T(0) / 2
-    γ = T(2.5) # gamma for grow
-    λγ = T(1) / 2 # distance along growing interval ∈ (0, 1]
-    Δmax = T(10)^5 # restrict the largest step
-    σ = T(1) / 4
+    t2 = T(Δupdate.t2)
+    t3 = T(Δupdate.t3)
+    t4 = T(Δupdate.t4)
+    λ34 = T(Δupdate.λ34)
+    γ = T(Δupdate.γ) # gamma for grow
+    λγ = T(Δupdate.λγ) # distance along growing interval ∈ (0, 1]
+    Δmax = T(Δupdate.Δmax) # restrict the largest step
+    σ = T(Δupdate.σ)
 
     Δk = spr.Δ
     # Shrinking picks a radius from the interval [t3*||p||, t4*Δk], with
     # λ34 ∈ [0, 1] interpolating between the endpoints as in [CGT]; [N&W]
     # Algorithm 4.1 on p. 69 is the λ34 = 1, t4 = 1/4 corner of this rule.
-    # λ34 is currently fixed at 0, so the shrink is Δk/2.
+    # With the default λ34 = 0 the shrink is t4*Δk = Δk/2.
     if !accept
         if spr.interior
             # If you reject an interior solution, make sure that the next
