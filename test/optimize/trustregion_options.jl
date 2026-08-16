@@ -67,7 +67,8 @@ _tro_prob() = OptimizationProblem(
 
     @testset "delta0 and the initial_Δ override" begin
         approach = TrustRegion(BFGS(Direct()), Dogleg(), NLSolvers.BTR(delta0 = 1e6))
-        res_field = solve(_tro_prob(), ([-1.2, 1.0], nothing), approach, OptimizationOptions())
+        res_field =
+            solve(_tro_prob(), ([-1.2, 1.0], nothing), approach, OptimizationOptions())
         res_kw = solve(
             _tro_prob(),
             ([-1.2, 1.0], nothing),
@@ -83,8 +84,7 @@ _tro_prob() = OptimizationProblem(
     @testset "deltamax bounds the radius" begin
         seen = Float64[]
         cb = info -> (push!(seen, info.state.Δ); false)
-        approach =
-            TrustRegion(BFGS(Direct()), Dogleg(), NLSolvers.BTR(deltamax = 30.0))
+        approach = TrustRegion(BFGS(Direct()), Dogleg(), NLSolvers.BTR(deltamax = 30.0))
         res = solve(
             _tro_prob(),
             ([-1.2, 1.0], nothing),
@@ -155,6 +155,7 @@ _tro_prob() = OptimizationProblem(
         for (scheme, sp) in (
             (NLSolvers.Newton(), NLSolvers.NTR(abstol = 1e-8)),
             (NLSolvers.Newton(), NLSolvers.NWI(abstol = 1e-8)),
+            (NLSolvers.Newton(), NLSolvers.TCG(abstol = 1e-8)),
             (BFGS(Direct()), NLSolvers.Dogleg(abstol = 1e-8)),
         )
             res = solve(
