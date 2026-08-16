@@ -27,11 +27,11 @@ Both can be overridden per call through keywords of the same names.
 The implementation follows Algorithm 7.5.1 on p. 205 of [ConnGouldTointBook] and
 the algorithm on p. 628 in [Steihaug1983].
 """
-struct TCG{Ta} <: TRSPSolver
+struct TCG{Ta,Tm<:Union{Nothing,Int}} <: TRSPSolver
     abstol::Ta
     # nothing means the iteration cap is picked per problem size at the call
     # site
-    maxiter::Union{Nothing,Int}
+    maxiter::Tm
 end
 TCG(; abstol = 1e-10, maxiter = nothing) = TCG(float(abstol), maxiter)
 summary(::TCG) = "Steihaug-Toint Truncated CG"
