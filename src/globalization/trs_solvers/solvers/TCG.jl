@@ -13,7 +13,13 @@
   The implementation follows Algorithm 7.5.1 on p. 205 of [ConnGouldTointBook] and
   the algorithm on p. 628 in [Steihaug1983]
 """
-struct TCG <: TRSPSolver end
+struct TCG{Ta} <: TRSPSolver
+    abstol::Ta
+    # nothing means the iteration-count default is picked per problem size at
+    # the call site
+    maxiter::Union{Nothing,Int}
+end
+TCG(; abstol = 1e-10, maxiter = nothing) = TCG(float(abstol), maxiter)
 summary(::TCG) = "Steihaug-Toint Truncated CG"
 
 function (ms::TCG)(
@@ -24,8 +30,8 @@ function (ms::TCG)(
     scheme,
     mstyle,
     λ0 = 0;
-    abstol = 1e-10,
-    maxiter = min(5, length(s)),
+    abstol = T(ms.abstol),
+    maxiter = ms.maxiter === nothing ? min(5, length(s)) : ms.maxiter,
     κeasy = T(1) / 10,
     κhard = T(2) / 10,
 ) where {T}

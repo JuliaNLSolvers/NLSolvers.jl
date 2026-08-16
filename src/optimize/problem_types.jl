@@ -363,9 +363,18 @@ function converged(approach, objvars, ∇f0, options, skip = nothing, Δkp1 = no
     g_converged(∇fz, ∇f0, options),
     f_converged(fx, fz, options)
     if approach isa TrustRegion
-        Δcon = isnan(Δkp1)
-        Δcon =
-            Δcon || (!(approach.Δupdate.Δmin isa Nothing) && Δkp1 < approach.Δupdate.Δmin)
+        # deltamin = nothing resolves to the iterate's floating-point
+        # resolution: below it no step can change z, so further iterations
+        # cannot make progress. deltamin = 0 disables the test. Radius dips
+        # far below any fixed fraction of eps are recoverable (quasi-Newton
+        # models re-adapt and the radius grows again), so the floor must not
+        # be more aggressive than this.
+        Δmin = approach.Δupdate.Δmin
+        if Δmin === nothing
+            TΔ = typeof(Δkp1)
+            Δmin = eps(TΔ) * max(one(TΔ), norm(z, Inf))
+        end
+        Δcon = isnan(Δkp1) || Δkp1 < Δmin
         if skip == true
             # special logic for region reduction here
             return false, false, false, Δcon

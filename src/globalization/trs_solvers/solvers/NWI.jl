@@ -20,10 +20,15 @@
   for the Hessian, or by passing in a function to the NWI constructor. This function
   must follow the same input/output patterns as LinearAlgebra.eigen.
 """
-struct NWI{T} <: NearlyExactTRSP
+struct NWI{T,Ta} <: NearlyExactTRSP
     eigen::T
+    abstol::Ta
+    maxiter::Int
 end
-NWI() = NWI(eigen)
+const _default_eigen = eigen
+NWI(eig) = NWI(eig, 1e-10, 50)
+NWI(; eigen = _default_eigen, abstol = 1e-10, maxiter = 50) =
+    NWI(eigen, float(abstol), maxiter)
 summary(::NWI) = "Trust Region (Newton, eigen)"
 
 """
@@ -148,7 +153,7 @@ Returns:
     solved - Whether or not a solution was reached (as opposed to
       terminating early due to maxiter)
 """
-function (ms::NWI)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxiter = 50)
+function (ms::NWI)(∇f, H, Δ, p, scheme, mstyle; abstol = ms.abstol, maxiter = ms.maxiter)
     T = eltype(p)
     n = length(∇f)
     H = H isa UniformScaling ? Diagonal(fill!(similar(∇f), H.λ)) : H
