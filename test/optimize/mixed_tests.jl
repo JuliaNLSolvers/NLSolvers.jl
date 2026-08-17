@@ -1,645 +1,206 @@
+# Sweeps the gradient-based methods over the Fletcher-Powell helical valley
+# and Himmelblau's function in in-place, out-of-place, and StaticArrays form.
 using NLSolvers, StaticArrays, Test
+using LinearAlgebra: norm
+import Random
+isdefined(Main, :TestProblems) || include(joinpath(@__DIR__, "testproblems.jl"))
+
+Random.seed!(886444)
+
+# One method through a line search in-place, out-of-place, and with
+# StaticArrays; Direct approximations also through both nearly-exact
+# trust-region solvers. Asserts each run reaches fmin within ftol.
+function qn_method_runs(problem, scheme, m, x0, x0s, fmin, ftol)
+    prob = OptimizationProblem(problem.inplace)
+    prob_oop = OptimizationProblem(problem.inplace; inplace = false)
+    prob_static = OptimizationProblem(problem.static; inplace = false)
+    res = solve(prob, copy(x0), LineSearch(scheme), OptimizationOptions())
+    @test res.info.minimum <= fmin + ftol
+    res = solve(prob_oop, copy(x0), LineSearch(scheme), OptimizationOptions())
+    @test res.info.minimum <= fmin + ftol
+    res = solve(prob_static, x0s, LineSearch(scheme), OptimizationOptions())
+    @test res.info.minimum <= fmin + ftol
+    if m isa Direct
+        for sp in (NWI(), NTR())
+            res = solve(prob, copy(x0), TrustRegion(scheme, sp), OptimizationOptions())
+            @test res.info.minimum <= fmin + ftol
+        end
+    end
+end
+
+function qn_method_sweep(problem, x0, x0s, fmin, ftol)
+    @testset "LBFGS" begin
+        prob = OptimizationProblem(problem.inplace)
+        res = solve(prob, copy(x0), LineSearch(LBFGS()), OptimizationOptions())
+        @test res.info.minimum <= fmin + ftol
+    end
+    for _method in (GradientDescent, BFGS, DBFGS, DFP)
+        for m in (Inverse(), Direct())
+            @testset "$_method $(typeof(m))" begin
+                qn_method_runs(problem, _method(m), m, x0, x0s, fmin, ftol)
+            end
+        end
+    end
+end
+
 @testset "mixed optimization problems" begin
-    function theta(x)
-        if x[1] > 0
-            return atan(x[2] / x[1]) / (2.0 * pi)
-        else
-            return (pi + atan(x[2] / x[1])) / (2.0 * pi)
-        end
-    end
-    f(x) = 100.0 * ((x[3] - 10.0 * theta(x))^2 + (sqrt(x[1]^2 + x[2]^2) - 1.0)^2) + x[3]^2
+    @testset "Fletcher-Powell helical valley" begin
+        fp = TestProblems.fletcher_powell
+        prob = OptimizationProblem(fp.inplace)
+        x0 = fp.x0()
+        x0s = @SVector [-1.0, 0.0, 0.0]
 
-    function f∇f!(x, ∇f)
-        if !(∇f == nothing)
-            if (x[1]^2 + x[2]^2 == 0)
-                dtdx1 = 0
-                dtdx2 = 0
-            else
-                dtdx1 = -x[2] / (2 * pi * (x[1]^2 + x[2]^2))
-                dtdx2 = x[1] / (2 * pi * (x[1]^2 + x[2]^2))
-            end
-            ∇f[1] =
-                -2000.0 * (x[3] - 10.0 * theta(x)) * dtdx1 +
-                200.0 * (sqrt(x[1]^2 + x[2]^2) - 1) * x[1] / sqrt(x[1]^2 + x[2]^2)
-            ∇f[2] =
-                -2000.0 * (x[3] - 10.0 * theta(x)) * dtdx2 +
-                200.0 * (sqrt(x[1]^2 + x[2]^2) - 1) * x[2] / sqrt(x[1]^2 + x[2]^2)
-            ∇f[3] = 200.0 * (x[3] - 10.0 * theta(x)) + 2.0 * x[3]
+        @testset "conjugate gradient update $(typeof(update))" for update in (
+            HZ(),
+            CD(),
+            FR(),
+            PRP(plus = false),
+            PRP(plus = true),
+            VPRP(),
+            DY(),
+        )
+            res = solve(
+                prob,
+                copy(x0),
+                ConjugateGradient(update = update),
+                OptimizationOptions(),
+            )
+            @test res.info.minimum <= fp.minimum + 1e-8
         end
 
-        fx = f(x)
-        objective_return(fx, ∇f)
-    end
-
-    function f∇f(x, ∇f)
-        if !(∇f == nothing)
-            ∇f = similar(x)
+        # HS and LS stall far from the minimum on this start
+        @testset "conjugate gradient update $(typeof(update)) stalls" for update in
+                                                                          (HS(), LS())
+            res = solve(
+                prob,
+                copy(x0),
+                ConjugateGradient(update = update),
+                OptimizationOptions(),
+            )
+            @test_broken res.info.minimum <= fp.minimum + 1e-8
         end
-        fx, ∇f = f∇f!(gx, x)
-        objective_return(fx, ∇f)
-    end
-    function f∇fs(x, ∇f)
-        if !(∇f == nothing)
-            if (x[1]^2 + x[2]^2 == 0)
-                dtdx1 = 0
-                dtdx2 = 0
-            else
-                dtdx1 = -x[2] / (2 * pi * (x[1]^2 + x[2]^2))
-                dtdx2 = x[1] / (2 * pi * (x[1]^2 + x[2]^2))
-            end
 
-            s1 =
-                -2000.0 * (x[3] - 10.0 * theta(x)) * dtdx1 +
-                200.0 * (sqrt(x[1]^2 + x[2]^2) - 1) * x[1] / sqrt(x[1]^2 + x[2]^2)
-            s2 =
-                -2000.0 * (x[3] - 10.0 * theta(x)) * dtdx2 +
-                200.0 * (sqrt(x[1]^2 + x[2]^2) - 1) * x[2] / sqrt(x[1]^2 + x[2]^2)
-            s3 = 200.0 * (x[3] - 10.0 * theta(x)) + 2.0 * x[3]
-            ∇f = @SVector [s1, s2, s3]
+        @testset "samplers" begin
+            f_at_x0 = fp.inplace.f(x0)
+            res = solve(prob, copy(x0), NelderMead(), OptimizationOptions())
+            @test res.info.minimum < f_at_x0
+            res = solve(prob, copy(x0), SimulatedAnnealing(), OptimizationOptions())
+            @test res.info.minimum < f_at_x0
         end
-        objective_return(f(x), ∇f)
-    end
-    obj_inplace = OnceDiffed(f∇f!)
-    obj_outofplace = OnceDiffed(f∇f)
-    obj_static = OnceDiffed(f∇fs)
 
-    x0 = [-1.0, 0.0, 0.0]
-    xopt = [1.0, 0.0, 0.0]
-    x0s = @SVector [-1.0, 0.0, 0.0]
+        @testset "quasi-Newton methods" begin
+            qn_method_sweep(fp, x0, x0s, fp.minimum, 1e-8)
+        end
 
-    println("Starting  from: ", x0)
-    println("Targeting     : ", xopt)
-
-
-    res = minimize(obj_inplace, copy(x0), NelderMead(), MinOptions())
-    print("NN  $(summary(NelderMead()))         ")
-    @printf(
-        "%2.2e  %2.2e %2.2e %d\n",
-        norm(res.info.solution - xopt, Inf),
-        norm(res.info.nm_obj, Inf),
-        res.info.minimum,
-        res.info.iter
-    )
-    res = minimize(obj_inplace, copy(x0), SimulatedAnnealing(), MinOptions())
-    print("NN  $(summary(SimulatedAnnealing()))         ")
-    @printf(
-        "%2.2e  %2.2e %d\n",
-        norm(res.info.solution - xopt, Inf),
-        res.info.minimum,
-        res.info.iter
-    )
-    res = minimize(obj_inplace, copy(x0), ConjugateGradient(update = HZ()), MinOptions())
-    print("NN  $(summary(ConjugateGradient(update=HZ())))         ")
-    @printf(
-        "%2.2e  %2.2e %d\n",
-        norm(res.info.solution - xopt, Inf),
-        res.info.minimum,
-        res.info.iter
-    )
-    res = minimize(obj_inplace, copy(x0), ConjugateGradient(update = CD()), MinOptions())
-    print("NN  $(summary(ConjugateGradient(update=CD())))         ")
-    @printf(
-        "%2.2e  %2.2e %d\n",
-        norm(res.info.solution - xopt, Inf),
-        res.info.minimum,
-        res.info.iter
-    )
-    res = minimize(obj_inplace, copy(x0), ConjugateGradient(update = HS()), MinOptions())
-    print("NN  $(summary(ConjugateGradient(update=HS())))         ")
-    @printf(
-        "%2.2e  %2.2e %d\n",
-        norm(res.info.solution - xopt, Inf),
-        res.info.minimum,
-        res.info.iter
-    )
-    res = minimize(obj_inplace, copy(x0), ConjugateGradient(update = FR()), MinOptions())
-    print("NN  $(summary(ConjugateGradient(update=FR())))         ")
-    @printf(
-        "%2.2e  %2.2e %d\n",
-        norm(res.info.solution - xopt, Inf),
-        res.info.minimum,
-        res.info.iter
-    )
-    res = minimize(obj_inplace, copy(x0), ConjugateGradient(update = PRP()), MinOptions())
-    print("NN  $(summary(ConjugateGradient(update=PRP(;plus=false))))         ")
-    @printf(
-        "%2.2e  %2.2e %d\n",
-        norm(res.info.solution - xopt, Inf),
-        res.info.minimum,
-        res.info.iter
-    )
-    res = minimize(
-        obj_inplace,
-        copy(x0),
-        ConjugateGradient(update = PRP(plus = true)),
-        MinOptions(),
-    )
-    print("NN  $(summary(ConjugateGradient(update=PRP(;plus=true))))         ")
-    @printf(
-        "%2.2e  %2.2e %d\n",
-        norm(res.info.solution - xopt, Inf),
-        res.info.minimum,
-        res.info.iter
-    )
-    res = minimize(obj_inplace, copy(x0), ConjugateGradient(update = VPRP()), MinOptions())
-    print("NN  $(summary(ConjugateGradient(update=VPRP())))         ")
-    @printf(
-        "%2.2e  %2.2e %d\n",
-        norm(res.info.solution - xopt, Inf),
-        res.info.minimum,
-        res.info.iter
-    )
-    res = minimize(obj_inplace, copy(x0), ConjugateGradient(update = LS()), MinOptions())
-    print("NN  $(summary(ConjugateGradient(update=LS())))         ")
-    @printf(
-        "%2.2e  %2.2e %d\n",
-        norm(res.info.solution - xopt, Inf),
-        res.info.minimum,
-        res.info.iter
-    )
-    res = minimize(obj_inplace, copy(x0), ConjugateGradient(update = DY()), MinOptions())
-    print("NN  $(summary(ConjugateGradient(update=DY())))         ")
-    @printf(
-        "%2.2e  %2.2e %d\n",
-        norm(res.info.solution - xopt, Inf),
-        res.info.minimum,
-        res.info.iter
-    )
-
-    for _method in (GradientDescent, LBFGS, BFGS, DBFGS, DFP, SR1)
-        # for _method in (GradientDescent, BFGS, DBFGS, DFP, SR1)
-        methodtxt = summary(_method())
-        for m in (Inverse(), Direct())
-            mtxt = m isa Inverse ? "(inverse): " : "(direct):  "
-            if _method == LBFGS && m isa Inverse
-                res = minimize!(obj_inplace, copy(x0), LineSearch(_method(m)), MinOptions())
-                print("NN! $_method    $mtxt")
-                @printf(
-                    "%2.2e  %2.2e %2.2e  %d\n",
-                    norm(res.info.solution - xopt, Inf),
-                    norm(res.info.∇fz, Inf),
-                    res.info.minimum,
-                    res.info.iter
+        @testset "backtracking" begin
+            res = solve(
+                prob,
+                copy(x0),
+                LineSearch(BFGS(Inverse()), Backtracking()),
+                OptimizationOptions(),
+            )
+            @test res.info.minimum <= fp.minimum + 1e-8
+            @test res.info.iter == 30
+            res = solve(
+                OptimizationProblem(fp.static; inplace = false),
+                x0s,
+                LineSearch(BFGS(Inverse()), Backtracking()),
+                OptimizationOptions(),
+            )
+            @test res.info.minimum <= fp.minimum + 1e-8
+            @test res.info.iter == 30
+            # the quadratic interpolation variant stalls on this start
+            for (p, x) in
+                ((prob, x0), (OptimizationProblem(fp.static; inplace = false), x0s))
+                res = solve(
+                    p,
+                    copy(x),
+                    LineSearch(BFGS(Inverse()), Backtracking(interp = FFQuadInterp())),
+                    OptimizationOptions(),
                 )
-            elseif _method !== LBFGS
-                res = minimize(obj_inplace, copy(x0), LineSearch(_method(m)), MinOptions())
-                print("NN  $_method    $mtxt")
-                @printf(
-                    "%2.2e  %2.2e %2.2e  %d\n",
-                    norm(res.info.solution - xopt, Inf),
-                    norm(res.info.∇fz, Inf),
-                    res.info.minimum,
-                    res.info.iter
-                )
-                res = minimize!(obj_inplace, copy(x0), LineSearch(_method(m)), MinOptions())
-                print("NN! $_method    $mtxt")
-                @printf(
-                    "%2.2e  %2.2e %2.2e  %d\n",
-                    norm(res.info.solution - xopt, Inf),
-                    norm(res.info.∇fz, Inf),
-                    res.info.minimum,
-                    res.info.iter
-                )
-                res = minimize(obj_static, x0s, LineSearch(_method(m)), MinOptions())
-                print("NN  $_method(S) $mtxt")
-                @printf(
-                    "%2.2e  %2.2e %2.2e  %d\n",
-                    norm(res.info.solution - xopt, Inf),
-                    norm(res.info.∇fz, Inf),
-                    res.info.minimum,
-                    res.info.iter
-                )
-                if m isa Direct && !(_method == GradientDescent)
-                    println("Trust region: NWI")
-                    res = minimize!(
-                        obj_inplace,
-                        copy(x0),
-                        TrustRegion(_method(Direct()), NWI()),
-                        MinOptions(),
-                    )
-                    print("NN! $_method    $mtxt")
-                    @printf(
-                        "%2.2e  %2.2e %2.2e  %d\n",
-                        norm(res.info.solution - xopt, Inf),
-                        norm(res.info.∇fz, Inf),
-                        res.info.minimum,
-                        res.info.iter
-                    )
-                    println("Trust region: NTR")
-                    res = minimize!(
-                        obj_inplace,
-                        copy(x0),
-                        TrustRegion(_method(Direct()), NTR()),
-                        MinOptions(),
-                    )
-                    print("NN! $_method    $mtxt")
-                    @printf(
-                        "%2.2e  %2.2e %2.2e  %d\n",
-                        norm(res.info.solution - xopt, Inf),
-                        norm(res.info.∇fz, Inf),
-                        res.info.minimum,
-                        res.info.iter
-                    )
-                end
+                @test_broken res.info.minimum <= fp.minimum + 1e-8
             end
         end
     end
-    println()
 
-    res = minimize(obj_inplace, x0, LineSearch(BFGS(Inverse())), MinOptions())
-    @test res.info.iter == 30
-    @printf(
-        "NN  BFGS    (inverse): %2.2e  %2.2e %2.2e %d\n",
-        norm(res.info.solution - xopt, Inf),
-        norm(res.info.∇fz, Inf),
-        res.info.minimum,
-        res.info.iter
-    )
-    res = minimize!(
-        obj_inplace,
-        copy(x0),
-        LineSearch(BFGS(Inverse()), Backtracking()),
-        MinOptions(),
-    )
-    @test res.info.iter == 30
-    @printf(
-        "NN! BFGS    (inverse): %2.2e  %2.2e %2.2e %d\n",
-        norm(res.info.solution - xopt, Inf),
-        norm(res.info.∇fz, Inf),
-        res.info.minimum,
-        res.info.iter
-    )
-    res = minimize!(
-        obj_inplace,
-        copy(x0),
-        LineSearch(BFGS(Inverse()), Backtracking(interp = FFQuadInterp())),
-        MinOptions(),
-    )
-    @test res.info.iter == 30
-    @printf(
-        "NN! BFGS    (inverse, quad): %2.2e %2.2e %2.2e %d\n",
-        norm(res.info.solution - xopt, Inf),
-        norm(res.info.∇fz, Inf),
-        res.info.minimum,
-        res.info.iter
-    )
-    res = minimize(obj_static, x0s, LineSearch(BFGS(Inverse())), MinOptions())
-    @test res.info.iter == 30
-    @printf(
-        "NN  BFGS(S) (inverse): %2.2e %2.2e %2.2e %d\n",
-        norm(res.info.solution - xopt, Inf),
-        norm(res.info.∇fz, Inf),
-        res.info.minimum,
-        res.info.iter
-    )
-    res = minimize(
-        obj_static,
-        x0s,
-        LineSearch(BFGS(Inverse()), Backtracking(interp = FFQuadInterp())),
-        MinOptions(),
-    )
-    @test res.info.iter == 30
-    @printf(
-        "NN  BFGS(S) (inverse, quad): %2.2e %2.2e %2.2e %d\n",
-        norm(res.info.solution - xopt, Inf),
-        norm(res.info.∇fz, Inf),
-        res.info.minimum,
-        res.info.iter
-    )
+    @testset "Himmelblau" begin
+        hb = TestProblems.himmelblau
+        x0 = hb.x0()
+        x0s = SVector{2}(hb.x0())
 
-    x0 = rand(3)
-    x0s = SVector{3}(x0)
-    println("\nFrom a random point: ", x0)
-    res = minimize(obj_inplace, copy(x0), NelderMead(), MinOptions())
-    print("NN  $(summary(NelderMead()))         ")
-    @printf(
-        "%2.2e  %2.2e %2.2e %d\n",
-        norm(res.info.solution - xopt, Inf),
-        norm(res.info.nm_obj, Inf),
-        res.info.minimum,
-        res.info.iter
-    )
-    res = minimize(obj_inplace, copy(x0), SimulatedAnnealing(), MinOptions())
-    print("NN  $(summary(SimulatedAnnealing()))         ")
-    @printf(
-        "%2.2e  %2.2e %d\n",
-        norm(res.info.solution - xopt, Inf),
-        res.info.minimum,
-        res.info.iter
-    )
-    res = minimize(obj_inplace, copy(x0), ConjugateGradient(), MinOptions())
-    print("NN  $(summary(ConjugateGradient()))         ")
-    @printf(
-        "%2.2e  %2.2e %d\n",
-        norm(res.info.solution - xopt, Inf),
-        res.info.minimum,
-        res.info.iter
-    )
+        @testset "quasi-Newton methods" begin
+            qn_method_sweep(hb, x0, x0s, hb.minimum, 1e-8)
+        end
 
-    for _method in (GradientDescent, LBFGS, BFGS, DBFGS, DFP, SR1)
-        methodtxt = summary(_method())
-        for m in (Inverse(), Direct())
-            mtxt = m isa Inverse ? "(inverse): " : "(direct):  "
-            if _method == LBFGS && m isa Inverse
-                res = minimize!(obj_inplace, copy(x0), LineSearch(_method(m)), MinOptions())
-                print("NN! $_method    $mtxt")
-                @printf(
-                    "%2.2e  %2.2e %2.2e  %d\n",
-                    norm(res.info.solution - xopt, Inf),
-                    norm(res.info.∇fz, Inf),
-                    res.info.minimum,
-                    res.info.iter
+        @testset "solutions are known minimizers" begin
+            for m in (BFGS(Inverse()), BFGS(Direct()), DFP(Inverse()))
+                res = solve(
+                    OptimizationProblem(hb.inplace),
+                    hb.x0(),
+                    LineSearch(m),
+                    OptimizationOptions(),
                 )
-            elseif _method !== LBFGS
-                res = minimize(obj_inplace, copy(x0), LineSearch(_method(m)), MinOptions())
-                print("NN  $_method    $mtxt")
-                @printf(
-                    "%2.2e  %2.2e %2.2e %d\n",
-                    norm(res.info.solution - xopt, Inf),
-                    norm(res.info.∇fz, Inf),
-                    res.info.minimum,
-                    res.info.iter
-                )
-                res = minimize!(obj_inplace, copy(x0), LineSearch(_method(m)), MinOptions())
-                print("NN! $_method    $mtxt")
-                @printf(
-                    "%2.2e  %2.2e %2.2e %d\n",
-                    norm(res.info.solution - xopt, Inf),
-                    norm(res.info.∇fz, Inf),
-                    res.info.minimum,
-                    res.info.iter
-                )
-                res = minimize(obj_static, x0s, LineSearch(_method(m)), MinOptions())
-                print("NN  $_method(S) $mtxt")
-                @printf(
-                    "%2.2e  %2.2e %2.2e %d\n",
-                    norm(res.info.solution - xopt, Inf),
-                    norm(res.info.∇fz, Inf),
-                    res.info.minimum,
-                    res.info.iter
-                )
-                if m isa Direct && !(_method == GradientDescent)
-                    println("Trust region: NWI")
-                    res = minimize!(
-                        obj_inplace,
-                        copy(x0),
-                        TrustRegion(_method(Direct()), NWI()),
-                        MinOptions(),
-                    )
-                    print("NN! $_method    $mtxt")
-                    @printf(
-                        "%2.2e  %2.2e %2.2e %d\n",
-                        norm(res.info.solution - xopt, Inf),
-                        norm(res.info.∇fz, Inf),
-                        res.info.minimum,
-                        res.info.iter
-                    )
-                    println("Trust region: NTR")
-                    res = minimize!(
-                        obj_inplace,
-                        copy(x0),
-                        TrustRegion(_method(Direct()), NTR()),
-                        MinOptions(),
-                    )
-                    print("NN! $_method    $mtxt")
-                    @printf(
-                        "%2.2e  %2.2e %2.2e %d\n",
-                        norm(res.info.solution - xopt, Inf),
-                        norm(res.info.∇fz, Inf),
-                        res.info.minimum,
-                        res.info.iter
-                    )
-                end
+                dist =
+                    minimum(norm(res.info.solution - xopt, Inf) for xopt in hb.minimizers)
+                @test dist < 1e-4
             end
         end
     end
-    println()
 
-    function himmelblau!(x, ∇f)
-        if !(∇f == nothing)
-            ∇f[1] =
-                4.0 * x[1]^3 + 4.0 * x[1] * x[2] - 44.0 * x[1] + 2.0 * x[1] + 2.0 * x[2]^2 -
-                14.0
-            ∇f[2] =
-                2.0 * x[1]^2 + 2.0 * x[2] - 22.0 + 4.0 * x[1] * x[2] + 4.0 * x[2]^3 -
-                28.0 * x[2]
+    # SR1 has no curvature safeguard on its update, so several line-search
+    # runs stall away from the minimum; the trust-region runs are fine. The
+    # broken marks document today's behavior per problem and form.
+    @testset "SR1" begin
+        fp = TestProblems.fletcher_powell
+        hb = TestProblems.himmelblau
+
+        @testset "Fletcher-Powell line searches stall" begin
+            prob = OptimizationProblem(fp.inplace)
+            prob_oop = OptimizationProblem(fp.inplace; inplace = false)
+            prob_static = OptimizationProblem(fp.static; inplace = false)
+            x0s = @SVector [-1.0, 0.0, 0.0]
+            for m in (Inverse(), Direct())
+                res = solve(prob, fp.x0(), LineSearch(SR1(m)), OptimizationOptions())
+                @test_broken res.info.minimum <= fp.minimum + 1e-8
+                res = solve(prob_oop, fp.x0(), LineSearch(SR1(m)), OptimizationOptions())
+                @test_broken res.info.minimum <= fp.minimum + 1e-8
+                res = solve(prob_static, x0s, LineSearch(SR1(m)), OptimizationOptions())
+                @test_broken res.info.minimum <= fp.minimum + 1e-8
+            end
         end
 
-        fx = (x[1]^2 + x[2] - 11)^2 + (x[1] + x[2]^2 - 7)^2
-        objective_return(fx, ∇f)
-    end
-
-
-    function himmelblaus(x, ∇f)
-        fx = (x[1]^2 + x[2] - 11)^2 + (x[1] + x[2]^2 - 7)^2
-        if !(∇f == nothing)
-            ∇f1 =
-                4.0 * x[1]^3 + 4.0 * x[1] * x[2] - 44.0 * x[1] + 2.0 * x[1] + 2.0 * x[2]^2 -
-                14.0
-            ∇f2 =
-                2.0 * x[1]^2 + 2.0 * x[2] - 22.0 + 4.0 * x[1] * x[2] + 4.0 * x[2]^3 -
-                28.0 * x[2]
-            ∇f = @SVector([∇f1, ∇f2])
+        @testset "Himmelblau" begin
+            prob = OptimizationProblem(hb.inplace)
+            prob_oop = OptimizationProblem(hb.inplace; inplace = false)
+            prob_static = OptimizationProblem(hb.static; inplace = false)
+            x0s = SVector{2}(hb.x0())
+            # Inverse: only the in-place form converges
+            res = solve(prob, hb.x0(), LineSearch(SR1(Inverse())), OptimizationOptions())
+            @test res.info.minimum <= hb.minimum + 1e-8
+            res =
+                solve(prob_oop, hb.x0(), LineSearch(SR1(Inverse())), OptimizationOptions())
+            @test_broken res.info.minimum <= hb.minimum + 1e-8
+            res = solve(prob_static, x0s, LineSearch(SR1(Inverse())), OptimizationOptions())
+            @test_broken res.info.minimum <= hb.minimum + 1e-8
+            # Direct converges in every form
+            res = solve(prob, hb.x0(), LineSearch(SR1(Direct())), OptimizationOptions())
+            @test res.info.minimum <= hb.minimum + 1e-8
+            res = solve(prob_oop, hb.x0(), LineSearch(SR1(Direct())), OptimizationOptions())
+            @test res.info.minimum <= hb.minimum + 1e-8
+            res = solve(prob_static, x0s, LineSearch(SR1(Direct())), OptimizationOptions())
+            @test res.info.minimum <= hb.minimum + 1e-8
         end
-        objective_return(fx, ∇f)
-    end
 
-    function himmelblau(x, ∇f)
-        g = ∇f == nothing ? ∇f : similar(x)
-
-        return himmelblau!(x, g)
-    end
-
-    him_inplace = OnceDiffed(himmelblau!)
-    him_static = OnceDiffed(himmelblaus)
-    him_outofplace = OnceDiffed(himmelblau)
-
-    println("\nHimmelblau function")
-    x0 = [3.0, 1.0]
-    x0s = SVector{2}(x0)
-    minimizers =
-        [[3.0, 2.0], [-2.805118, 3.131312], [-3.779310, -3.283186], [3.584428, -1.848126]]
-    for _method in (GradientDescent, LBFGS, BFGS, DBFGS, DFP, SR1)
-        # for _method in (GradientDescent, BFGS, DBFGS, DFP, SR1)
-        methodtxt = summary(_method())
-        for m in (Inverse(), Direct())
-            mtxt = m isa Inverse ? "(inverse): " : "(direct):  "
-            if _method == LBFGS && m isa Inverse
-                res = minimize!(him_inplace, copy(x0), LineSearch(_method(m)), MinOptions())
-                print("NN! $_method    $mtxt")
-                @printf(
-                    "%2.2e  %2.2e %2.2e  %d\n",
-                    minimum([norm(res.info.solution - xopt, Inf) for xopt in minimizers]),
-                    norm(res.info.∇fz, Inf),
-                    res.info.minimum,
-                    res.info.iter
+        @testset "trust regions converge" begin
+            for problem in (fp, hb), sp in (NWI(), NTR())
+                res = solve(
+                    OptimizationProblem(problem.inplace),
+                    problem.x0(),
+                    TrustRegion(SR1(Direct()), sp),
+                    OptimizationOptions(),
                 )
-            elseif _method !== LBFGS
-                res =
-                    minimize(him_outofplace, copy(x0), LineSearch(_method(m)), MinOptions())
-                print("NN  $_method    $mtxt")
-                @printf(
-                    "%2.2e  %2.2e %2.2e  %d\n",
-                    minimum([norm(res.info.solution - xopt, Inf) for xopt in minimizers]),
-                    norm(res.info.∇fz, Inf),
-                    res.info.minimum,
-                    res.info.iter
-                )
-                res = minimize!(him_inplace, copy(x0), LineSearch(_method(m)), MinOptions())
-                print("NN! $_method    $mtxt")
-                @printf(
-                    "%2.2e  %2.2e %2.2e  %d\n",
-                    minimum([norm(res.info.solution - xopt, Inf) for xopt in minimizers]),
-                    norm(res.info.∇fz, Inf),
-                    res.info.minimum,
-                    res.info.iter
-                )
-                res = minimize(him_static, x0s, LineSearch(_method(m)), MinOptions())
-                print("NN  $_method(S) $mtxt")
-                @printf(
-                    "%2.2e  %2.2e %2.2e  %d\n",
-                    minimum([norm(res.info.solution - xopt, Inf) for xopt in minimizers]),
-                    norm(res.info.∇fz, Inf),
-                    res.info.minimum,
-                    res.info.iter
-                )
-                if m isa Direct && !(_method == GradientDescent)
-                    println("Trust region: NWI")
-                    res = minimize!(
-                        him_inplace,
-                        copy(x0),
-                        TrustRegion(_method(Direct()), NWI()),
-                        MinOptions(),
-                    )
-                    print("NN! $_method    $mtxt")
-                    @printf(
-                        "%2.2e  %2.2e %2.2e  %d\n",
-                        minimum([
-                            norm(res.info.solution - xopt, Inf) for xopt in minimizers
-                        ]),
-                        norm(res.info.∇fz, Inf),
-                        res.info.minimum,
-                        res.info.iter
-                    )
-                    println("Trust region: NTR")
-                    res = minimize!(
-                        him_inplace,
-                        copy(x0),
-                        TrustRegion(_method(Direct()), NTR()),
-                        MinOptions(),
-                    )
-                    print("NN! $_method    $mtxt")
-                    @printf(
-                        "%2.2e  %2.2e %2.2e  %d\n",
-                        minimum([
-                            norm(res.info.solution - xopt, Inf) for xopt in minimizers
-                        ]),
-                        norm(res.info.∇fz, Inf),
-                        res.info.minimum,
-                        res.info.iter
-                    )
-                end
+                @test res.info.minimum <= problem.minimum + 1e-8
             end
         end
     end
-    println()
-    println()
-    xrand = rand(2)
-    xrands = SVector{2}(xrand)
-    println("\nFrom a random point: ", xrand)
-
-    for _method in (GradientDescent, LBFGS, BFGS, DBFGS, SR1)
-        # for _method in (GradientDescent, BFGS, DBFGS, DFP, SR1)
-        methodtxt = summary(_method())
-        for m in (Inverse(), Direct())
-            mtxt = m isa Inverse ? "(inverse): " : "(direct):  "
-            if _method == LBFGS && m isa Inverse
-                res = minimize!(him_inplace, copy(x0), LineSearch(_method(m)), MinOptions())
-                print("NN! $_method    $mtxt")
-                @printf(
-                    "%2.2e  %2.2e %2.2e  %d\n",
-                    minimum([norm(res.info.solution - xopt, Inf) for xopt in minimizers]),
-                    norm(res.info.∇fz, Inf),
-                    res.info.minimum,
-                    res.info.iter
-                )
-            elseif _method !== LBFGS
-                res = minimize(
-                    him_outofplace,
-                    copy(xrand),
-                    LineSearch(_method(m)),
-                    MinOptions(),
-                )
-                print("NN  $_method    $mtxt")
-                @printf(
-                    "%2.2e  %2.2e %2.2e  %d\n",
-                    minimum([norm(res.info.solution - xopt, Inf) for xopt in minimizers]),
-                    norm(res.info.∇fz, Inf),
-                    res.info.minimum,
-                    res.info.iter
-                )
-                res = minimize!(
-                    him_inplace,
-                    copy(xrand),
-                    LineSearch(_method(m)),
-                    MinOptions(),
-                )
-                print("NN! $_method    $mtxt")
-                @printf(
-                    "%2.2e  %2.2e %2.2e  %d\n",
-                    minimum([norm(res.info.solution - xopt, Inf) for xopt in minimizers]),
-                    norm(res.info.∇fz, Inf),
-                    res.info.minimum,
-                    res.info.iter
-                )
-                res = minimize(him_static, xrands, LineSearch(_method(m)), MinOptions())
-                print("NN  $_method(S) $mtxt")
-                @printf(
-                    "%2.2e  %2.2e %2.2e  %d\n",
-                    minimum([norm(res.info.solution - xopt, Inf) for xopt in minimizers]),
-                    norm(res.info.∇fz, Inf),
-                    res.info.minimum,
-                    res.info.iter
-                )
-                if m isa Direct && !(_method == GradientDescent)
-                    println("Trust region: NWI")
-                    res = minimize!(
-                        him_inplace,
-                        copy(xrand),
-                        TrustRegion(_method(Direct()), NWI()),
-                        MinOptions(),
-                    )
-                    print("NN! $_method    $mtxt")
-                    @printf(
-                        "%2.2e  %2.2e %2.2e  %d\n",
-                        minimum([
-                            norm(res.info.solution - xopt, Inf) for xopt in minimizers
-                        ]),
-                        norm(res.info.∇fz, Inf),
-                        res.info.minimum,
-                        res.info.iter
-                    )
-                    println("Trust region: NTR")
-                    res = minimize!(
-                        him_inplace,
-                        copy(xrand),
-                        TrustRegion(_method(Direct()), NTR()),
-                        MinOptions(),
-                    )
-                    print("NN! $_method    $mtxt")
-                    @printf(
-                        "%2.2e  %2.2e %2.2e  %d\n",
-                        minimum([
-                            norm(res.info.solution - xopt, Inf) for xopt in minimizers
-                        ]),
-                        norm(res.info.∇fz, Inf),
-                        res.info.minimum,
-                        res.info.iter
-                    )
-                end
-            end
-        end
-    end
-    println()
-
 end

@@ -1,4 +1,5 @@
 using Test, NLSolvers, LinearAlgebra
+isdefined(Main, :TestProblems) || include(joinpath(@__DIR__, "testproblems.jl"))
 
 function _ab_steplength(f, x, p, g, lower, upper, activeset, φ0)
     prob = OptimizationProblem(ScalarObjective(f = f); inplace = false)
@@ -59,7 +60,7 @@ end
     @testset "bounded solves decrease monotonically" begin
         # the fixture is defined in problems.jl, included by runtests.jl
         prob = OptimizationProblem(
-            obj = OPT_PROBS["himmelblau"]["array"]["mutating"],
+            obj = TestProblems.himmelblau.inplace,
             bounds = ([3.5, -9.0], [13.0, 4.0]),
         )
         fs = Float64[]

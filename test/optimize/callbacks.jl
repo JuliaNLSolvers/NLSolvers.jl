@@ -1,35 +1,10 @@
 using NLSolvers
 using LinearAlgebra
 using Test
+isdefined(Main, :TestProblems) || include(joinpath(@__DIR__, "testproblems.jl"))
 
 @testset "Callbacks" begin
-    rosenbrock_f(x) = (1.0 - x[1])^2 + 100.0 * (x[2] - x[1]^2)^2
-    function rosenbrock_g!(∇f, x)
-        ∇f[1] = -2.0 * (1.0 - x[1]) - 400.0 * (x[2] - x[1]^2) * x[1]
-        ∇f[2] = 200.0 * (x[2] - x[1]^2)
-        ∇f
-    end
-    function rosenbrock_fg!(∇f, x)
-        rosenbrock_g!(∇f, x)
-        rosenbrock_f(x), ∇f
-    end
-    function rosenbrock_fgh!(∇f, H, x)
-        fx, ∇f = rosenbrock_fg!(∇f, x)
-        H[1, 1] = 2.0 - 400.0 * x[2] + 1200.0 * x[1]^2
-        H[1, 2] = -400.0 * x[1]
-        H[2, 1] = -400.0 * x[1]
-        H[2, 2] = 200.0
-        fx, ∇f, H
-    end
-    function rosenbrock_h!(H, x)
-        H[1, 1] = 2.0 - 400.0 * x[2] + 1200.0 * x[1]^2
-        H[1, 2] = -400.0 * x[1]
-        H[2, 1] = -400.0 * x[1]
-        H[2, 2] = 200.0
-        H
-    end
-    obj = ScalarObjective(rosenbrock_f, rosenbrock_g!, rosenbrock_fg!, rosenbrock_fgh!, rosenbrock_h!, nothing, nothing, nothing)
-    prob = OptimizationProblem(obj)
+    prob = OptimizationProblem(TestProblems.rosenbrock.inplace)
     x0 = [-3.0, -4.0]
 
     @testset "Default callback is nothing" begin
@@ -42,7 +17,7 @@ using Test
             info_seen[] = info
             info.iter >= 1
         end
-        solve(prob, copy(x0), LineSearch(BFGS()), OptimizationOptions(callback=spy))
+        solve(prob, copy(x0), LineSearch(BFGS()), OptimizationOptions(callback = spy))
         info = info_seen[]
         @test haskey(info, :iter)
         @test haskey(info, :time)
@@ -54,26 +29,46 @@ using Test
     @testset "Early stop callback" begin
         stop_at_5 = info -> info.iter >= 5
 
-        res = solve(prob, copy(x0), LineSearch(BFGS()), OptimizationOptions(callback=stop_at_5))
+        res = solve(
+            prob,
+            copy(x0),
+            LineSearch(BFGS()),
+            OptimizationOptions(callback = stop_at_5),
+        )
         @test res.info.iter == 5
 
-        res = solve(prob, copy(x0), LineSearch(LBFGS()), OptimizationOptions(callback=stop_at_5))
+        res = solve(
+            prob,
+            copy(x0),
+            LineSearch(LBFGS()),
+            OptimizationOptions(callback = stop_at_5),
+        )
         @test res.info.iter == 5
 
-        res = solve(prob, copy(x0), ConjugateGradient(), OptimizationOptions(callback=stop_at_5))
+        res = solve(
+            prob,
+            copy(x0),
+            ConjugateGradient(),
+            OptimizationOptions(callback = stop_at_5),
+        )
         @test res.info.iter <= 5
 
-        res = solve(prob, copy(x0), TrustRegion(Newton(), NWI()), OptimizationOptions(callback=stop_at_5))
+        res = solve(
+            prob,
+            copy(x0),
+            TrustRegion(Newton(), NWI()),
+            OptimizationOptions(callback = stop_at_5),
+        )
         @test res.info.iter <= 5
 
-        res = solve(prob, copy(x0), NelderMead(), OptimizationOptions(callback=stop_at_5))
+        res = solve(prob, copy(x0), NelderMead(), OptimizationOptions(callback = stop_at_5))
         @test res.info.iter == 5
     end
 
     @testset "No-op callback doesn't change results" begin
         noop = info -> false
-        opts_noop = OptimizationOptions(callback=noop, maxiter=50)
-        opts_none = OptimizationOptions(maxiter=50)
+        opts_noop = OptimizationOptions(callback = noop, maxiter = 50)
+        opts_none = OptimizationOptions(maxiter = 50)
 
         res_noop = solve(prob, copy(x0), LineSearch(BFGS()), opts_noop)
         res_none = solve(prob, copy(x0), LineSearch(BFGS()), opts_none)
@@ -87,7 +82,7 @@ using Test
             info_seen[] = info
             info.iter >= 1
         end
-        solve(prob, copy(x0), LineSearch(BFGS()), OptimizationOptions(callback=spy))
+        solve(prob, copy(x0), LineSearch(BFGS()), OptimizationOptions(callback = spy))
         state = info_seen[].state
         @test haskey(state, :x)
         @test haskey(state, :fx)
@@ -104,7 +99,12 @@ using Test
             info_seen[] = info
             info.iter >= 1
         end
-        solve(prob, copy(x0), TrustRegion(Newton(), NWI()), OptimizationOptions(callback=spy))
+        solve(
+            prob,
+            copy(x0),
+            TrustRegion(Newton(), NWI()),
+            OptimizationOptions(callback = spy),
+        )
         state = info_seen[].state
         @test haskey(state, :Δ)
         @test haskey(state, :rejected)
@@ -118,7 +118,7 @@ using Test
             info_seen[] = info
             info.iter >= 1
         end
-        solve(prob, copy(x0), SimulatedAnnealing(), OptimizationOptions(callback=spy))
+        solve(prob, copy(x0), SimulatedAnnealing(), OptimizationOptions(callback = spy))
         state = info_seen[].state
         @test haskey(state, :temperature)
         @test haskey(state, :x_best)
@@ -133,7 +133,7 @@ using Test
             info_seen[] = info
             info.iter >= 1
         end
-        solve(prob, copy(x0), NelderMead(), OptimizationOptions(callback=spy))
+        solve(prob, copy(x0), NelderMead(), OptimizationOptions(callback = spy))
         state = info_seen[].state
         @test haskey(state, :simplex_vector)
         @test haskey(state, :simplex_value)
@@ -147,7 +147,12 @@ using Test
             push!(trace, info.state.fz)
             false
         end
-        solve(prob, copy(x0), LineSearch(BFGS()), OptimizationOptions(callback=collector, maxiter=20, g_abstol=0.0))
+        solve(
+            prob,
+            copy(x0),
+            LineSearch(BFGS()),
+            OptimizationOptions(callback = collector, maxiter = 20, g_abstol = 0.0),
+        )
         @test length(trace) == 20
         @test trace[end] < trace[1]
     end
@@ -160,7 +165,12 @@ using Test
             push!(history_f, info.state.fz)
             false
         end
-        solve(prob, copy(x0), LineSearch(BFGS()), OptimizationOptions(callback=collector, maxiter=10, g_abstol=0.0))
+        solve(
+            prob,
+            copy(x0),
+            LineSearch(BFGS()),
+            OptimizationOptions(callback = collector, maxiter = 10, g_abstol = 0.0),
+        )
         @test length(history_x) == 10
         @test length(history_f) == 10
         # Later iterates should be closer to minimum [1, 1]
