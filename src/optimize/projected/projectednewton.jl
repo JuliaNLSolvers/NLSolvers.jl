@@ -143,7 +143,8 @@ function _solve(
         s = @. x - z
 
         # Update approximation
-        fz, ∇fz, B, s, y = update_obj(prob.objective, s, ∇fx, z, ∇fz, B, Newton(), is_first, nothing)
+        fz, ∇fz, B, s, y =
+            update_obj(prob.objective, s, ∇fx, z, ∇fz, B, Newton(), is_first, nothing)
         if norm(x .- clamp.(x .- ∇fz, lower, upper), Inf) < options.g_abstol
             return ConvergenceInfo(
                 scheme,
@@ -164,7 +165,14 @@ function _solve(
                 options,
             )
         end
-        if _check_callback(options.callback, (iter=iter, time=time()-t0, state=(x=x, z=z, fz=fz, ∇fz=∇fz, B=B, activeset=activeset)))
+        if _check_callback(
+            options.callback,
+            (
+                iter = iter,
+                time = time()-t0,
+                state = (x = x, z = z, fz = fz, ∇fz = ∇fz, B = B, activeset = activeset),
+            ),
+        )
             break
         end
     end
@@ -238,8 +246,6 @@ function find_steplength(
     ratio, decrease, maxiter, verbose =
         Tf(ls.ratio), Tf(ls.decrease), ls.maxiter, ls.verbose
 
-    #== factor in Armijo condition ==#
-    t0 = decrease * dφ0 # dphi0 should take into account the active set
     iter, α, β = 0, λ, λ # iteration variables
     x⁺ = box_retract.(lower, upper, x, p, α)
     f_α = (; ϕ = φ.prob.objective.f(x⁺))  # initial function value
@@ -274,7 +280,10 @@ function find_steplength(
     return α, f_α, ls_success, x⁺
 end
 
-bertsekas_R(x, x⁺, g, p, α, i) = i ? g * (x - x⁺) : α * p * g
+# The two cases of the acceptance sum in eq. (37) of [1], whose right-hand
+# side is nonnegative: Bertsekas steps along x - αp with p = D∇f (eqs. (33),
+# (34)), and here p = -D∇f, so the inactive term α*∂f*p flips sign.
+bertsekas_R(x, x⁺, g, p, α, i) = i ? g * (x - x⁺) : -α * p * g
 # defined univariately
 # should be a "manifodl"
 box_retract(lower, upper, x, p, α) = min(upper, max(lower, x + α * p))
