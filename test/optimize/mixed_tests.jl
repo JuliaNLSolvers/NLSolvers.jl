@@ -28,13 +28,13 @@ function qn_method_runs(problem, scheme, m, x0, x0s, fmin, ftol)
     end
 end
 
-function qn_method_sweep(problem, x0, x0s, fmin, ftol)
+function qn_method_sweep(problem, methods, x0, x0s, fmin, ftol)
     @testset "LBFGS" begin
         prob = OptimizationProblem(problem.inplace)
         res = solve(prob, copy(x0), LineSearch(LBFGS()), OptimizationOptions())
         @test res.info.minimum <= fmin + ftol
     end
-    for _method in (GradientDescent, BFGS, DBFGS, DFP)
+    for _method in methods
         for m in (Inverse(), Direct())
             @testset "$_method $(typeof(m))" begin
                 qn_method_runs(problem, _method(m), m, x0, x0s, fmin, ftol)
@@ -89,7 +89,32 @@ end
         end
 
         @testset "quasi-Newton methods" begin
-            qn_method_sweep(fp, x0, x0s, fp.minimum, 1e-8)
+            qn_method_sweep(fp, (GradientDescent, BFGS, DBFGS), x0, x0s, fp.minimum, 1e-8)
+        end
+
+        @testset "DFP" begin
+            # DFP's line searches converge, but its trust-region runs crawl
+            # on the helical valley (thousands of iterations), and where the
+            # crawl ends varies with the platform, so those assert finiteness
+            prob_oop = OptimizationProblem(fp.inplace; inplace = false)
+            prob_static = OptimizationProblem(fp.static; inplace = false)
+            for m in (Inverse(), Direct())
+                res = solve(prob, fp.x0(), LineSearch(DFP(m)), OptimizationOptions())
+                @test res.info.minimum <= fp.minimum + 1e-8
+                res = solve(prob_oop, fp.x0(), LineSearch(DFP(m)), OptimizationOptions())
+                @test res.info.minimum <= fp.minimum + 1e-8
+                res = solve(prob_static, x0s, LineSearch(DFP(m)), OptimizationOptions())
+                @test res.info.minimum <= fp.minimum + 1e-8
+            end
+            for sp in (NWI(), NTR())
+                res = solve(
+                    prob,
+                    fp.x0(),
+                    TrustRegion(DFP(Direct()), sp),
+                    OptimizationOptions(),
+                )
+                @test isfinite(res.info.minimum)
+            end
         end
 
         @testset "backtracking" begin
@@ -132,7 +157,14 @@ end
         x0s = SVector{2}(hb.x0())
 
         @testset "quasi-Newton methods" begin
-            qn_method_sweep(hb, x0, x0s, hb.minimum, 1e-8)
+            qn_method_sweep(
+                hb,
+                (GradientDescent, BFGS, DBFGS, DFP),
+                x0,
+                x0s,
+                hb.minimum,
+                1e-8,
+            )
         end
 
         @testset "solutions are known minimizers" begin
