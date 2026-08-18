@@ -128,6 +128,9 @@ function solve(
         fbar = maximum(fvals)
         @. d = -σ * Fx
         ηk = ρ2F0 / (1 + iter)^2
+        # φ evaluates trial residuals into Fx, so the current residual must be
+        # captured into y before the line search runs
+        y .= -Fx
         φ(α) = norm(F(Fx, (z .= x .+ α .* d)))^nexp
         φ0 = fx
         α, φα = find_steplength(RNMS(method.γ, method.σ0), φ, φ0, fbar, ηk, τmin, τmax)
@@ -138,8 +141,7 @@ function solve(
         s = α * d
         ρs = norm(s)
         x .+= s
-        y .= -Fx
-        Fx = F(Fx, x)
+        # the last φ evaluation was the accepted step, so Fx holds F(x + α*d)
         y .+= Fx
         ρ2fx = norm(Fx, 2)
         ρfx = norm(Fx, Inf)
