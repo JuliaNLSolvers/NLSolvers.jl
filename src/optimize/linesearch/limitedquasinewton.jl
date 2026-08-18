@@ -102,7 +102,7 @@ function _solve(
         (
             P = P,
             B = B,
-            ρs = norm(x .- z),
+            ρs = norm(Δvec(x,z)),
             ρx = norm(x),
             solution = z,
             fx = fx,

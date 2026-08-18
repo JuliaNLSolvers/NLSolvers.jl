@@ -91,13 +91,12 @@ function _solve(
 
     lower, upper = bounds(prob)
     if isnothing(scheme.ϵ)
-        ϵbounds = mapreduce(b -> (b[2] - b[1]) / 2, min, zip(lower, upper)) # [1, pp. 100], [2, 5.41]
+        ϵbounds = minimum(Δvec(upper,lower))/2 # [1, pp. 100], [2, 5.41] 
     else
         ϵbounds = scheme.ϵ
     end
-    !any(clamp.(x0, lower, upper) .!= x0) ||
-        error("Initial guess not in the feasible region")
 
+    check_bounded(x0, lower, upper)
     linesearch = ArmijoBertsekas()
     mstyle = OutOfPlace()
 
@@ -151,7 +150,7 @@ function _solve(
                 (
                     prob = prob,
                     B = B,
-                    ρs = norm(x .- z),
+                    ρs = norm(Δvec(x,z)),
                     ρx = norm(x),
                     solution = z,
                     fx = fx,
@@ -182,7 +181,7 @@ function _solve(
         (
             prob = prob,
             B = B,
-            ρs = norm(x .- z),
+            ρs = norm(Δvec(x,z)),
             ρx = norm(x),
             solution = z,
             fx = fx,
@@ -258,16 +257,16 @@ function find_steplength(
 
     is_solved =
         isfinite(f_α.ϕ) &&
-        f_α.ϕ <= φ0 - decrease * sum(bertsekas_R.(x, x⁺, g, p, α, activeset))
+        f_α.ϕ <= φ0 - decrease * sum(Bertsekas_R(α),zip(x, x⁺, g, p, activeset))
     while !is_solved && iter <= maxiter
         iter += 1
         β, α = α, α / 2
-        x⁺ = box_retract.(lower, upper, x, p, α)
+        x⁺ .= box_retract.(lower, upper, x, p, α)
         f_α = (; ϕ = φ.prob.objective.f(x⁺))  # initial function value
         #        β, α, f_α = interpolate(ls.interp, x->φ, φ0, dφ0, α, f_α.ϕ, ratio)
         is_solved =
             isfinite(f_α.ϕ) &&
-            f_α.ϕ <= φ0 - decrease * sum(bertsekas_R.(x, x⁺, g, p, α, activeset))
+            f_α.ϕ <= φ0 - decrease * sum(Bertsekas_R(α),zip(x, x⁺, g, p, activeset))
     end
 
     ls_success = iter >= maxiter ? false : true
@@ -283,7 +282,14 @@ end
 # The two cases of the acceptance sum in eq. (37) of [1], whose right-hand
 # side is nonnegative: Bertsekas steps along x - αp with p = D∇f (eqs. (33),
 # (34)), and here p = -D∇f, so the inactive term α*∂f*p flips sign.
-bertsekas_R(x, x⁺, g, p, α, i) = i ? g * (x - x⁺) : -α * p * g
+struct Bertsekas_R{A}
+    α::A
+end
+(b::Bertsekas_R{A})(data) = b(data...)
+(b::Bertsekas_R{A})(x, x⁺, g, p, i) where A = i ? g * (x - x⁺) : -b.α * p * g
+bertsekas_R(x, x⁺, g, p, α, i) = Bertsekas_R(α)(x, x⁺, g, p, i)
+
+
 # defined univariately
 # should be a "manifodl"
 box_retract(lower, upper, x, p, α) = min(upper, max(lower, x + α * p))
