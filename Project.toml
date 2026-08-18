@@ -1,6 +1,6 @@
 name = "NLSolvers"
 uuid = "337daf1e-9722-11e9-073e-8b9effe078ba"
-version = "0.6.0"
+version = "0.6.1"
 authors = ["Patrick Kofod Mogensen <patrick.mogensen@gmail.com>"]
 
 [deps]
