@@ -160,7 +160,10 @@ function iterate!(
     # handles that case explicitly.
     Δf = fx - fz
     R, accept = tr_acceptance(Δf, Δm, T(approach.Δupdate.η))
-    Δkp1 = update_trust_region(approach.Δupdate, spr, R, accept, p)
+    # spr.p, not the buffer p: solvers may rebind rather than mutate the step
+    # buffer (Dogleg's Newton branch), and the radius update must see the step
+    # that was actually taken.
+    Δkp1 = update_trust_region(approach.Δupdate, spr, R, accept, spr.p)
 
     if accept
         if approach.eval_f_first
