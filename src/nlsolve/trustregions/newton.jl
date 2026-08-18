@@ -46,7 +46,7 @@ function solve(
     prob::NEqProblem,
     x,
     approach::TrustRegion{<:Union{SR1,DBFGS,BFGS,Newton},<:Any,<:Any},
-    options::NEqOptions,
+    options::NEqOptions = NEqOptions(),
 )
     if !(mstyle(prob) === InPlace()) && !(approach.spsolve isa Dogleg)
         throw(
