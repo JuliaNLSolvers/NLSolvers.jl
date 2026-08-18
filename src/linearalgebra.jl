@@ -52,3 +52,31 @@ function qradd!(Q::AbstractMatrix, R::AbstractMatrix, v::AbstractVector, k::Int)
 
     Q, R
 end
+
+struct ΔVector{T,V1,V2} <: AbstractVector{T}
+    v1::V1
+    v2::V2
+end
+
+"""
+    Δvec(x,y)
+
+Returns a lazy vector, equal to x - y, without allocating.
+"""
+function Δvec(v1::V1, v2::V2) where {V1<:AbstractVector, V2<:AbstractVector}
+    @boundscheck begin
+        length(v1) == length(v2) ||
+            throw(DimensionMismatch(lazy"vectors must have the same length"))
+    end
+    T = Base.promote_eltype(v1, v2)
+    return ΔVector{T,V1,V2}(v1, v2)
+end
+
+Base.size(A::ΔVector) = (length(A.v1),)
+Base.length(A::ΔVector) = length(A.v1)
+Base.IndexStyle(::Type{<:ΔVector}) = IndexLinear()
+
+@inline function Base.getindex(A::ΔVector, i::Int)
+    @boundscheck checkbounds(A.v1, i)
+    @inbounds return A.v1[i] - A.v2[i]
+end

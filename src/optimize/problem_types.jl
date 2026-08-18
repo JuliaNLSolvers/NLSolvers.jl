@@ -309,15 +309,24 @@ function init_f∇fB(prob, scheme, ∇fz, B, x)
     return fz, ∇fz, B
 end
 
+check_bounded(prob, x0) = isboundedonly(prob) ? check_bounded(x0, lowerbounds(prob),upperbounds(prob)) : nothing
+
+function check_bounded(x0, lower, upper)
+    @boundscheck begin
+        (length(x0) == length(lower) == length(upper)) || throw(DimensionMismatch())
+    end
+    @inbounds for i in eachindex(x0)
+        xi = x0[i]
+        wi = xi != clamp(xi,lower[i],upper[i]) && throw(error("Initial guess not in the feasible region"))
+    end
+    return nothing
+end
+
 function prepare_variables(prob, approach, x0, ∇fz, B)
     objective = prob.objective
     z = x0
     x = copy(z)
-    if isboundedonly(prob)
-        !any(clamp.(x0, lowerbounds(prob), upperbounds(prob)) .!= x0) ||
-            error("Initial guess not in the feasible region")
-    end
-
+    check_bounded(prob, x0)
     B = init_B(approach, B, x0)
     # first evaluation
     fz, ∇fz, B = init_f∇fB(prob, modelscheme(approach), ∇fz, B, x)
@@ -337,7 +346,7 @@ end
 function x_converged(x, z, options)
     x_converged = false
     if x !== nothing # if not calling from initial_converged
-        y = x .- z
+        y = Δvec(x,z)
         ynorm = options.x_norm(y)
         x_converged = x_converged || ynorm ≤ options.x_abstol
         x_converged = x_converged || ynorm ≤ options.x_norm(x) * options.x_reltol
