@@ -2,319 +2,135 @@
 
 [![Build Status](https://github.com/JuliaNLSolvers/NLSolvers.jl/workflows/CI/badge.svg)](https://github.com/JuliaNLSolvers/NLSolvers.jl/actions?query=workflow%3ACI+branch%3Amaster)
 [![Code Coverage](http://codecov.io/github/JuliaNLSolvers/NLSolvers.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaNLSolvers/NLSolvers.jl?branch=master)
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://julianlsolvers.github.io/NLSolvers.jl/stable)
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://julianlsolvers.github.io/NLSolvers.jl/dev)
 
-NLSolvers provides optimization, curve fitting, and equation solving functionalities for Julia.
-The goal is to provide a set of robust and flexible methods that run fast. Currently, the package
-does not try to implement any automatic generation of unspecified functions (gradients, Hessians,
-Hessian-vector products) using AD.
+Optimization, curve fitting, and systems of nonlinear equations for Julia.
 
-NLSolvers.jl uses different problem types for different problems
+You bring the objective and its derivatives; NLSolvers does not generate
+gradients or Hessians for you with AD. In return the solvers are generic over
+the number and array types you use: plain numbers, `Array`s, `StaticArray`s,
+and CPU-resident array types in general, in mutating and non-mutating styles.
 
-- `OptimizationProblem` for optimization problems
-- `NEqProblem` for non-linear equations problems
-- `FixedPointProblem` for non-linear equations problems
+See the [documentation](https://julianlsolvers.github.io/NLSolvers.jl/stable)
+for the full manual.
 
-## Optimization Problems
-Take the following scalar objective (with scalar input)
+## Installation
+
+```julia
+using Pkg
+Pkg.add("NLSolvers")
+```
+
+## Minimizing a function
+
+An objective and its derivatives are collected in a `ScalarObjective`, wrapped
+in an `OptimizationProblem` that records the code style (`inplace`) and any
+bounds, and handed to `solve` together with a starting point, a method, and
+`OptimizationOptions`:
+
 ```julia
 using NLSolvers
-function objective(x)
-    fx = x^4 + sin(x)
-end
-function gradient(∇f, x)
-    ∇f = 4x^3 + cos(x)
-    return ∇f
-end
-objective_gradient(∇f, x) = objective(x), gradient(∇f, x)
-function hessian(∇²f, x)
-    ∇²f = 12x^2 - sin(x)
-    return ∇²f
-end
-function objective_gradient_hessian(∇f, ∇²f, x)
-    f, ∇f = objective_gradient(∇f, x)
-    ∇²f = hessian(∇²f, x)
-    return f, ∇f, ∇²f
-end
-scalarobj = ScalarObjective(f=objective,
-                            g=gradient,
-                            fg=objective_gradient,
-                            fgh=objective_gradient_hessian,
-                            h=hessian)
-optprob = OptimizationProblem(scalarobj; inplace=false) # scalar input, so not inplace
 
-solve(optprob, 0.3, LineSearch(Newton()), OptimizationOptions())
+f(x) = x^4 + sin(x)
+g(∇f, x) = 4x^3 + cos(x)
+fg(∇f, x) = f(x), g(∇f, x)
+
+objective = ScalarObjective(f = f, g = g, fg = fg)
+prob = OptimizationProblem(objective; inplace = false) # scalar input, so not inplace
+solve(prob, 0.3, LineSearch(BFGS()), OptimizationOptions())
 ```
-With output
+
 ```
 Results of minimization
 
 * Algorithm:
-  Newton's method with default linsolve with backtracking (no interp)
+  Inverse BFGS with Approximate Wolfe Line Search (Hager & Zhang)
 
 * Candidate solution:
   Final objective value:    -4.35e-01
-  Final gradient norm:      3.07e-12
+  Final gradient norm:      4.62e-09
 
   Initial objective value:  3.04e-01
   Initial gradient norm:    1.06e+00
 
 * Stopping criteria
-  |x - x'|              = 6.39e-07 <= 0.00e+00 (false)
-  |x - x'|/|x|          = 1.08e-06 <= 0.00e+00 (false)
-  |f(x) - f(x')|        = 9.71e-13 <= 0.00e+00 (false)
-  |f(x) - f(x')|/|f(x)| = 2.23e-12 <= 0.00e+00 (false)
-  |g(x)|                = 3.07e-12 <= 1.00e-08 (true)
-  |g(x)|/|g(x₀)|        = 2.88e-12 <= 0.00e+00 (false)
+  |x - x'|              = 2.36e-06 <= 0.00e+00 (false)
+  |x - x'|/|x|          = 3.99e-06 <= 0.00e+00 (false)
+  |f(x) - f(x')|        = 1.32e-11 <= -Inf (false)
+  |f(x) - f(x')|/|f(x)| = 3.04e-11 <= -Inf (false)
+  |g(x)|                = 4.62e-09 <= 1.00e-08 (true)
+  |g(x)|/|g(x₀)|        = 4.35e-09 <= 0.00e+00 (false)
 
 * Work counters
-  Seconds run:   7.15e-06
-  Iterations:    6
-```
-The problem types are especially useful when manifolds, bounds, and other constraints enter the picture.
-
-Let's take the same problem as above but write it with arrays and mutating code style. The inplace keyword argument to the `OptimizationProblem` is used to apply
-the desired code paths internally. If set to true, cache arrays will be updated inplace and mutation is promised to be allowed for the input type(s). If set to
-false, no operations will mutate or happen in place.
-```
-using NLSolvers
-function objective_ip(x)
-    fx = x[1]^4 + sin(x[1])
-end
-function gradient_ip(∇f, x)
-    ∇f[1] = 4x[1]^3 + cos(x[1])
-    return ∇f
-end
-objective_gradient_ip(∇f, x) = objective_ip(x), gradient_ip(∇f, x)
-function hessian_ip(∇²f, x)
-    ∇²f[1] = 12x[1]^2 - sin(x[1])
-    return ∇²f
-end
-function objective_gradient_hessian_ip(∇f, ∇²f, x)
-    f, ∇f = objective_gradient_ip(∇f, x)
-    ∇²f = hessian_ip(∇²f, x)
-    return f, ∇f, ∇²f
-end
-scalarobj_ip = ScalarObjective(f=objective_ip,
-                            g=gradient_ip,
-                            fg=objective_gradient_ip,
-                            fgh=objective_gradient_hessian_ip,
-                            h=hessian_ip)
-optprob_ip = OptimizationProblem(scalarobj_ip; inplace=true)
-
-solve(optprob_ip, [0.3], LineSearch(Newton()), OptimizationOptions())
-```
-which gives
-```
-Results of minimization
-
-* Algorithm:
-  Newton's method with default linsolve with backtracking (no interp)
-
-* Candidate solution:
-  Final objective value:    -4.35e-01
-  Final gradient norm:      3.07e-12
-
-  Initial objective value:  3.04e-01
-  Initial gradient norm:    1.06e+00
-
-* Stopping criteria
-  |x - x'|              = 6.39e-07 <= 0.00e+00 (false)
-  |x - x'|/|x|          = 1.08e-06 <= 0.00e+00 (false)
-  |f(x) - f(x')|        = 9.71e-13 <= 0.00e+00 (false)
-  |f(x) - f(x')|/|f(x)| = 2.23e-12 <= 0.00e+00 (false)
-  |g(x)|                = 3.07e-12 <= 1.00e-08 (true)
-  |g(x)|/|g(x₀)|        = 2.88e-12 <= 0.00e+00 (false)
-
-* Work counters
-  Seconds run:   1.10e-05
-  Iterations:    6
-
-```
-as above. Another set of examples could be `SArray`'s and `MArray`'s from the `StaticArrays.jl` package. 
-
-```
-using StaticArrays
-solve(optprob_ip, @MVector([0.3]), LineSearch(Newton()), OptimizationOptions())
-```
-which gives
-```
-Results of minimization
-
-* Algorithm:
-  Newton's method with default linsolve with backtracking (no interp)
-
-* Candidate solution:
-  Final objective value:    -4.35e-01
-  Final gradient norm:      3.07e-12
-
-  Initial objective value:  3.04e-01
-  Initial gradient norm:    1.06e+00
-
-* Stopping criteria
-  |x - x'|              = 6.39e-07 <= 0.00e+00 (false)
-  |x - x'|/|x|          = 1.08e-06 <= 0.00e+00 (false)
-  |f(x) - f(x')|        = 9.71e-13 <= 0.00e+00 (false)
-  |f(x) - f(x')|/|f(x)| = 2.23e-12 <= 0.00e+00 (false)
-  |g(x)|                = 3.07e-12 <= 1.00e-08 (true)
-  |g(x)|/|g(x₀)|        = 2.88e-12 <= 0.00e+00 (false)
-
-* Work counters
-  Seconds run:   5.68e-04
-  Iterations:    6
+  Seconds run:   2.12e-04
+  Iterations:    7
 ```
 
-So numbers, mutating array code and non-mutating array code is supported depending on the input to the problem type and initial `x` or state in general.
+With `inplace = true` the same problem takes mutating derivative functions and
+array iterates, and cache arrays are updated in place; `StaticArrays` work with
+either style. Second-order methods take the Hessian through the `h` and `fgh`
+fields of `ScalarObjective`.
 
-## BigFloat `eigen`
-To use the `NWI` algorithm in a `TrustRegion` algorithm, it is necessary to first `using GenericLinearAlgebra`.
+## Solving nonlinear equations
 
-## Systems of Nonlinear Equations `NEqProblem`
+Systems of equations use a `VectorObjective` in an `NEqProblem`:
 
-To solve a system of non-linear equations you should use the `NEqProblem` type. First,
-we have to define a `VectorObjective`. We can try to solve for the roots in the problem
-defined by setting the gradient of the Rosenbrock test problem equal to zero.
-```
-function F_rosenbrock!(Fx, x)
+```julia
+function F!(Fx, x)
     Fx[1] = 1 - x[1]
-    Fx[2] = 10(x[2]-x[1]^2)
+    Fx[2] = 10(x[2] - x[1]^2)
     return Fx
 end
-function J_rosenbrock!(Jx, x)
-    Jx[1,1] = -1
-    Jx[1,2] = 0
-    Jx[2,1] = -20*x[1]
-    Jx[2,2] = 10
+function J!(Jx, x)
+    Jx[1, 1] = -1
+    Jx[1, 2] = 0
+    Jx[2, 1] = -20x[1]
+    Jx[2, 2] = 10
     return Jx
 end
-function FJ_rosenbrock!(Fx, Jx, x)
-    F_rosenbrock!(Fx, x)
-    J_rosenbrock!(Jx, x)
-    Fx, Jx
-end
-function Jvop_rosenbrock!(x)
-    function JacV(Fv, v)
-        Fv[1] = -1*v[1]
-        Fv[2,] = -20*x[1]*v[1] + 10*v[2]
-    end
-    LinearMap(JacV, length(x))
-end
-vectorobj = NLSolvers.VectorObjective(F_rosenbrock!, J_rosenbrock!, FJ_rosenbrock!, Jvop_rosenbrock!)
-```
-and define a probem type that lets `solve` dispatch to the correct code
-```
-vectorprob = NEqProblem(vectorobj)
-```
-and we can solve using two variants of Newton's method. One that globalizes the
-solve using a trust-region based method and one that uses a line search
+FJ!(Fx, Jx, x) = (F!(Fx, x), J!(Jx, x))
+
+vectorobj = NLSolvers.VectorObjective(F!, J!, FJ!, nothing)
+prob = NEqProblem(vectorobj)
+solve(prob, [5.0, 0.0], TrustRegion(Newton(), Dogleg()), NEqOptions())
 ```
 
-julia> solve(vectorprob, [5.0, 0.0], TrustRegion(Newton(), Dogleg()), NEqOptions())
-Results of solving non-linear equations
+Fixed-point iterations use `FixedPointProblem`, and curve fitting uses
+`LeastSquaresObjective`; see the
+[docs](https://julianlsolvers.github.io/NLSolvers.jl/stable) for both.
 
-* Algorithm:
-  Newton's method with default linsolve with Dogleg{Nothing}
+## Methods
 
-* Candidate solution:
-  Final residual 2-norm:      5.24e-14
-  Final residual Inf-norm:    5.24e-14
+Line search: `BFGS`, `LBFGS`, `DBFGS`, `DFP`, `SR1`, `GradientDescent`,
+`Newton`, and `ConjugateGradient` with the usual family of update formulas.
 
-  Initial residual 2-norm:    6.25e+04
-  Initial residual Inf-norm:  2.50e+02
+Trust region: `TrustRegion(scheme, subsolver)` combines a model scheme
+(`Newton`, `BFGS`, `SR1`, ...) with a subproblem solver: `NWI` and `NTR`
+(nearly exact), `Dogleg`, or `TCG` (Steihaug-Toint truncated CG). The
+acceptance threshold, radius-update constants, and subsolver tolerances are
+all exposed as options.
 
-* Stopping criteria
-  |F(x')|               = 5.24e-14 <= 0.00e+00 (false)
+Bounds: `ActiveBox` (projected Newton) and `ParticleSwarm`.
 
-* Work counters
-  Seconds run:   1.91e-05
-  Iterations:    2
+Without derivatives: `NelderMead`, `SimulatedAnnealing`, `PureRandomSearch`,
+and `BrentMin` for univariate minimization.
 
+First-order and spectral: `Adam`, `AdaMax`, `BB`, `DFSANE`.
 
-julia> solve(vectorprob, [5.0, 0.0], LineSearch(Newton()), NEqOptions())
-Results of solving non-linear equations
+Nonlinear equations and acceleration: Newton with line search or trust region,
+`InexactNewton` (Krylov), `DFSANE`, and `Anderson` acceleration for fixed
+points.
 
-* Algorithm:
-  Newton's method with default linsolve with backtracking (no interp)
+## Notes
 
-* Candidate solution:
-  Final residual 2-norm:      0.00e+00
-  Final residual Inf-norm:    0.00e+00
-
-  Initial residual 2-norm:    2.50e+02
-  Initial residual Inf-norm:  2.50e+02
-
-* Stopping criteria
-  |F(x')|               = 0.00e+00 <= 0.00e+00 (true)
-
-* Work counters
-  Seconds run:   1.00e-05
-  Iterations:    2
-```
-
-## Univariate optimization
-
-The only method that is exclusively univariate is Brent's method for function minimization `BrentMin`.
-
-## Multivariate optimization
-### Sampling based
-- SimulatedAnnealing
-- PureRandomSearch
-- ParticleSwarm
-### Direct search
-- NelderMead
-### Quasi-Newton Line search
-- DBFGS
-- BFGS
-- SR1
-- DFP
-- GradientDescent
-- LBFGS
-### Conjugate Gradient Descent
-- ConjugateGradient
-### Newton Line Search
-- Newton
-### Gradient based (no line search)
-- Adam
-- AdaMax
-### Acceleration methods
-- Anderson
-### Krylov
-- InexactNewton
-### BB style
-- BB
-- DFSANE
-
-## Simple bounds (box)
-- ParticleSwarm
-- ActiveBox
-
-
-## Custom solve
-Newton methods generally accept a linsolve argument.
-
-## Preconditioning
-Several methods accept nonlinear (left-)preconditioners. A preconditioner is provided as a function that has two methods: `p(x)` and `p(x, P)` where the first prepares and returns the preconditioner and the second is the signature for updating the preconditioner. If the preconditioner is constant, both method
-will simply return this preconditioner. A preconditioner is used in two contexts: in `ldiv!(pgr, factorize(P), gr)` that accepts a cache array for the preconditioned gradient `pgr`, the preconditioner `P`, and the gradient to be preconditioned `gr`, and in `mul!(x, P, y)`. For the out-of-place methods (`minimize` as opposed to `minimize!`) it is sufficient to have `\(P, gr)` and `*(P, y)` defined.
-
-## Beware, chaotic gradient methods!
-Some methods that might be labeled as acceleration, momentum, or spectral methods can exhibit chaotic behavior. Please keep this in mind if comparing things like `DFSANE` with similar implemenations in other software. It can give very different results given different compiler optimizations, CPU architectures, etc. See for example https://link.springer.com/article/10.1007/s10915-011-9521-3 .
-
-
-## TODO
-Documented in each type's docstring including LineSearch, BFGS, ....
-
-Abstract arrays!!! :|
-manifolds
-Use user norms
-Banded Jacobian
-AD
-nan hessian
-
-line search should have a short curcuit for very small steps
-
-# Next steps 
-Mixed complementatiry
-SAMIN, BOXES
-Univariate!!
-IP Newotn
-Krylov Hessian
+- Newton-type methods accept a `linsolve` argument, and several methods accept
+  nonlinear left preconditioners; see the
+  [docs](https://julianlsolvers.github.io/NLSolvers.jl/stable) for the
+  interfaces.
+- `NWI` on `BigFloat` (or other generic number types) needs
+  `using GenericLinearAlgebra` for the eigendecomposition.
+- Spectral and momentum methods such as `DFSANE` can be chaotic: tiny
+  floating-point differences across CPUs and compiler versions can grow into
+  different iterates, so cross-software comparisons need care. See
+  [this paper](https://link.springer.com/article/10.1007/s10915-011-9521-3).
