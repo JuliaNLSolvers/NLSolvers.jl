@@ -127,31 +127,3 @@ res = solve(prob, copy(p0), LineSearch(BFGS()), OptimizationOptions())
 res = solve(prob, copy(p0), NelderMead(), OptimizationOptions())
 res = solve(prob, copy(p0), SimulatedAnnealing(), OptimizationOptions())
 res = solve(prob, copy(p0), ParticleSwarm(), OptimizationOptions())
-
-# can do this based on model or model and derivative of model
-
-function f(x)
-    mod = model(xdata, x)
-    return sum(abs2, mod .- ydata) / 2
-end
-x0 = copy(p0)
-function g!(G, x)
-    ForwardDiff.gradient!(G, f, x)
-    return G
-end
-function h!(H, x)
-    ForwardDiff.hessian!(H, f, x)
-    return H
-end
-function fg(G, x)
-    fx = f(x)
-    g!(G, x)
-    return fx, G
-end
-function fgh!(G, H, x)
-    fx = f(x)
-    g!(G, x)
-    h!(H, x)
-    return fx, G, H
-end
-obj = ScalarObjective(f, g!, fg, fgh!, h!, nothing, nothing, nothing)

@@ -1,32 +1,7 @@
 using Test, NLSolvers, LinearAlgebra
+isdefined(Main, :TestProblems) || include(joinpath(@__DIR__, "testproblems.jl"))
 
-# Self-contained Rosenbrock so the file can also be run standalone
-_tro_f(x) = 100 * (x[2] - x[1]^2)^2 + (1 - x[1])^2
-function _tro_g!(∇f, x)
-    ∇f[1] = -400 * x[1] * (x[2] - x[1]^2) - 2 * (1 - x[1])
-    ∇f[2] = 200 * (x[2] - x[1]^2)
-    return ∇f
-end
-function _tro_h!(H, x)
-    H[1, 1] = 1200 * x[1]^2 - 400 * x[2] + 2
-    H[1, 2] = -400 * x[1]
-    H[2, 1] = -400 * x[1]
-    H[2, 2] = 200
-    return H
-end
-function _tro_fg!(∇f, x)
-    _tro_g!(∇f, x)
-    return _tro_f(x), ∇f
-end
-function _tro_fgh!(∇f, H, x)
-    _tro_g!(∇f, x)
-    _tro_h!(H, x)
-    return _tro_f(x), ∇f, H
-end
-_tro_prob() = OptimizationProblem(
-    ScalarObjective(f = _tro_f, g = _tro_g!, fg = _tro_fg!, fgh = _tro_fgh!, h = _tro_h!);
-    inplace = true,
-)
+_tro_prob() = OptimizationProblem(TestProblems.rosenbrock.inplace; inplace = true)
 
 @testset "trust region options" begin
     @testset "BTR defaults match the historical constants" begin

@@ -1,3 +1,6 @@
+using Test, NLSolvers
+isdefined(Main, :TestProblems) || include(joinpath(@__DIR__, "testproblems.jl"))
+
 @testset "Dogleg Direct vs Inverse" begin
     # Test that Dogleg works correctly with both Direct and Inverse
     # Hessian approximations. Dogleg requires PD approximations, so
@@ -5,7 +8,7 @@
     # on non-convex problems).
 
     # --- Himmelblau ---
-    f = OPT_PROBS["himmelblau"]["array"]["mutating"]
+    f = TestProblems.himmelblau.inplace
     prob_h = OptimizationProblem(f)
 
     @testset "Himmelblau - $name" for (name, scheme) in [
@@ -16,13 +19,13 @@
         ("DBFGS Inverse", DBFGS(Inverse())),
         ("DBFGS Direct", DBFGS(Direct())),
     ]
-        x0 = copy(OPT_PROBS["himmelblau"]["array"]["x0"])
+        x0 = TestProblems.himmelblau.x0()
         res = solve(prob_h, x0, TrustRegion(scheme, Dogleg()), OptimizationOptions())
         @test res.info.minimum < 1e-12
     end
 
     # --- Exponential (minimum at 2.0) ---
-    f = OPT_PROBS["exponential"]["array"]["mutating"]
+    f = TestProblems.exponential.inplace
     prob_e = OptimizationProblem(f)
 
     @testset "Exponential - $name" for (name, scheme) in [
@@ -30,35 +33,13 @@
         ("DFP Inverse", DFP(Inverse())),
         ("DBFGS Inverse", DBFGS(Inverse())),
     ]
-        x0 = copy(OPT_PROBS["exponential"]["array"]["x0"])
+        x0 = TestProblems.exponential.x0()
         res = solve(prob_e, x0, TrustRegion(scheme, Dogleg()), OptimizationOptions())
         @test res.info.minimum ≈ 2.0 atol = 1e-8
     end
 
     # --- Rosenbrock ---
-    function rosen!(∇f, x)
-        fx = (1.0 - x[1])^2 + 100.0 * (x[2] - x[1]^2)^2
-        if ∇f !== nothing
-            ∇f[1] = -2.0 * (1.0 - x[1]) - 400.0 * (x[2] - x[1]^2) * x[1]
-            ∇f[2] = 200.0 * (x[2] - x[1]^2)
-        end
-        return fx
-    end
-    function rosen_fg!(∇f, x)
-        fx = rosen!(∇f, x)
-        return fx, ∇f
-    end
-    rosen_obj = ScalarObjective(
-        x -> rosen!(nothing, x),
-        (∇f, x) -> (rosen!(∇f, x); ∇f),
-        rosen_fg!,
-        nothing,
-        nothing,
-        nothing,
-        nothing,
-        nothing,
-    )
-    prob_r = OptimizationProblem(rosen_obj)
+    prob_r = OptimizationProblem(TestProblems.rosenbrock.inplace)
 
     @testset "Rosenbrock - $name" for (name, scheme) in [
         ("BFGS Inverse", BFGS(Inverse())),

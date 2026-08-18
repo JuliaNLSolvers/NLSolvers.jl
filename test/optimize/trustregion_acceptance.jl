@@ -1,31 +1,7 @@
 using Test, NLSolvers, LinearAlgebra
+isdefined(Main, :TestProblems) || include(joinpath(@__DIR__, "testproblems.jl"))
 
-# Self-contained Rosenbrock so the file can also be run standalone
-_tra_f(x) = 100 * (x[2] - x[1]^2)^2 + (1 - x[1])^2
-function _tra_g!(∇f, x)
-    ∇f[1] = -400 * x[1] * (x[2] - x[1]^2) - 2 * (1 - x[1])
-    ∇f[2] = 200 * (x[2] - x[1]^2)
-    return ∇f
-end
-function _tra_h!(H, x)
-    H[1, 1] = 1200 * x[1]^2 - 400 * x[2] + 2
-    H[1, 2] = -400 * x[1]
-    H[2, 1] = -400 * x[1]
-    H[2, 2] = 200
-    return H
-end
-function _tra_fg!(∇f, x)
-    _tra_g!(∇f, x)
-    return _tra_f(x), ∇f
-end
-function _tra_fgh!(∇f, H, x)
-    _tra_g!(∇f, x)
-    _tra_h!(H, x)
-    return _tra_f(x), ∇f, H
-end
-
-_tra_obj() = ScalarObjective(f = _tra_f, g = _tra_g!, fg = _tra_fg!, fgh = _tra_fgh!, h = _tra_h!)
-_tra_prob() = OptimizationProblem(_tra_obj(); inplace = true)
+_tra_prob() = OptimizationProblem(TestProblems.rosenbrock.inplace; inplace = true)
 
 # cos objective: indefinite Hessian near the maximum, so a huge radius makes
 # NTR take an enormous boundary step whose model decrease dwarfs the bounded
@@ -155,8 +131,8 @@ end
     @testset "eval_f_first" begin
         fcount = Ref(0)
         gcount = Ref(0)
-        cf(x) = (fcount[] += 1; _tra_f(x))
-        cg(∇f, x) = (gcount[] += 1; _tra_g!(∇f, x))
+        cf(x) = (fcount[] += 1; TestProblems.rosenbrock_f(x))
+        cg(∇f, x) = (gcount[] += 1; TestProblems.rosenbrock_g!(∇f, x))
         counting_prob() =
             OptimizationProblem(ScalarObjective(f = cf, g = cg); inplace = true)
 
@@ -199,7 +175,10 @@ end
         @test gcount[] <= fcount[]
 
         # requires a standalone f
-        fg_only = OptimizationProblem(ScalarObjective(fg = _tra_fg!); inplace = true)
+        fg_only = OptimizationProblem(
+            ScalarObjective(fg = TestProblems.rosenbrock_fg!);
+            inplace = true,
+        )
         @test_throws ArgumentError solve(
             fg_only,
             [-1.2, 1.0],
