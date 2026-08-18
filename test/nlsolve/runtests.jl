@@ -1,4 +1,5 @@
 include("problems.jl")
+include("newton.jl")
 #include("interface.jl")
 #include("krylov.jl")
 #include("MGH.jl")

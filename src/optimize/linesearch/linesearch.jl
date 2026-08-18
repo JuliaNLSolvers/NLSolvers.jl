@@ -7,8 +7,21 @@ struct LineSearch{S,LS,K}
     scaling::K
 end
 LineSearch() = LineSearch(DBFGS(), Backtracking(), InitialScaling(ShannoPhua()))
-LineSearch(m) = LineSearch(m, HZAW(), InitialScaling(ShannoPhua()))
+# A `nothing` line searcher is resolved against the problem type when solve is
+# called, see resolve_linesearch.
+LineSearch(m) = LineSearch(m, nothing, InitialScaling(ShannoPhua()))
 LineSearch(m, ls) = LineSearch(m, ls, InitialScaling(ShannoPhua()))
+
+# Resolve a `nothing` line searcher against the problem type. Called at the
+# start of solve, so both the line search loop and the reported method see the
+# resolved line searcher. Explicitly chosen line searchers pass through.
+resolve_linesearch(approach::LineSearch, prob) = LineSearch(
+    modelscheme(approach),
+    resolve_linesearch(algorithm(approach), prob),
+    approach.scaling,
+)
+resolve_linesearch(ls, prob) = ls
+resolve_linesearch(::Nothing, prob::OptimizationProblem) = HZAW()
 
 hasprecon(ls::LineSearch) = hasprecon(modelscheme(ls))
 summary(ls::LineSearch) = summary(modelscheme(ls)) * " with " * summary(algorithm(ls))

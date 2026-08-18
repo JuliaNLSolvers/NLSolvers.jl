@@ -181,13 +181,27 @@ _lineobjective(mstyle::InPlace, prob::AbstractProblem, ∇fz, z, x, d, φ0, dφ0
 _lineobjective(mstyle::OutOfPlace, prob::AbstractProblem, ∇fz, z, x, d, φ0, dφ0) =
     LineObjective(prob, ∇fz, z, x, d, φ0, real(dφ0))
 
-struct MeritObjective{TP,T1,T2}
+struct MeritObjective{TP,T1,TJ,T2}
     prob::TP
     Fx::T1
+    Jx::TJ
     d::T2
 end
 function value(mo::MeritObjective, x)
     _value(mo, mo.prob.R, mo.Fx, x)
+end
+# The gradient of the merit function 1/2*||F(x)||^2 is J(x)'*F(x). This lets
+# line searches that evaluate the gradient of the line objective (HZAW, ...)
+# be used with NEqProblem.
+function upto_gradient(mo::MeritObjective, ∇f, x)
+    Fx, Jx = value_jacobian(mo.prob, mo.Fx, mo.Jx, x)
+    ϕ = (norm(Fx)^2) / 2
+    if mstyle(mo.prob) isa InPlace
+        ∇f = mul!(∇f, Jx', Fx)
+    else
+        ∇f = Jx' * Fx
+    end
+    return ϕ, ∇f
 end
 function _value(mo, R::ScalarObjective, Fx, x)
     Fx = R.f(x)

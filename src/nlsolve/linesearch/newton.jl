@@ -1,5 +1,8 @@
 init(::NEqProblem, ::LineSearch; x, z = copy(x), d = copy(x), Fx = copy(x), Jx = x * x') =
     (; z, d, Fx, Jx)
+# Gradients of the merit objective cost a Jacobian evaluation per trial point,
+# so default to a line search that only uses values.
+resolve_linesearch(::Nothing, prob::NEqProblem) = Backtracking()
 # the bang is just potentially inplace x and state. nonbang copies these
 function solve(
     problem::NEqProblem,
@@ -11,6 +14,7 @@ function solve(
     t0 = time()
 
     # Unpack
+    method = resolve_linesearch(method, problem)
     scheme, linesearch = modelscheme(method), algorithm(method)
 
     # Unpack state
@@ -24,10 +28,13 @@ function solve(
 
 
     # Set up MeritObjective. This defines the least squares
-    # objective for the line search.
-    merit = MeritObjective(problem, Fx, d)
+    # objective for the line search. It gets its own Jacobian buffer so trial
+    # evaluations in gradient-based line searches don't clobber Jx, and a
+    # gradient buffer separate from Fx which is aliased into the merit.
+    merit = MeritObjective(problem, Fx, copy(Jx), d)
     meritproblem =
         OptimizationProblem(merit, nothing, Euclidean(0), nothing, mstyle(problem), nothing)
+    ∇merit = copy(x)
 
     # Evaluate the residual and Jacobian
     Fx, Jx = value_jacobian(problem, Fx, Jx, x)
@@ -78,9 +85,6 @@ function solve(
             d = JFx \ -Fx
         end
 
-        # Need to restrict to static and backtracking here because we don't allow
-        # for methods that calculate the gradient of the line objective.
-        #
         # For non-linear systems of equations we choose the sum-of-
         # squares merit function. Some useful things to remember is:
         #
@@ -95,7 +99,7 @@ function solve(
         # ∇_df = -F(x)'*F(x) = -f(x)*2
         #
         # φ = LineObjective!(F,        ∇fz, z, x, d, fx,        dot(∇fx, d))
-        φ = LineObjective(meritproblem, Fx, z, x, d, (ρ2F^2) / 2, -ρ2F^2)
+        φ = LineObjective(meritproblem, ∇merit, z, x, d, (ρ2F^2) / 2, -ρ2F^2)
 
         # Perform line search along d
         α, ϕ_out, ls_success = find_steplength(mstyle, linesearch, φ, T(1))
@@ -171,7 +175,9 @@ function update_model(
         age += 1
     else
         if scheme.reset_age <= age
-            if ls_success
+            # Line searches that evaluate the gradient of the line objective
+            # return a value with no Fx field, so recompute F in that case.
+            if ls_success && hasproperty(ϕ_out, :Fx)
                 F = ϕ_out.Fx
                 J = problem.R.J(J, z)
             else
@@ -188,7 +194,7 @@ function update_model(
             end
             age = 1
         else
-            if ls_success
+            if ls_success && hasproperty(ϕ_out, :Fx)
                 F = ϕ_out.Fx
             else
                 F = problem.R.F(F, z)
