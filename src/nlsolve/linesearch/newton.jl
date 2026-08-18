@@ -1,5 +1,8 @@
 init(::NEqProblem, ::LineSearch; x, z = copy(x), d = copy(x), Fx = copy(x), Jx = x * x') =
     (; z, d, Fx, Jx)
+# Gradients of the merit objective cost a Jacobian evaluation per trial point,
+# so default to a line search that only uses values.
+resolve_linesearch(::Nothing, prob::NEqProblem) = Backtracking()
 # the bang is just potentially inplace x and state. nonbang copies these
 function solve(
     problem::NEqProblem,
@@ -11,6 +14,7 @@ function solve(
     t0 = time()
 
     # Unpack
+    method = resolve_linesearch(method, problem)
     scheme, linesearch = modelscheme(method), algorithm(method)
 
     # Unpack state

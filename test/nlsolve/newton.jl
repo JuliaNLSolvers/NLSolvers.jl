@@ -25,6 +25,12 @@ using LinearAlgebra: norm
     vectorobj = NLSolvers.VectorObjective(f_diffmcp!, df_diffmcp!, fdf_diffmcp!, nothing)
     vectorprob = NEqProblem(vectorobj)
 
+    # LineSearch(m) defers the line searcher choice to solve-time; for
+    # NEqProblem it resolves to Backtracking since gradients of the merit
+    # objective cost a Jacobian evaluation per trial point.
+    resolved = NLSolvers.resolve_linesearch(LineSearch(Newton()), vectorprob)
+    @test resolved.linesearcher isa Backtracking
+
     root = 1 - sqrt(1.01)
     for method in (
         LineSearch(Newton()),

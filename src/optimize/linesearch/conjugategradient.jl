@@ -211,7 +211,7 @@ end
 function solve(
     problem::OptimizationProblem,
     x0::AbstractArray,
-    approach::LineSearch{<:ConjugateGradient,<:LineSearcher},
+    approach::LineSearch{<:ConjugateGradient,<:Union{Nothing,LineSearcher}},
     options::OptimizationOptions,
 )
     _solve(problem, x0, approach, options, mstyle(problem))
@@ -219,11 +219,12 @@ end
 function _solve(
     problem::OptimizationProblem,
     x0::AbstractArray,
-    approach::LineSearch{<:ConjugateGradient,<:LineSearcher},
+    approach::LineSearch{<:ConjugateGradient,<:Union{Nothing,LineSearcher}},
     options::OptimizationOptions,
     mstyle::MutateStyle,
 )
     t0 = time()
+    approach = resolve_linesearch(approach, problem)
     #==============
          Setup
     ==============#

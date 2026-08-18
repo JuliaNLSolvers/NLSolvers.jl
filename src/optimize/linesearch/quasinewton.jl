@@ -51,6 +51,7 @@ function _solve(
     cache,
 )
     t0 = time()
+    approach = resolve_linesearch(approach, problem)
 
     #==============
          Setup
