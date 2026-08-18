@@ -1,13 +1,14 @@
 using NLSolvers, SparseArrays, LinearAlgebra
 using Test
+isdefined(Main, :TestProblems) || include(joinpath(@__DIR__, "testproblems.jl"))
 @testset "optimization preconditioning" begin
     debug_print = true
     for N in (10, 50, 100, 150, 250)
         if debug_print
             println("N = ", N)
         end
-        initial_x = OPT_PROBS["laplacian"]["array"]["x0(n)"](N)
-        Plap = precond(initial_x)
+        initial_x = TestProblems.laplacian.x0(N)
+        Plap = TestProblems.laplacian.precond(initial_x)
         ID = nothing
         iter = []
         mino = []
@@ -19,14 +20,17 @@ using Test
             p -> LineSearch(LBFGS(Inverse(), NLSolvers.TwoLoop(), 5, p), HZAW()),
         )
             for (P, wwo) in zip(
-                (nothing, (x, P = nothing) -> inv(Array(precond(N)))),
+                (
+                    nothing,
+                    (x, P = nothing) -> inv(Array(TestProblems.laplacian.precond(N))),
+                ),
                 (" WITHOUT", " WITH"),
             )
                 if debug_print
                     println(summary(optimizer(P)))
                 end
                 results = solve(
-                    OPT_PROBS["laplacian"]["array"]["mutating"],
+                    TestProblems.laplacian.problem,
                     copy(initial_x),
                     optimizer(P),
                     OptimizationOptions(g_abstol = 1e-6, f_abstol = 0.0),

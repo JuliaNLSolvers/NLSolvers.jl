@@ -20,10 +20,15 @@
   for the Hessian, or by passing in a function to the NWI constructor. This function
   must follow the same input/output patterns as LinearAlgebra.eigen.
 """
-struct NWI{T} <: NearlyExactTRSP
+struct NWI{T,Ta} <: NearlyExactTRSP
     eigen::T
+    abstol::Ta
+    maxiter::Int
 end
-NWI() = NWI(eigen)
+const _default_eigen = eigen
+NWI(eig) = NWI(eig, 1e-10, 50)
+NWI(; eigen = _default_eigen, abstol = 1e-10, maxiter = 50) =
+    NWI(eigen, float(abstol), maxiter)
 summary(::NWI) = "Trust Region (Newton, eigen)"
 
 """
@@ -148,10 +153,10 @@ Returns:
     solved - Whether or not a solution was reached (as opposed to
       terminating early due to maxiter)
 """
-function (ms::NWI)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxiter = 50)
+function (ms::NWI)(∇f, H, Δ, p, scheme, mstyle; abstol = ms.abstol, maxiter = ms.maxiter)
     T = eltype(p)
     n = length(∇f)
-    H = H isa UniformScaling ? Diagonal(copy(∇f) .* 0 .+ 1) : H
+    H = H isa UniformScaling ? Diagonal(fill!(similar(∇f), H.λ)) : H
     h = diag(H)
 
     # Note that currently the eigenvalues are only sorted if H is perfectly
@@ -228,7 +233,7 @@ function (ms::NWI)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxiter = 50)
 
             tau = sqrt(Δ^2 - norm(pλ, 2)^2)
 
-            @. p = -pλ + tau * Q[:, 1]
+            @. p = pλ + tau * Q[:, 1]
 
             m = dot(∇f, p) + dot(p, H * p) / 2
 
@@ -263,10 +268,15 @@ function (ms::NWI)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxiter = 50)
             H isa Diagonal ? cholesky(H; check = false) :
             cholesky(Hermitian(H); check = false)
         if !issuccess(F)
-            # We should not be here, but the lower bound might fail for
-            # numerical reasons.
-            if λ < λ_lb
-                λ = T(1) / 2 * (λ_previous - λ_lb) + λ_lb
+            # A failed factorization proves that H(λ) is not positive
+            # definite, so the current λ is itself a (numerical) lower
+            # bound for the target λ. Tighten the bound and step into
+            # the bracket (λ_lb, isg.U] instead of retrying the same λ.
+            λ_lb = max(λ_lb, λ)
+            λ = λ_lb + max(isg.U - λ_lb, zero(T)) / 2
+            if !(λ > λ_lb)
+                # the bracket has collapsed numerically; nudge upwards
+                λ = λ_lb + sqrt(eps(T)) * max(one(T), abs(λ_lb))
             end
             continue
         end

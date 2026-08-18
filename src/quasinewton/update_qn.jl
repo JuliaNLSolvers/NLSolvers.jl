@@ -26,6 +26,36 @@ function update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme::Newton, scale, d
     return fz, ∇fz, B, s, s
 end
 
+# The trust-region driver splits the trial-point evaluation from the model
+# update: it needs the objective value before it can decide acceptance, and
+# whether the approximation update runs depends on that decision and on the
+# TrustRegion policy flags.
+function tr_trial_eval!(problem, z, ∇fz, B, scheme)
+    fz, ∇fz = upto_gradient(problem, ∇fz, z)
+    return fz, ∇fz, B
+end
+function tr_trial_eval!(problem, z, ∇fz, B, scheme::Newton)
+    fz, ∇fz, B = upto_hessian(problem, ∇fz, B, z)
+    return fz, ∇fz, B
+end
+
+function tr_update_approx!(y, s, ∇fx, ∇fz, B, scheme, scale)
+    @. y = ∇fz - ∇fx
+    if scale == nothing
+        γ = qn_scaling(scheme)(scheme.approx, s, y, B)
+        if !isfinite(γ) || iszero(γ)
+            return B, s, y
+        end
+        Badj = γ * B
+    else
+        Badj = B
+    end
+    B = update!(scheme, Badj, s, y)
+    return B, s, y
+end
+# Newton's "model update" is the Hessian evaluation in tr_trial_eval!
+tr_update_approx!(y, s, ∇fx, ∇fz, B, scheme::Newton, scale) = B, s, y
+
 function update_obj(problem, s, ∇fx, z, ∇fz, B, scheme, scale, dφ0)
     fz, ∇fz = upto_gradient(problem, ∇fz, z)
     y = ∇fz - ∇fx

@@ -3,7 +3,7 @@ function solve(
     s0::Tuple,
     approach::TrustRegion,
     options::OptimizationOptions;
-    initial_Δ = 20.0,
+    initial_Δ = nothing,
 )
     x0, B0 = s0
     objvars = prepare_variables(problem, approach, copy(x0), copy(x0), B0)
@@ -14,17 +14,25 @@ function solve(
     approach::TrustRegion,
     options::OptimizationOptions,
     objvars::NamedTuple;
-    initial_Δ = 20.0,
+    initial_Δ = nothing,
 )
-    if !(mstyle(problem) === InPlace()) && !(approach.spsolve == Dogleg())
+    if !(mstyle(problem) === InPlace()) && !(approach.spsolve isa Dogleg)
         throw(
             ErrorException("solve() not defined for OutOfPlace() with TrustRegion solvers"),
         )
     end
+    if approach.eval_f_first &&
+       problem.objective isa ScalarObjective &&
+       problem.objective.f === nothing
+        throw(
+            ArgumentError(
+                "eval_f_first = true requires the objective to have a standalone f; supply ScalarObjective(f = ..., ...)",
+            ),
+        )
+    end
     t0 = time()
     T = eltype(objvars.z)
-    Δmin = cbrt(eps(T))
-    Δk = T(initial_Δ)
+    Δk = T(initial_Δ === nothing ? approach.Δupdate.Δ0 : initial_Δ)
     f0, ∇f0 = objvars.fz, norm(objvars.∇fz, Inf) # use user norm
 
     if any(initial_converged(approach, objvars, ∇f0, options, false, Δk))
@@ -48,9 +56,15 @@ function solve(
     end
     qnvars = QNVars(objvars.z, objvars.z)
     p = copy(objvars.x)
+    # Newton's model update replaces B with the Hessian at the trial point, so
+    # a copy of the Hessian at the current iterate is kept to restore after a
+    # rejected step.
+    Bcache =
+        modelscheme(approach) isa Newton && objvars.B !== nothing ? copy(objvars.B) :
+        nothing
 
     objvars, Δkp1, reject, qnvars =
-        iterate!(p, objvars, Δk, approach, problem, options, qnvars, false)
+        iterate!(p, objvars, Δk, approach, problem, options, qnvars, Bcache, false)
 
     iter = 1
     callback_stopped = false
@@ -60,7 +74,7 @@ function solve(
     while iter <= options.maxiter && !any(is_converged) && !callback_stopped
         iter += 1
         objvars, Δkp1, reject, qnvars =
-            iterate!(p, objvars, Δkp1, approach, problem, options, qnvars, false)
+            iterate!(p, objvars, Δkp1, approach, problem, options, qnvars, Bcache, false)
 
         # Check for convergence
         is_converged = converged(approach, objvars, ∇f0, options, reject, Δkp1)
@@ -109,7 +123,8 @@ function iterate!(
     problem,
     options,
     qnvars,
-    scale = nothing,
+    Bcache,
+    scale,
 )
     x, fx, ∇fx, z, fz, ∇fz, B, Pg = objvars
     T = eltype(x)
@@ -120,74 +135,106 @@ function iterate!(
     x = _copyto(mstyle(problem), x, z)
     ∇fx = _copyto(mstyle(problem), ∇fx, ∇fz)
 
-    spr = subproblemsolver(∇fx, B, Δk, p, scheme, problem.mstyle; abstol = 1e-10)
+    spr = subproblemsolver(∇fx, B, Δk, p, scheme, problem.mstyle)
     Δm = -spr.mz
 
-    # Grab the model value, m. If m is zero, the solution, z, does not improve
-    # the model value over x. If the model is not converged, but the optimal
-    # step is inside the trust region and gives a zero improvement in the objec-
-    # tive value, we may conclude that "something" is wrong. We might be at a
-    # ridge (positive-indefinite case) for example, or the scaling of the model
-    # is such that we cannot satisfy ||∇f|| < tol.
-    if abs(spr.mz) < eps(spr.mz)
-        # set flag to check for problems
+    z = retract(problem, z, x, spr.p)
+
+    if approach.eval_f_first
+        # Only the objective value is needed to decide acceptance; the gradient
+        # (and Hessian for Newton) is evaluated on acceptance below.
+        fz = value(problem.objective, z)
+    else
+        if scheme isa Newton && Bcache !== nothing
+            # tr_trial_eval! replaces B with the Hessian at the trial point;
+            # keep the Hessian at x so it can be restored on rejection
+            Bcache = _copyto(mstyle(problem), Bcache, B)
+        end
+        fz, ∇fz, B = tr_trial_eval!(problem, z, ∇fz, B, scheme)
     end
 
-    z = retract(problem, z, x, spr.p)
-    # Update before acceptance, to keep adding information about the hessian
-    # even when the step is not "good" enough.
-
-    y, d, s = qnvars.y, qnvars.d, qnvars.s
-    fx = fz
-    # Should build a good code for picking update model.
-
-    fz, ∇fz, B, s, y = update_obj!(problem, spr.p, y, ∇fx, z, ∇fz, B, scheme, scale, nothing)
-
     # Δf is often called ared or Ared for actual reduction. I prefer "change in"
-    # f, or Delta f.
+    # f, or Delta f. Δm may be zero or negative when the sub-problem solver
+    # cannot improve the model (a ridge in the positive-indefinite case, or a
+    # scaling for which ||∇f|| < tol cannot be satisfied); tr_acceptance
+    # handles that case explicitly.
     Δf = fx - fz
+    R, accept = tr_acceptance(Δf, Δm, T(approach.Δupdate.η))
+    Δkp1 = update_trust_region(approach.Δupdate, spr, R, accept, p)
 
-    # Calculate the ratio of actual improvement over predicted improvement.
-    R = Δf / Δm
-
-    Δkp1, reject_step = update_trust_region(spr, R, p)
-
-    if reject_step
+    if accept
+        if approach.eval_f_first
+            if scheme isa Newton
+                fz, ∇fz, B = tr_trial_eval!(problem, z, ∇fz, B, scheme)
+            else
+                ∇fz = gradient_only(problem.objective, ∇fz, z)
+            end
+        end
+        B, s, y = tr_update_approx!(y, spr.p, ∇fx, ∇fz, B, scheme, scale)
+    else
+        if !approach.eval_f_first && approach.update_reject
+            # Rejected steps may still update the approximation: the trial
+            # gradient carries curvature information whether or not the step
+            # is taken (Nocedal & Wright, Algorithm 6.2). Newton is exempt
+            # (see below); opt out with TrustRegion(update_reject = false).
+            B, s, y = tr_update_approx!(y, spr.p, ∇fx, ∇fz, B, scheme, scale)
+        end
         z = _copyto(mstyle(problem), z, x)
-        ∇fz = _copyto(mstyle(problem), ∇fz, ∇fx)
         fz = fx
-        # This is correct because 
-        s = _scale(mstyle(problem), s, s, 0) # z - x
-        y = _scale(mstyle(problem), y, y, 0) # ∇fz - ∇fx
-        # and will cause quasinewton updates to not update
-        # this seems incorrect as it's already updated, should hold off here
+        if !approach.eval_f_first
+            ∇fz = _copyto(mstyle(problem), ∇fz, ∇fx)
+            if scheme isa Newton && Bcache !== nothing
+                # B holds the Hessian of the rejected trial point; restore the
+                # Hessian at x so the next model is built from accepted state
+                B = _restore_B(mstyle(problem), B, Bcache)
+            end
+        end
     end
     return (x = x, fx = fx, ∇fx = ∇fx, z = z, fz = fz, ∇fz = ∇fz, B = B, Pg = nothing),
     Δkp1,
-    reject_step,
+    !accept,
     QNVars(d, s, y)
 end
 
-function update_trust_region(spr, R, p)
+_restore_B(::InPlace, B, Bcache) = copyto!(B, Bcache)
+_restore_B(::OutOfPlace, B, Bcache) = Bcache
+
+# The acceptance decision. A step is accepted when the ratio R of actual
+# reduction Δf to model reduction Δm is at least η. We accept all steps with
+# R ≥ η for η ∈ (0, 1/4). See p. 415 of [SOREN] and p. 79 as well as Theorems
+# 4.5 and 4.6 of [N&W]. η = 0 might cycle, see p. 4 of [YUAN], so BTR requires
+# a positive η. Non-finite objective values and degenerate model decreases are
+# handled explicitly rather than through NaN/Inf comparison semantics.
+function tr_acceptance(Δf, Δm, η)
+    R = Δf / Δm
+    # The acceptance is deliberately based on the ratio alone, without
+    # requiring a model decrease. When the sub-problem step predicts a model
+    # increase (Δm < 0, possible for indefinite approximations) and the
+    # objective also increases, the ratio is positive and the step may be
+    # accepted although it moves uphill; this nonmonotone acceptance can
+    # escape regions where the model is poor. Δm = 0 gives R = ±Inf (accept
+    # or reject by the sign of Δf) and Δf = Δm = 0 gives NaN, which rejects,
+    # as does a NaN objective value.
+    return R, !isnan(R) && R >= η
+end
+
+function update_trust_region(Δupdate::BTR, spr, R, accept, p)
     T = eltype(p)
-    # Choosing a parameter > 0 might be preferable here. See p. 4 of Yuans survey
-    # We want to avoid cycles, but we also need something that takes very small
-    # steps when convergence is hard to achieve.
-    α = T(0) / 7 # acceptance ratio
-    t2 = T(1) / 4
-    t3 = t2 # could differ!
-    t4 = T(1) / 2
-    λ34 = T(0) / 2
-    γ = T(2.5) # gamma for grow
-    λγ = T(1) / 2 # distance along growing interval ∈ (0, 1]
-    Δmax = T(10)^5 # restrict the largest step
-    σ = T(1) / 4
+    t2 = T(Δupdate.t2)
+    t3 = T(Δupdate.t3)
+    t4 = T(Δupdate.t4)
+    λ34 = T(Δupdate.λ34)
+    γ = T(Δupdate.γ) # gamma for grow
+    λγ = T(Δupdate.λγ) # distance along growing interval ∈ (0, 1]
+    Δmax = T(Δupdate.Δmax) # restrict the largest step
+    σ = T(Δupdate.σ)
 
     Δk = spr.Δ
-    # We accept all steps larger than α ∈ [0, 1/4). See p. 415 of [SOREN] and
-    # p.79 as well as  Theorem 4.5 and 4.6 of [N&W]. An α = 0 might cycle,
-    # see p. 4 of [YUAN].
-    if !(α <= R)
+    # Shrinking picks a radius from the interval [t3*||p||, t4*Δk], with
+    # λ34 ∈ [0, 1] interpolating between the endpoints as in [CGT]; [N&W]
+    # Algorithm 4.1 on p. 69 is the λ34 = 1, t4 = 1/4 corner of this rule.
+    # With the default λ34 = 0 the shrink is t4*Δk = Δk/2.
+    if !accept
         if spr.interior
             # If you reject an interior solution, make sure that the next
             # delta is smaller than the current step. Otherwise you waste
@@ -197,19 +244,14 @@ function update_trust_region(spr, R, p)
         else
             Δkp1 = λ34 * norm(p, 2) * t3 + (1 - λ34) * Δk * t4
         end
-        reject_step = true
     else
-        # While we accept also the steps in the case that α <= Δf < t2, we do not
-        # trust it too much. As a result, we restrict the trust region radius. The
-        # new trust region radius should be set to a radius Δkp1 ∈ [t3*||d||, t4*Δk].
-        # We use the number λ34 ∈ [0, 1] to move along the interval. [N&W] sets
-        # λ34 _= 1 and t4 = 1/4, see Algorithm 4.1 on p. 69.
+        # While we also accept the steps in the case that η <= R < t2, we do
+        # not trust them too much, and the radius is restricted.
         if R < t2
             Δkp1 = λ34 * norm(p, 2) * t3 + (1 - λ34) * Δk * t4
         else
             Δkp1 = min(λγ * Δk + (1 - λγ) * Δk * γ, Δmax)
         end
-        reject_step = false
     end
-    return Δkp1, reject_step
+    return Δkp1
 end

@@ -16,7 +16,27 @@
 # TODO allow passing in a lambda and previous cholesky if the
 # solution was not accepted
 # As described in Algorith, 7.3.4 in [CGTBOOK]
-struct NTR <: TRSPSolver end
+"""
+    NTR(; abstol = 1e-10, maxiter = 50, κeasy = 1/10, κhard = 2/10)
+
+Trust-region sub-problem solver based on a safeguarded Newton iteration on the
+secular equation with Cholesky factorizations, following Algorithm 7.3.4 of
+[ConnGouldTointBook]. `abstol` is the tolerance on the secular-equation root,
+`maxiter` bounds the Newton iterations, and `κeasy`/`κhard` are the
+termination-rule constants of Algorithm 7.3.5 (see the termination rules in
+section 7.3 of [ConnGouldTointBook]). Callers may override any of them per
+call through keywords of the same names.
+"""
+struct NTR{T} <: TRSPSolver
+    abstol::T
+    maxiter::Int
+    κeasy::T
+    κhard::T
+end
+function NTR(; abstol = 1e-10, maxiter = 50, κeasy = 1 / 10, κhard = 2 / 10)
+    abstol, κeasy, κhard = promote(float(abstol), float(κeasy), float(κhard))
+    NTR(abstol, maxiter, κeasy, κhard)
+end
 summary(::NTR) = "Trust Region (Newton, cholesky)"
 
 function initial_λs(∇f, H, Δ)
@@ -54,17 +74,17 @@ function (ms::NTR)(
     scheme,
     mstyle,
     λ0 = 0;
-    abstol = 1e-10,
-    maxiter = 50,
-    κeasy = T(1) / 10,
-    κhard = T(2) / 10,
+    abstol = T(ms.abstol),
+    maxiter = ms.maxiter,
+    κeasy = T(ms.κeasy),
+    κhard = T(ms.κhard),
 ) where {T}
     # λ0 might not be 0 if we come from a failed TRS solve
     λ = T(λ0)
     θ = T(1) / 2
     n = length(∇f)
-    h = H isa UniformScaling ? copy(∇f) .* 0 .+ 1 : diag(H)
-    H = H isa UniformScaling ? Diagonal(copy(∇f) .* 0 .+ 1) : H
+    h = H isa UniformScaling ? fill!(similar(∇f), H.λ) : diag(H)
+    H = H isa UniformScaling ? Diagonal(fill!(similar(∇f), H.λ)) : H
 
     # Check for interior convergence
     if λ == T(0)
@@ -97,7 +117,7 @@ function (ms::NTR)(
     for iter = 1:maxiter
         H = update_H!(H, h, λ)
         F = cholesky(Symmetric(H); check = false)
-        in𝓖, linpack = false, false
+        in𝓖 = false
         #===========================================================================
          If F is successful, then H is positive definite, and we can safely look
          at the Newton step. If this is interior, we're done, if not, we're either
@@ -144,16 +164,16 @@ function (ms::NTR)(
             # Newton trial step
             λ⁺ = λ + ((s₂ - Δ) / Δ) * (s₂^2 / dot(w, w))
             if in𝓖
-                linpack = true
                 w, u = λL_with_linpack(F)
                 λL = max(λL, λ - dot(u, H * u))
 
                 α, s_g, m_g = 𝓖_root(u, s, Δ, ∇f, H)
-                s .= s_g
-
-                s₂ = norm(s)
-                # check hard case convergnce
+                # check hard case convergence: Step 3 of Algorithm 7.3.5
+                # (termination rules) in [ConnGouldTointBook], condition
+                # (7.3.27). The test uses the uncorrected Newton step s(λ),
+                # and s is only replaced by s(λ) + αu on success
                 if α^2 * dot(u, H * u) ≤ κhard * (dot(s, H * s) + λ * Δ^2)
+                    s .= s_g
                     H = update_H!(H, h)
                     return tr_return(;
                         λ = λ,
@@ -179,8 +199,10 @@ function (ms::NTR)(
                 λ = λ⁺
             end
 
-            # check for convergence
-            if in𝓖 && abs(s₂ - Δ) ≤ κeasy * Δ
+            # check for convergence: the κeasy rule, Step 1 of Algorithm 7.3.5
+            # in [ConnGouldTointBook]. It is stated for any λ ∈ 𝓕, so it
+            # applies in 𝓛 as well as in 𝓖
+            if abs(s₂ - Δ) ≤ κeasy * Δ
                 H = update_H!(H, h)
                 return tr_return(;
                     λ = λ,
@@ -192,27 +214,6 @@ function (ms::NTR)(
                     hard_case = false,
                     Δ = Δ,
                 )
-            elseif abs(s₂ - Δ) ≤ κeasy * Δ # implicitly "if in 𝓕" since we're in that branch
-                # u and α comes from linpack
-                if linpack
-                    # FIXME check history if this name was changed 
-                    # sλ not defined so this cannot be hit ever.....
-                    sλ = λ
-                    if α^2 * dot(u, H * u) ≤ κhard * (dot(sλ, H * sλ) * Δ^2)
-                        s .= s .+ α * u
-                        H = update_H!(H, h)
-                        return tr_return(;
-                            λ = λ,
-                            ∇f = ∇f,
-                            H = H,
-                            s = s,
-                            interior = false,
-                            solved = true,
-                            hard_case = false,
-                            Δ = Δ,
-                        )
-                    end
-                end
             end
         else # λ ∈ 𝓝, because the factorization failed (typo in CGT)
             # Use partial factorization to find δ and v such that
@@ -229,7 +230,7 @@ function (ms::NTR)(
         ∇f = ∇f,
         H = H,
         s = s,
-        interior = true,
+        interior = false,
         solved = false,
         hard_case = false,
         Δ = Δ,
@@ -255,23 +256,25 @@ end
 function λL_with_linpack(F)
     T = eltype(F)
     n = first(size(F))
+    U = F.U
     w = zeros(T, n)
-    num_p1 = inv(F.factors[end, end])
-    num_m1 = -inv(F.factors[end, end])
-    w[end] = max(num_p1, num_m1)
-    for k = n-1:-1:1
-        ukk = F.factors[k, k]
-        num = sum(abs2, view(F.factors, 1:(k-1), k))
-        w[k] = max((1 - num) / ukk, (-1 - num) / ukk)
+    # LINPACK-style estimate of the direction of smallest singular value:
+    # solve U'w = e where each eₖ = ±1 is chosen to maximize |wₖ|
+    for k = 1:n
+        num = dot(view(U, 1:(k-1), k), view(w, 1:(k-1)))
+        ukk = U[k, k]
+        w_p = (1 - num) / ukk
+        w_m = (-1 - num) / ukk
+        w[k] = abs(w_p) ≥ abs(w_m) ? w_p : w_m
     end
-    sol = F.factors \ w
+    sol = U \ w
     w, sol ./ norm(sol)
 end
 
 function 𝓖_root(u, s, Δ, ∇f, H)
     pa = sum(abs2, u)
     pb = 2 * dot(u, s)
-    pd = sqrt(4 * pb^2 - pa * (sum(abs2, s) - Δ^2))
+    pd = sqrt(pb^2 - 4 * pa * (sum(abs2, s) - Δ^2))
     α₁ = (-pb + pd) / 2pa
     α₂ = (-pb - pd) / 2pa
 

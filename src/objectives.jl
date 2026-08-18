@@ -53,6 +53,18 @@ function upto_gradient(so::ScalarObjective, ∇f, x)
         end
     end
 end
+# Standalone gradient evaluation for callers that already know the objective
+# value; falls back to the fused fg when no standalone g is available.
+function gradient_only(so::ScalarObjective, ∇f, x)
+    if so.g === nothing
+        return upto_gradient(so, ∇f, x)[2]
+    end
+    if has_param(so)
+        return so.g(∇f, x, so.param)
+    else
+        return so.g(∇f, x)
+    end
+end
 # need fall back for the case where fgh is not there
 function upto_hessian(so::ScalarObjective, ∇f, ∇²f, x)
     if has_param(so)

@@ -1,15 +1,22 @@
-using Documenter, DocumenterMarkdown, NLSolvers
+using Documenter, NLSolvers
 
 makedocs(
-    doctest = false,
     sitename = "NLSolvers.jl",
-    pages = ["index.md", "optimization.md"],
-    format = Markdown(),
+    modules = [NLSolvers],
+    format = Documenter.HTML(
+        prettyurls = get(ENV, "CI", nothing) == "true",
+        canonical = "https://julianlsolvers.github.io/NLSolvers.jl/dev/",
+    ),
+    pages = [
+        "Home" => "index.md",
+        "Tutorials" => [
+            "Minimizing a function" => "optimization.md",
+            "Solving non-linear equations" => "nonlineareq.md",
+            "Callbacks" => "callbacks.md",
+        ],
+    ],
+    doctest = false,
+    checkdocs = :none,
 )
 
-deploydocs(
-    deps = Deps.pip("pygments", "mkdocs", "python-markdown-math", "mkdocs-windmill"),
-    repo = "github.com/JuliaNLSolvers/NLSolvers.jl.git",
-    make = () -> run(`mkdocs build`),
-    target = "site",
-)
+deploydocs(repo = "github.com/JuliaNLSolvers/NLSolvers.jl.git", devbranch = "master")

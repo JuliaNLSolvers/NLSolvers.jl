@@ -1,19 +1,39 @@
 """
-  TCG is a trust region sub-problem solver that approximately solves the quadratic
-  programming problem subject to the solution being in a Euclidean Ball. It is
-  appropriate for all types of Hessians. It solves the problem by using a conjugate
-  gradient approach to solving the unconstrained quadratic optimization problem. If
-  an interior solution exists it will be found according to the usual CG theory. If the
-  problem is unbounded (negative curvature) or the solution is outside of the trust region
-  we step to the boundary.
+    TCG(; abstol = 1e-10, maxiter = nothing) <: TRSPSolver
 
-  TCG accepts all Hessians and is therefore well-suited for Newton's method for
-  any vexity. It is relatively cheap for (very) large problems.
+TCG is a trust region sub-problem solver that approximately solves the quadratic
+programming problem subject to the solution being in a Euclidean ball. It is
+appropriate for all types of Hessians. It solves the problem by using a conjugate
+gradient approach to solving the unconstrained quadratic optimization problem. If
+an interior solution exists it will be found according to the usual CG theory. If
+the problem is unbounded (negative curvature) or the solution is outside of the
+trust region we step to the boundary.
 
-  The implementation follows Algorithm 7.5.1 on p. 205 of [ConnGouldTointBook] and
-  the algorithm on p. 628 in [Steihaug1983]
+TCG accepts all Hessians and is therefore well-suited for Newton's method for
+any vexity. It is relatively cheap for (very) large problems.
+
+Keywords:
+
+- `abstol`: the residual tolerance of the interior iteration; the solver stops
+  with `solved = true` once the norm of the model gradient falls below it.
+- `maxiter`: the iteration cap. The default `nothing` resolves to the problem
+  dimension at the call site, the exact-arithmetic bound for conjugate
+  gradients. If the cap is reached before the residual tolerance, the truncated
+  step is returned with `solved = false`; it still carries model decrease, so a
+  trust-region method can use it.
+
+Both can be overridden per call through keywords of the same names.
+
+The implementation follows Algorithm 7.5.1 on p. 205 of [ConnGouldTointBook] and
+the algorithm on p. 628 in [Steihaug1983].
 """
-struct TCG <: TRSPSolver end
+struct TCG{Ta,Tm<:Union{Nothing,Int}} <: TRSPSolver
+    abstol::Ta
+    # nothing means the iteration cap is picked per problem size at the call
+    # site
+    maxiter::Tm
+end
+TCG(; abstol = 1e-10, maxiter = nothing) = TCG(float(abstol), maxiter)
 summary(::TCG) = "Steihaug-Toint Truncated CG"
 
 function (ms::TCG)(
@@ -24,10 +44,8 @@ function (ms::TCG)(
     scheme,
     mstyle,
     λ0 = 0;
-    abstol = 1e-10,
-    maxiter = min(5, length(s)),
-    κeasy = T(1) / 10,
-    κhard = T(2) / 10,
+    abstol = T(ms.abstol),
+    maxiter = ms.maxiter === nothing ? length(s) : ms.maxiter,
 ) where {T}
     M = I
     # We only know that TCG has its properties if we start with s = 0
@@ -93,17 +111,31 @@ function (ms::TCG)(
         @. s = s + α * p
         den = dot(g, v)
         g .= g .+ α .* (H * p)
+        if norm(g) <= abstol
+            return tr_return(;
+                λ = NaN,
+                ∇f = ∇f,
+                H = H,
+                s = s,
+                interior = true,
+                solved = true,
+                hard_case = false,
+                Δ = Δ,
+            )
+        end
         v .= M \ g
         β = dot(g, v) / den
         @. p = -v + β * p
     end
+    # The iteration cap cut the recurrence off before the residual tolerance
+    # was met; the truncated step still carries model decrease.
     tr_return(;
         λ = NaN,
         ∇f = ∇f,
         H = H,
         s = s,
         interior = true,
-        solved = true,
+        solved = false,
         hard_case = false,
         Δ = Δ,
     )

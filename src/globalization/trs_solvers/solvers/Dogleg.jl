@@ -18,17 +18,29 @@ end
   The Dogleg solver is only appropriate for positive definite Hessians.
 ===============================================================================#
 """
-    Dogleg()
+    Dogleg(; abstol = 1e-10, maxiter = 50)
 
 A trust region sub-problem solver that assumes positive definite hessians (exact
 or quasi-Newton approximations such as BFGS or variants).
 """
-struct Dogleg{T} <: TRSPSolver
+struct Dogleg{T,Ta} <: TRSPSolver
     γ::T # unused, for double-dogleg
+    abstol::Ta
+    maxiter::Int
 end
-Dogleg() = Dogleg(nothing)
+Dogleg(γ) = Dogleg(γ, 1e-10, 50)
+Dogleg(; abstol = 1e-10, maxiter = 50) = Dogleg(nothing, float(abstol), maxiter)
 
-function (dogleg::Dogleg)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxiter = 50)
+function (dogleg::Dogleg)(
+    ∇f,
+    H,
+    Δ,
+    p,
+    scheme,
+    mstyle;
+    abstol = dogleg.abstol,
+    maxiter = dogleg.maxiter,
+)
     T = eltype(p)
     n = length(∇f)
 
@@ -60,34 +72,25 @@ function (dogleg::Dogleg)(∇f, H, Δ, p, scheme, mstyle; abstol = 1e-10, maxite
                 interior = false
             end
         else
-            # we now solve a quadratic to find the step size t from d_cauchy
-            # towards p. We use a numerically stable way of doing this (see
-            # any numerical analysis text book) See [NW, p. 75] for the expression
-            # giving rise to the quadratic equation
-            dot_cachy_p = dot(d_cauchy, p)
+            # the dog-leg path crosses the boundary where
+            # ||d_cauchy + t*(p - d_cauchy)|| = Δ, see [NW, p. 75]. This gives
+            # the quadratic a*t^2 + b*t + c = 0 below. Since d_cauchy is
+            # interior, c < 0, so the roots have opposite signs, and we pick
+            # the positive one using the numerically stable formula.
+            dot_cauchy_p = dot(d_cauchy, p)
 
-            # a is ||d_c - d_n||^2 expanded into scalar operations
-            a = norm_d_cauchy^2 + norm_p^2 - 2 * dot_cachy_p
-            b = -dot_cachy_p * norm_d_cauchy^2
+            # a is ||p - d_cauchy||^2 expanded into scalar operations
+            a = norm_d_cauchy^2 + norm_p^2 - 2 * dot_cauchy_p
+            b = 2 * (dot_cauchy_p - norm_d_cauchy^2)
             c = norm_d_cauchy^2 - Δ^2 # move the rhs over
-            q = -(b + sign(b) * √(b^2 - 4 * a * c)) / 2
+            q = -(b + copysign(√(b^2 - 4 * a * c), b)) / 2
+            t = b ≥ 0 ? c / q : q / a
 
-            # since we know that c is necessarily negative (since d_cauchy was
-            # not at the border) the discriminant is positive, and there are two
-            # roots - pick the positive one. There has to be one positive and one
-            # negative.
-            if b > 0
-                # if b is positive, q is negative. Then if c is negative, we must
-                # have that c / q is the positive root.
-                t = c / q
-            elseif b < 0
-                # else, the other root must be positive
-                t = q / a
+            if mstyle isa InPlace
+                @. p = d_cauchy + t * (p - d_cauchy)
             else
-                t = T(0)
+                p = @. d_cauchy + t * (p - d_cauchy)
             end
-
-            p, _ = move(mstyle, p, d_cauchy, p, p, t)
             interior = false
         end
     end
