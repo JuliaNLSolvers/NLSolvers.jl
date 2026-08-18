@@ -24,8 +24,9 @@ LinearMaps = "2, 3"
 PositiveFactorizations = "0.2"
 Printf = "1"
 Random = "1"
+SciMLOperators = "0.3, 1"
 SparseArrays = "1"
-SparseDiffTools = "1,2"
+SparseDiffTools = "2"
 StaticArrays = "1"
 Statistics = "1"
 Test = "1"
@@ -44,10 +45,11 @@ JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 LinearMaps = "7a12625a-238d-50fd-b39a-03d52299707e"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+SciMLOperators = "c0aeaf25-5076-4817-a8d5-81caf7dfa961"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SparseDiffTools = "47a9eef4-7e08-11e9-0b38-333d64bd3804"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "Aqua", "ArbNumerics", "DoubleFloats", "ExplicitImports", "ForwardDiff", "GeometryTypes", "IterativeSolvers", "JET", "LinearMaps", "Printf", "StaticArrays", "SparseDiffTools", "SparseArrays", "Random", "GenericLinearAlgebra"]
+test = ["Test", "Aqua", "ArbNumerics", "DoubleFloats", "ExplicitImports", "ForwardDiff", "GeometryTypes", "IterativeSolvers", "JET", "LinearMaps", "Printf", "StaticArrays", "SciMLOperators", "SparseDiffTools", "SparseArrays", "Random", "GenericLinearAlgebra"]
