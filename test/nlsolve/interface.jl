@@ -1,12 +1,12 @@
 using NLSolvers
 using LinearAlgebra
 using SparseDiffTools
+using SciMLOperators: update_coefficients!
 using SparseArrays
 using IterativeSolvers
 using DoubleFloats
 using ForwardDiff
 using Test
-using IterativeSolvers
 function inexact_linsolve(x0, JvOp, Fx, ηₖ)
     krylov_iter = IterativeSolvers.gmres_iterable!(x0, JvOp, Fx; maxiter = 50)
     res = copy(Fx)
@@ -425,7 +425,7 @@ end
 
     jv = JacVec(F_powell!, rand(3); autodiff = AutoFiniteDiff())
     function jvop(x)
-        jv.x .= x
+        update_coefficients!(jv, x, nothing, 0.0)
         jv
     end
     prob_obj = NLSolvers.VectorObjective(F_powell!, nothing, F_jacobian_powell!, jvop)
@@ -459,6 +459,8 @@ end
 
     x0 = 0.3
     res = solve(prob, x0, LineSearch(Newton(), Backtracking()))
+    @test abs(res.info.best_residual) <= 1e-8
+    @test abs(res.info.solution) <= 1e-4
 end
 
 function solve_static()
