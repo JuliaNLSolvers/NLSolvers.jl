@@ -208,12 +208,12 @@ callbacks for `solve`.
 Keyword arguments:
 - `x_abstol = 0`: absolute tolerance on the change in the iterate
 - `x_reltol = 0`: tolerance on the change in the iterate relative to its norm
-- `x_norm = Base.Fix2(norm, Inf)`: norm used for the x tolerances. The change in
+- `x_norm = x -> norm(x, Inf)`: norm used for the x tolerances. The change in
   the iterate is passed as a lazy iterator over the elementwise differences, so
   the function must accept any iterator, not just an `AbstractArray`.
 - `g_abstol = 1e-8`: absolute tolerance on the gradient (or residual) norm
 - `g_reltol = 0.0`: tolerance on the gradient norm relative to its initial value
-- `g_norm = Base.Fix2(norm, Inf)`: norm used for the gradient tolerances
+- `g_norm = x -> norm(x, Inf)`: norm used for the gradient tolerances
 - `f_limit = -Inf`: stop when the objective goes below this value
 - `f_abstol = -Inf`: absolute tolerance on the change in the objective
 - `f_reltol = -Inf`: tolerance on the change in the objective relative to its value
@@ -244,10 +244,10 @@ end
 OptimizationOptions(;
     x_abstol = 0,
     x_reltol = 0,
-    x_norm = Base.Fix2(norm, Inf),
+    x_norm = x -> norm(x, Inf),
     g_abstol = 1e-8,
     g_reltol = 0.0,
-    g_norm = Base.Fix2(norm, Inf),
+    g_norm = x -> norm(x, Inf),
     f_limit = -Inf,
     f_abstol = -Inf, #
     f_reltol = -Inf, # Not useful at 0 if for example we have quadric and trust region accept but objective is the same
