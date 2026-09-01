@@ -68,6 +68,24 @@ end
     @test outs == expected
 end
 
+@testset "diagrestrict!! keeps immutable matrices out of place" begin
+    B = [4.0 1.0; 1.0 3.0]
+    activeset = [true, false]
+    Ix = Diagonal([1.0, 1.0])
+    expected = NLSolvers.diagrestrict.(B, activeset, activeset', Ix)
+
+    buffer = zeros(2, 2)
+    out = NLSolvers.diagrestrict!!(buffer, B, activeset, Ix)
+    @test out === buffer
+    @test out == expected
+
+    Bs = SMatrix{2,2}(4.0, 1.0, 1.0, 3.0)
+    Ixs = Diagonal(SVector(1.0, 1.0))
+    outs = NLSolvers.diagrestrict!!(zero(Bs), Bs, SVector(true, false), Ixs)
+    @test outs isa SMatrix
+    @test outs == expected
+end
+
 @testset "x_norm is called with an iterator" begin
     f = TestProblems.himmelblau.inplace
     x0 = TestProblems.himmelblau.x0()

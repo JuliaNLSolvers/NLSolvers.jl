@@ -43,6 +43,13 @@ function diagrestrict(x::T, ci, cj, i) where {T}
     end
 end
 
+# The restricted Hessian is rebuilt from scratch every iteration and is only
+# read by the factorization, so a mutable one can be written into a buffer.
+# Immutable matrices have to be rebuilt.
+diagrestrict!!(Hhat::Matrix, B, activeset, Ix) =
+    Hhat .= diagrestrict.(B, activeset, activeset', Ix)
+diagrestrict!!(Hhat, B, activeset, Ix) = diagrestrict.(B, activeset, activeset', Ix)
+
 function is_ϵ_active(x, lower, upper, ∇fx, ϵ∇f = eltype(x)(0))
     # it is requied that ϵ ⩽ min(U_i - L_i)/2 to uniquely choose
     # an underestimate of the inactive set or else there would be
@@ -109,13 +116,14 @@ function _solve(
     Tf = typeof(fz)
     is_first = false
     Ix = Diagonal(z .* 0 .+ 1)
+    Hhat = zero(B)
     for iter = 1:options.maxiter
         x = copy(z)
         fx = copy(fz)
         ∇fx = copy(∇fz)
         ϵ = min(projected_gradient_norm(x, ∇fx, lower, upper, 2), ϵbounds) # Kelley 5.41 and just after (83) in [1]
         activeset = is_ϵ_active.(x, lower, upper, ∇fx, ϵ)
-        Hhat = diagrestrict.(B, activeset, activeset', Ix)
+        Hhat = diagrestrict!!(Hhat, B, activeset, Ix)
         # Update current gradient and calculate the search direction
         HhatFact = factorize(scheme, Hhat)
         d = -(HhatFact \ ∇fx) # use find_direction here
