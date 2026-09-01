@@ -47,7 +47,7 @@ function projected_gradient(
 )
 
     f0, g0 = f(x0), g(x0)
-    if norm(x0 .- update_xλ(prob, sc, 1, x0, g0), Inf) <= 1e-6
+    if normdiff(x0, update_xλ(prob, sc, 1, x0, g0), Inf) <= 1e-6
         return x0, f0, g0
     end
 
@@ -63,7 +63,7 @@ function projected_gradient(
             println("x1 = $(x[1])")
             println("x2 = $(x[2])")
         end
-        if norm(x .- update_xλ(prob, sc, 1, x, gx)) <= 1e-6
+        if normdiff(x, update_xλ(prob, sc, 1, x, gx)) <= 1e-6
             return x, fx, gx
         end
         for j = 1:ls_itermax

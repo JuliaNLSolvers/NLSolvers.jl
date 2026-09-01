@@ -91,12 +91,11 @@ function _solve(
 
     lower, upper = bounds(prob)
     if isnothing(scheme.ϵ)
-        ϵbounds = mapreduce(b -> (b[2] - b[1]) / 2, min, zip(lower, upper)) # [1, pp. 100], [2, 5.41]
+        ϵbounds = minimum(ui - li for (li, ui) in zip(lower, upper)) / 2 # [1, pp. 100], [2, 5.41]
     else
         ϵbounds = scheme.ϵ
     end
-    !any(clamp.(x0, lower, upper) .!= x0) ||
-        error("Initial guess not in the feasible region")
+    check_feasible(x0, lower, upper)
 
     linesearch = ArmijoBertsekas()
     mstyle = OutOfPlace()
@@ -114,7 +113,7 @@ function _solve(
         x = copy(z)
         fx = copy(fz)
         ∇fx = copy(∇fz)
-        ϵ = min(norm(clamp.(x .- ∇fx, lower, upper) .- x), ϵbounds) # Kelley 5.41 and just after (83) in [1]
+        ϵ = min(projected_gradient_norm(x, ∇fx, lower, upper, 2), ϵbounds) # Kelley 5.41 and just after (83) in [1]
         activeset = is_ϵ_active.(x, lower, upper, ∇fx, ϵ)
         Hhat = diagrestrict.(B, activeset, activeset', Ix)
         # Update current gradient and calculate the search direction
@@ -145,13 +144,13 @@ function _solve(
         # Update approximation
         fz, ∇fz, B, s, y =
             update_obj(prob.objective, s, ∇fx, z, ∇fz, B, Newton(), is_first, nothing)
-        if norm(x .- clamp.(x .- ∇fz, lower, upper), Inf) < options.g_abstol
+        if projected_gradient_norm(x, ∇fz, lower, upper, Inf) < options.g_abstol
             return ConvergenceInfo(
                 scheme,
                 (
                     prob = prob,
                     B = B,
-                    ρs = norm(x .- z),
+                    ρs = normdiff(x, z),
                     ρx = norm(x),
                     solution = z,
                     fx = fx,
@@ -182,7 +181,7 @@ function _solve(
         (
             prob = prob,
             B = B,
-            ρs = norm(x .- z),
+            ρs = normdiff(x, z),
             ρx = norm(x),
             solution = z,
             fx = fx,
@@ -258,16 +257,16 @@ function find_steplength(
 
     is_solved =
         isfinite(f_α.ϕ) &&
-        f_α.ϕ <= φ0 - decrease * sum(bertsekas_R.(x, x⁺, g, p, α, activeset))
+        f_α.ϕ <= φ0 - decrease * bertsekas_rhs(x, x⁺, g, p, α, activeset)
     while !is_solved && iter <= maxiter
         iter += 1
         β, α = α, α / 2
-        x⁺ = box_retract.(lower, upper, x, p, α)
+        x⁺ = box_retract!!(x⁺, lower, upper, x, p, α)
         f_α = (; ϕ = φ.prob.objective.f(x⁺))  # initial function value
         #        β, α, f_α = interpolate(ls.interp, x->φ, φ0, dφ0, α, f_α.ϕ, ratio)
         is_solved =
             isfinite(f_α.ϕ) &&
-            f_α.ϕ <= φ0 - decrease * sum(bertsekas_R.(x, x⁺, g, p, α, activeset))
+            f_α.ϕ <= φ0 - decrease * bertsekas_rhs(x, x⁺, g, p, α, activeset)
     end
 
     ls_success = iter >= maxiter ? false : true
@@ -284,6 +283,22 @@ end
 # side is nonnegative: Bertsekas steps along x - αp with p = D∇f (eqs. (33),
 # (34)), and here p = -D∇f, so the inactive term α*∂f*p flips sign.
 bertsekas_R(x, x⁺, g, p, α, i) = i ? g * (x - x⁺) : -α * p * g
+# ‖x - P(x - ∇f)‖ over the box, the projected gradient measure used for the
+# ϵ-active set and for convergence
+projected_gradient_norm(x, ∇f, lower, upper, p) = norm(
+    (
+        x[i] - clamp(x[i] - ∇f[i], lower[i], upper[i]) for
+        i in eachindex(x, ∇f, lower, upper)
+    ),
+    p,
+)
+bertsekas_rhs(x, x⁺, g, p, α, activeset) = sum(
+    bertsekas_R(x[i], x⁺[i], g[i], p[i], α, activeset[i]) for
+    i in eachindex(x, x⁺, g, p, activeset)
+)
 # defined univariately
 # should be a "manifodl"
 box_retract(lower, upper, x, p, α) = min(upper, max(lower, x + α * p))
+# reuse x⁺ when it is mutable, fall back to broadcasting for immutable arrays
+box_retract!!(x⁺::Array, lower, upper, x, p, α) = x⁺ .= box_retract.(lower, upper, x, p, α)
+box_retract!!(x⁺, lower, upper, x, p, α) = box_retract.(lower, upper, x, p, α)

@@ -199,6 +199,31 @@ function Base.show(io::IO, ci::ConvergenceInfo)
     println(io, "  Iterations:    $(info.iter)")
 end
 
+"""
+    OptimizationOptions(; kwargs...)
+
+Options controlling iteration limits, convergence criteria, tracing, and
+callbacks for `solve`.
+
+Keyword arguments:
+- `x_abstol = 0`: absolute tolerance on the change in the iterate
+- `x_reltol = 0`: tolerance on the change in the iterate relative to its norm
+- `x_norm = Base.Fix2(norm, Inf)`: norm used for the x tolerances. The change in
+  the iterate is passed as a lazy iterator over the elementwise differences, so
+  the function must accept any iterator, not just an `AbstractArray`.
+- `g_abstol = 1e-8`: absolute tolerance on the gradient (or residual) norm
+- `g_reltol = 0.0`: tolerance on the gradient norm relative to its initial value
+- `g_norm = Base.Fix2(norm, Inf)`: norm used for the gradient tolerances
+- `f_limit = -Inf`: stop when the objective goes below this value
+- `f_abstol = -Inf`: absolute tolerance on the change in the objective
+- `f_reltol = -Inf`: tolerance on the change in the objective relative to its value
+- `nm_tol = 1e-8`: simplex convergence tolerance used by `NelderMead`
+- `maxiter = 10000`: maximum number of iterations
+- `max_restarts = 10`: maximum number of restarts in the quasi-Newton solvers
+- `show_trace = false`: print progress
+- `callback = nothing`: function called with an info `NamedTuple` each
+  iteration; must return a `Bool`, and `true` stops the solve
+"""
 struct OptimizationOptions{T1,T2,T3,T4,Txn,Tgn,Tcb}
     x_abstol::T1
     x_reltol::T1
@@ -219,10 +244,10 @@ end
 OptimizationOptions(;
     x_abstol = 0,
     x_reltol = 0,
-    x_norm = x -> norm(x, Inf),
+    x_norm = Base.Fix2(norm, Inf),
     g_abstol = 1e-8,
     g_reltol = 0.0,
-    g_norm = x -> norm(x, Inf),
+    g_norm = Base.Fix2(norm, Inf),
     f_limit = -Inf,
     f_abstol = -Inf, #
     f_reltol = -Inf, # Not useful at 0 if for example we have quadric and trust region accept but objective is the same
@@ -309,13 +334,19 @@ function init_f∇fB(prob, scheme, ∇fz, B, x)
     return fz, ∇fz, B
 end
 
+function check_feasible(x0, lower, upper)
+    for i in eachindex(x0, lower, upper)
+        lower[i] <= x0[i] <= upper[i] || error("Initial guess not in the feasible region")
+    end
+    return nothing
+end
+
 function prepare_variables(prob, approach, x0, ∇fz, B)
     objective = prob.objective
     z = x0
     x = copy(z)
     if isboundedonly(prob)
-        !any(clamp.(x0, lowerbounds(prob), upperbounds(prob)) .!= x0) ||
-            error("Initial guess not in the feasible region")
+        check_feasible(x0, lowerbounds(prob), upperbounds(prob))
     end
 
     B = init_B(approach, B, x0)
@@ -337,8 +368,7 @@ end
 function x_converged(x, z, options)
     x_converged = false
     if x !== nothing # if not calling from initial_converged
-        y = x .- z
-        ynorm = options.x_norm(y)
+        ynorm = options.x_norm(xi - zi for (xi, zi) in zip(x, z))
         x_converged = x_converged || ynorm ≤ options.x_abstol
         x_converged = x_converged || ynorm ≤ options.x_norm(x) * options.x_reltol
     end

@@ -130,7 +130,7 @@ function solve(
         end
 
         # Update the largest successive change in the iterate
-        ρs = mapreduce(x -> abs(x[1] - x[2]), max, zip(x, z)) # norm(x.-z, Inf)
+        ρs = normdiff(x, z, Inf)
 
         if ρF < stoptol #|| ρs <= 1e-12
             break
