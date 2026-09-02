@@ -72,23 +72,6 @@ function find_direction!(
     # Negate search direction
     negate(InPlace(), d)
 end
-function update_obj!(
-    problem::OptimizationProblem,
-    qnvars,
-    α,
-    x,
-    ∇fx,
-    z,
-    ∇fz,
-    current_memory::Integer,
-    scheme::LBFGS{<:Inverse,<:TwoLoop},
-    scale,
-    dφ0,
-)
-    fz, ∇fz = upto_gradient(problem, ∇fz, z)
-    qnvars = update!(scheme, qnvars, ∇fx, ∇fz, current_memory, dφ0)
-    return fz, ∇fz, qnvars
-end
 @inbounds function update!(
     scheme::LBFGS{<:Inverse,<:TwoLoop},
     qnvars,

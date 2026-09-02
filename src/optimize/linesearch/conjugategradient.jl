@@ -235,16 +235,17 @@ function _solve(
 
     y, d, α, β = copy(objvars.∇fz), -copy(objvars.∇fx), Tx(0), Tx(0)
     cgvars = CGVars(y, d, α, β, true)
+    lsgradλ = _lastgradλ_ref(mstyle, objvars.fz)
 
     k = 1
     callback_stopped = false
-    objvars, P, cgvars = iterate(mstyle, cgvars, objvars, approach, problem, options)
+    objvars, P, cgvars = iterate(mstyle, cgvars, lsgradλ, objvars, approach, problem, options)
     is_converged = converged(approach, objvars, ∇f0, options)
     callback_stopped = _check_callback(options.callback, (iter=k, time=time()-t0, state=objvars))
     while k < options.maxiter && !any(is_converged) && !callback_stopped
         k += 1
         objvars, P, cgvars =
-            iterate(mstyle, cgvars, objvars, approach, problem, options, P, false)
+            iterate(mstyle, cgvars, lsgradλ, objvars, approach, problem, options, P, false)
         is_converged = converged(approach, objvars, ∇f0, options)
         callback_stopped = _check_callback(options.callback, (iter=k, time=time()-t0, state=objvars))
     end
@@ -271,6 +272,7 @@ end
 function iterate(
     mstyle::InPlace,
     cgvars::CGVars,
+    lsgradλ,
     objvars,
     approach::LineSearch{<:ConjugateGradient,<:Any,<:Any},
     problem::OptimizationProblem,
@@ -305,7 +307,7 @@ function iterate(
         ∇fx,
         is_first,
     )
-    φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, dot(∇fx, d))
+    φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, dot(∇fx, d), lsgradλ)
 
     # Perform line search along d
     α, f_α, ls_success = find_steplength(mstyle, linesearch, φ, Tx(1))
@@ -313,7 +315,13 @@ function iterate(
     # Calculate final step vector and update the state
     if ls_success
         z = retract(problem, z, x, d, α)
-        fz, ∇fz = upto_gradient(problem, ∇fz, z)
+        # When the accepted step was the line search's last gradient
+        # evaluation, fz and the ∇fz buffer already belong to z.
+        if lsgradλ[] == α
+            fz = oftype(fz, f_α)
+        else
+            fz, ∇fz = upto_gradient(problem, ∇fz, z)
+        end
         @. y = ∇fz - ∇fx
     else
         # if no succesful search direction is found, reset to gradient
@@ -329,6 +337,7 @@ end
 function iterate(
     mstyle::OutOfPlace,
     cgvars::CGVars,
+    lsgradλ,
     objvars,
     approach::LineSearch{<:ConjugateGradient,<:Any,<:Any},
     problem::OptimizationProblem,

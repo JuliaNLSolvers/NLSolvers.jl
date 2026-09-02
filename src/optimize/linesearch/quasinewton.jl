@@ -86,13 +86,15 @@ function _solve(
         )
     end
     qnvars = QNVars(copy(objvars.∇fz), copy(objvars.∇fz), copy(objvars.∇fz))
+    lsgradλ = _lastgradλ_ref(mstyle, objvars.fz)
 
     restarts = 0
 
     #==============================
              First iteration
     ==============================#
-    objvars, P, qnvars = iterate(mstyle, qnvars, objvars, P, approach, problem, options)
+    objvars, P, qnvars =
+        iterate(mstyle, qnvars, lsgradλ, objvars, P, approach, problem, options)
     iter = 1
     callback_stopped = false
     # Check for gradient convergence
@@ -105,7 +107,7 @@ function _solve(
                      iterate
         ==============================#
         objvars, P, qnvars =
-            iterate(mstyle, qnvars, objvars, P, approach, problem, options, false)
+            iterate(mstyle, qnvars, lsgradλ, objvars, P, approach, problem, options, false)
 
         # Track restarts (ls_success=false ⟹ α=NaN and B was reset to I)
         if !objvars.ls_success
@@ -156,6 +158,7 @@ end
 function iterate(
     mstyle::InPlace,
     cache,
+    lsgradλ,
     objvars,
     P,
     approach::LineSearch,
@@ -181,7 +184,7 @@ function iterate(
     d = find_direction!(d, B, P, ∇fx, scheme) # solve Bd = -∇fx
     # real is needed to convert complex dots to actually being real
     dφ0 = real(dot(∇fx, d))
-    φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, dφ0)
+    φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, dφ0, lsgradλ)
 
     # Perform line search along d
     # Also returns final step vector and update the state
@@ -191,8 +194,17 @@ function iterate(
         @. s = α * d
         z = retract(problem, z, x, s)
 
+        # Evaluate at the accepted point, unless the line search's last
+        # gradient evaluation was already there: then f_α and the ∇fz buffer
+        # belong to z, and only Newton has a Hessian left to evaluate.
+        if lsgradλ[] == α
+            fz = oftype(fz, f_α)
+            B = ls_accepted_hessian!(problem, z, ∇fz, B, scheme)
+        else
+            fz, ∇fz, B = ls_accepted_eval!(problem, z, ∇fz, B, scheme)
+        end
         # Update approximation
-        fz, ∇fz, B, s, y = update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme, is_first, dφ0)
+        B, s, y = ls_update_approx!(s, y, ∇fx, ∇fz, B, scheme, is_first, dφ0)
     else
         # Reset B to identity — next iteration uses steepest descent
         B = one(B)
@@ -219,6 +231,7 @@ end
 function iterate(
     mstyle::OutOfPlace,
     cache,
+    lsgradλ,
     objvars,
     P,
     approach::LineSearch,

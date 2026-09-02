@@ -10,33 +10,47 @@ function _rescale!!(B::Array, γ)
     return γ * B
 end
 
-function update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme, scale, dφ0)
+# The line-search drivers split the accepted-point evaluation from the model
+# update, as the trust-region driver does below: when the line search's last
+# trial was the accepted step, its gradient is already in the buffer and only
+# the Hessian (Newton) or nothing at all is left to evaluate.
+function ls_accepted_eval!(problem, z, ∇fz, B, scheme)
     fz, ∇fz = upto_gradient(problem, ∇fz, z)
+    return fz, ∇fz, B
+end
+function ls_accepted_eval!(problem, z, ∇fz, B, scheme::Newton)
+    fz, ∇fz, B = upto_hessian(problem, ∇fz, B, z)
+    return fz, ∇fz, B
+end
+
+ls_accepted_hessian!(problem, z, ∇fz, B, scheme) = B
+ls_accepted_hessian!(problem, z, ∇fz, B, scheme::Newton) =
+    hessian_only(problem, ∇fz, B, z)
+
+function ls_update_approx!(s, y, ∇fx, ∇fz, B, scheme, scale, dφ0)
     @. y = ∇fz - ∇fx
 
     # Check PD skip condition (dφ0 == nothing means no skip check)
     if dφ0 !== nothing && should_skip(qn_skip(scheme), s, y, skip_aux(qn_skip(scheme), dφ0, ∇fx))
-        return fz, ∇fz, B, s, y
+        return B, s, y
     end
 
     # Initial Hessian sizing (the scheme picks ShannoPhua, OrenLuenberger, …)
     if scale == nothing
         γ = qn_scaling(scheme)(scheme.approx, s, y, B)
         if !isfinite(γ) || iszero(γ)
-            return fz, ∇fz, B, s, y
+            return B, s, y
         end
         Badj = _rescale!!(B, γ)
     else
         Badj = B
     end
     B = update!(scheme, Badj, s, y)
-    return fz, ∇fz, B, s, y
+    return B, s, y
 end
 
-function update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme::Newton, scale, dφ0)
-    fz, ∇fz, B = upto_hessian(problem, ∇fz, B, z)
-    return fz, ∇fz, B, s, s
-end
+# Newton's "model update" is the Hessian evaluation above
+ls_update_approx!(s, y, ∇fx, ∇fz, B, scheme::Newton, scale, dφ0) = B, s, s
 
 # The trust-region driver splits the trial-point evaluation from the model
 # update: it needs the objective value before it can decide acceptance, and
