@@ -40,7 +40,7 @@ function solve(
             approach,
             (
                 Δ = Δk,
-                ρs = norm(objvars.x .- objvars.z),
+                ρs = normdiff(objvars.x, objvars.z),
                 ρx = norm(objvars.x),
                 solution = objvars.z,
                 fx = objvars.fx,
@@ -86,7 +86,7 @@ function solve(
         approach,
         (
             Δ = Δkp1,
-            ρs = norm(x .- z),
+            ρs = normdiff(x, z),
             ρx = norm(x),
             solution = z,
             fx = fx,

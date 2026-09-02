@@ -22,6 +22,7 @@ include("optimize/dogleg.jl")
 include("optimize/trustregion_acceptance.jl")
 include("optimize/trustregion_options.jl")
 include("optimize/activebox.jl")
+include("lazydiffs.jl")
 include("nlsolve/runtests.jl")
 # last: reseeds the global RNG, so nothing may consume the stream after it
 include("optimize/mixed_tests.jl")

@@ -52,3 +52,12 @@ function qradd!(Q::AbstractMatrix, R::AbstractMatrix, v::AbstractVector, k::Int)
 
     Q, R
 end
+
+"""
+    normdiff(x, y)
+    normdiff(x, y, p)
+
+Compute `norm(x - y)` (or `norm(x - y, p)`) without allocating the difference.
+"""
+normdiff(x, y) = norm(xi - yi for (xi, yi) in zip(x, y))
+normdiff(x, y, p) = norm((xi - yi for (xi, yi) in zip(x, y)), p)

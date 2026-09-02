@@ -253,7 +253,7 @@ function _solve(
         approach,
         (
             beta = β,
-            ρs = norm(x .- z),
+            ρs = normdiff(x, z),
             ρx = norm(x),
             solution = z,
             fx = fx,
