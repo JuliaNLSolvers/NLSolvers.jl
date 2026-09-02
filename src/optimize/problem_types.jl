@@ -320,7 +320,17 @@ end
 # Construct a matrix on the correct form and of the correct type
 # with the content of I_{n,n}
 function init_B(aproach, ::Nothing, x)
-    return I + abs.(0 * x * x')
+    return _identity_like(x)
+end
+
+# An identity matrix of the array type and element type implied by `x`. The
+# generic form goes through the outer product, its absolute value and the sum,
+# so three n by n temporaries and O(n^2) multiplications; a dense vector gets
+# the same matrix in one allocation.
+_identity_like(x) = I + abs.(0 * x * x')
+function _identity_like(x::Array)
+    n = length(x)
+    return copyto!(similar(x, (n, n)), I)
 end
 
 # B provided  
