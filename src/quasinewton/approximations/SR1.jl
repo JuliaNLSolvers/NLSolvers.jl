@@ -43,7 +43,8 @@ function update!(scheme::SR1{<:Inverse}, H, s, y)
     w = s - H * y
     θ = real(dot(w, y))
     if !iszero(θ) && abs(θ) ≥ T(scheme.r) * norm(w) * norm(y)
-        H .= H .+ (w * w') / θ
+        # rank-1 update in place; w*w' is an n by n temporary
+        mul!(H, w, w', inv(θ), true)
     end
     H
 end
@@ -52,7 +53,8 @@ function update!(scheme::SR1{<:Direct}, B, s, y)
     res = y - B * s
     θ = real(dot(res, s))
     if !iszero(θ) && abs(θ) ≥ T(scheme.r) * norm(res) * norm(s)
-        B .= B .+ (res * res') / θ
+        # rank-1 update in place; res*res' is an n by n temporary
+        mul!(B, res, res', inv(θ), true)
     end
     B
 end

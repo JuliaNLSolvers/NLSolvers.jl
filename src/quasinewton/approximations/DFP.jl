@@ -37,17 +37,29 @@ function update!(scheme::DFP{<:Inverse}, H, s, y)
     σ = dot(s, y)
     ρ = inv(σ)
 
-    H .+= ρ * s * s' - H * (y * y') * H / (y' * H * y)
-    H
+    # H .+= ρ*s*s' .- (H*y)*(H*y)'/(y'*H*y), as two rank-1 updates. Written out,
+    # H*(y*y')*H is two matrix products for a rank-1 term: O(n^3) work and four
+    # n by n temporaries. H is Hermitian, so y'*H is (H*y)'.
+    Hy = H * y # vector temporary
+    mul!(H, s, s', ρ, true)
+    mul!(H, Hy, Hy', -inv(dot(y, Hy)), true)
+    return H
 end
 function update!(scheme::DFP{<:Direct}, B, s, y)
     σ = dot(s, y)
     ρ = inv(σ)
 
-    C = (I - ρ * y * s')
-    B .= C * B * C' + ρ * y * y'
+    # The congruence transform C*B*C' + ρ*y*y' with C = I - ρ*y*s' expands, for
+    # Hermitian B and b = B*s, into the rank-2 update
+    #     B - ρ*y*b' - conj(ρ)*b*y' + (ρ*conj(ρ)*s'Bs + ρ)*y*y'
+    # which avoids the two matrix products and the n by n C.
+    b = B * s # vector temporary
+    sBs = dot(s, b)
+    mul!(B, y, b', -ρ, true)
+    mul!(B, b, y', -conj(ρ), true)
+    mul!(B, y, y', ρ * conj(ρ) * sBs + ρ, true)
 
-    B
+    return B
 end
 update!(scheme::DFP{<:Inverse}, A::UniformScaling, s, y) = update(scheme, A, s, y)
 update!(scheme::DFP{<:Direct}, A::UniformScaling, s, y) = update(scheme, A, s, y)
