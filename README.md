@@ -107,7 +107,8 @@ Line search: `BFGS`, `LBFGS`, `DBFGS`, `DFP`, `SR1`, `GradientDescent`,
 
 Trust region: `TrustRegion(scheme, subsolver)` combines a model scheme
 (`Newton`, `BFGS`, `SR1`, ...) with a subproblem solver: `NWI` and `NTR`
-(nearly exact), `Dogleg`, or `TCG` (Steihaug-Toint truncated CG). The
+(nearly exact), `Dogleg`, `TCG` (Steihaug-Toint truncated CG), or `TDTR`
+(exact and factorization-free, for two-dimensional problems only). The
 acceptance threshold, radius-update constants, and subsolver tolerances are
 all exposed as options.
 

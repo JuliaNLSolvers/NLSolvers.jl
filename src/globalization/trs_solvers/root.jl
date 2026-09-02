@@ -8,6 +8,7 @@ include("solvers/NWI.jl")
 include("solvers/Dogleg.jl")
 include("solvers/NTR.jl")
 include("solvers/TCG.jl")
+include("solvers/TDTR.jl")
 #include("subproblemsolvers/TRS.jl") just make an example instead of relying onTRS.jl
 
 function tr_return(; λ, ∇f, H, s, interior, solved, hard_case, Δ, m = nothing)

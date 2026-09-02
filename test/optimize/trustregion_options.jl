@@ -131,6 +131,9 @@ _tro_prob() = OptimizationProblem(TestProblems.rosenbrock.inplace; inplace = tru
             (NLSolvers.Newton(), NLSolvers.NTR(abstol = 1e-8)),
             (NLSolvers.Newton(), NLSolvers.NWI(abstol = 1e-8)),
             (NLSolvers.Newton(), NLSolvers.TCG(abstol = 1e-8)),
+            (NLSolvers.Newton(), NLSolvers.TDTR(abstol = 1e-8)),
+            (NLSolvers.Newton(), NLSolvers.TDTR(boundary = :quartic, abstol = 1e-8)),
+            (SR1(Direct()), NLSolvers.TDTR(abstol = 1e-8)),
             (BFGS(Direct()), NLSolvers.Dogleg(abstol = 1e-8)),
         )
             res = solve(
