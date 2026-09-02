@@ -1,3 +1,15 @@
+# Initial sizing scales the whole approximation by γ. The mutating drivers hand
+# `update!` a dense B that it overwrites immediately after, so scale it in place
+# when γ fits B's eltype. UniformScaling, static and other immutable B fall back
+# to the allocating form, as does a real B with a complex γ.
+_rescale!!(B, γ) = γ * B
+function _rescale!!(B::Array, γ)
+    if promote_type(typeof(γ), eltype(B)) === eltype(B)
+        return rmul!(B, γ)
+    end
+    return γ * B
+end
+
 function update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme, scale, dφ0)
     fz, ∇fz = upto_gradient(problem, ∇fz, z)
     @. y = ∇fz - ∇fx
@@ -13,7 +25,7 @@ function update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme, scale, dφ0)
         if !isfinite(γ) || iszero(γ)
             return fz, ∇fz, B, s, y
         end
-        Badj = γ * B
+        Badj = _rescale!!(B, γ)
     else
         Badj = B
     end
@@ -46,7 +58,7 @@ function tr_update_approx!(y, s, ∇fx, ∇fz, B, scheme, scale)
         if !isfinite(γ) || iszero(γ)
             return B, s, y
         end
-        Badj = γ * B
+        Badj = _rescale!!(B, γ)
     else
         Badj = B
     end
