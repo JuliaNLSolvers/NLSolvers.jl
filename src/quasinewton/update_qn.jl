@@ -1,14 +1,11 @@
 # Initial sizing scales the whole approximation by γ. The mutating drivers hand
-# `update!` a dense B that it overwrites immediately after, so scale it in place
-# when γ fits B's eltype. UniformScaling, static and other immutable B fall back
-# to the allocating form, as does a real B with a complex γ.
+# `update!` a dense B that it overwrites immediately after, so scale it in
+# place. γ comes from the scaling rule applied to s, y and B, so it is already
+# B's element type; converting up front says so, and throws rather than
+# silently widening B, which would change its type from one iteration to the
+# next. UniformScaling, static and other non-Array B keep the allocating form.
 _rescale!!(B, γ) = γ * B
-function _rescale!!(B::Array, γ)
-    if promote_type(typeof(γ), eltype(B)) === eltype(B)
-        return rmul!(B, γ)
-    end
-    return γ * B
-end
+_rescale!!(B::Array{T}, γ::Number) where {T} = lmul!(convert(T, γ), B)
 
 function update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme, scale, dφ0)
     fz, ∇fz = upto_gradient(problem, ∇fz, z)
