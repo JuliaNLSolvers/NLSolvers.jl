@@ -3,8 +3,14 @@
 
     min_p m(p) = ∇f'p + p'Hp/2   s.t. ||p|| ≤ Δ
 
-  exactly, for two-dimensional problems only. The 2x2 spectral decomposition
-  has a closed form, so the secular equation
+  exactly, for two-dimensional problems only. Two-dimensional sub-problems
+  arise on their own and as the reduced problem in two-dimensional subspace
+  minimization, where the full-space sub-problem is restricted to a subspace
+  such as span{∇f, H⁻¹∇f} and solved exactly there [ByrdSchnabelShultz1988]
+  (convergence theory in [ShultzSchnabelByrd1985]; [BranchColemanLi1999] uses
+  the same kernel inside a large-scale trust-region method).
+
+  The 2x2 spectral decomposition has a closed form, so the secular equation
 
     ||p(σ)||² = g̃₁²/(λ₁+σ)² + g̃₂²/(λ₂+σ)² = Δ²
 
@@ -13,16 +19,36 @@
   with a trigonometric resolvent branch, followed by one safeguarded Newton
   polish step) or by a safeguarded Newton iteration on the reciprocal secular
   equation 1/||p(σ)|| = 1/Δ (boundary = :newton), which is nearly linear in σ
-  [MS]. The hard case is handled exactly: in two dimensions the boundary
-  solution along the extra eigenvector direction is available in closed form,
-  so no inverse iteration or LINPACK-style eigenvector estimate is needed.
+  [MoreSorensen1983]. The hard case (the term is from [MoreSorensen1983]) is
+  handled exactly: in two dimensions the boundary solution along the extra
+  eigenvector direction is available in closed form, so no inverse iteration
+  or LINPACK-style eigenvector estimate is needed.
 
   Unlike NWI and NTR, no factorizations or general eigensolves are performed,
   H is never mutated, and no memory is allocated, so the solver works for any
   Real element type (including BigFloat) and with immutable (static) arrays.
 
-  [MS] Moré & Sorensen (1983), "Computing a trust region step",
-       SIAM J. Sci. Stat. Comput.
+  References
+
+  [MoreSorensen1983]       Moré & Sorensen (1983), "Computing a trust region
+                           step", SIAM J. Sci. Stat. Comput. 4(3), pp. 553-572.
+                           doi:10.1137/0904038
+  [ByrdSchnabelShultz1988] Byrd, Schnabel & Shultz (1988), "Approximate
+                           solution of the trust region problem by minimization
+                           over two-dimensional subspaces", Math. Programming
+                           40, pp. 247-263. doi:10.1007/BF01580735
+  [ShultzSchnabelByrd1985] Shultz, Schnabel & Byrd (1985), "A family of
+                           trust-region-based algorithms for unconstrained
+                           minimization with strong global convergence
+                           properties", SIAM J. Numer. Anal. 22(1), pp. 47-67.
+  [BranchColemanLi1999]    Branch, Coleman & Li (1999), "A subspace, interior,
+                           and conjugate gradient method for large-scale
+                           bound-constrained minimization problems", SIAM J.
+                           Sci. Comput. 21(1), pp. 1-23.
+                           doi:10.1137/S1064827595289108
+  [NumericalRecipes]       Press, Teukolsky, Vetterling & Flannery, "Numerical
+                           Recipes", 2nd ed., §5.6 "Quadratic and Cubic
+                           Equations".
 ===============================================================================#
 """
     TDTR(; boundary = :newton, abstol = 1e-10, maxiter = 50)
@@ -103,7 +129,9 @@ end
 
 # Closed-form spectral decomposition of a symmetric 2x2 matrix. Returns
 # λ1 ≤ λ2 and (c2, s2) with eigenvectors q₂ = (c2, s2) and q₁ = (-s2, c2);
-# the branch on the sign of the half-difference avoids cancellation.
+# the branch on the sign of the half-difference avoids cancellation. This is
+# the same computation as LAPACK's DLAEV2, which however orders the
+# eigenvalues by absolute value where this routine orders algebraically.
 function _tdtr_eigen(h11, h12, h22)
     mv = (h11 + h22) / 2
     dv = (h11 - h22) / 2
@@ -223,8 +251,8 @@ end
 
 # Safeguarded Newton iteration on the reciprocal secular equation
 # φ(σ) = 1/||p̃(σ)|| - 1/Δ, which is monotone and nearly linear on the
-# bracket [σlo, σhi] [MS]. Falls back to bisection when a Newton step
-# leaves the bracket.
+# bracket [σlo, σhi] [MoreSorensen1983]. Falls back to bisection when a
+# Newton step leaves the bracket.
 function _tdtr_secular_newton(λ1, λ2, gt1, gt2, Δ, σlo, σhi, σstart, abstol, maxiter)
     T = typeof(σlo)
     σ = clamp(σstart, σlo, σhi)
@@ -323,7 +351,7 @@ end
 # Largest real root of m³ + a2 m² + a1 m + a0. Three-real-root cases use the
 # trigonometric form (the Cardano form would need complex intermediates);
 # single-root cases use Cardano with the larger-magnitude cube root first to
-# avoid cancellation.
+# avoid cancellation. Both forms follow [NumericalRecipes] §5.6.
 function _tdtr_max_real_root_cubic(a2, a1, a0)
     T = typeof(a2)
     P = a1 - a2^2 / 3
@@ -343,8 +371,8 @@ function _tdtr_max_real_root_cubic(a2, a1, a0)
     end
 end
 
-# Real roots of y² + b y + c with the cancellation-free formula;
-# returns (count, root, root)
+# Real roots of y² + b y + c with the cancellation-free formula of
+# [NumericalRecipes] §5.6; returns (count, root, root)
 function _tdtr_quad_roots(b, c)
     disc = b^2 - 4 * c
     if disc < 0
