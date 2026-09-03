@@ -82,6 +82,25 @@ import Random
             @test res.λ > 2.0
             @test norm(res.p) ≈ 0.05
         end
+        # singular Hessian: the hard case taxonomy includes λ₁ = 0, and tiny
+        # |λ₁| of either sign must not degrade the boundary solve
+        for sp in solvers, λ1 in (0.0, 1e-300, -1e-300)
+            H = Diagonal([λ1, 3.0])
+            g = [1e-16, 0.7]
+            res = sp(g, H, 0.5, zeros(2), NLSolvers.Newton(), NLSolvers.InPlace())
+            @test res.solved
+            @test norm(res.p) ≈ 0.5
+            @test tdtr_kkt_ok(g, H, 0.5, res)
+        end
+        for sp in solvers
+            H = Diagonal([0.0, 3.0])
+            g = [0.0, 0.7]
+            res = sp(g, H, 0.5, zeros(2), NLSolvers.Newton(), NLSolvers.InPlace())
+            @test res.hard_case
+            @test res.λ == 0.0
+            @test norm(res.p) ≈ 0.5
+            @test tdtr_kkt_ok(g, H, 0.5, res)
+        end
         # rotated (numerically) hard case and the near-hard sweep
         θ = 0.7
         Q = [cos(θ) -sin(θ); sin(θ) cos(θ)]

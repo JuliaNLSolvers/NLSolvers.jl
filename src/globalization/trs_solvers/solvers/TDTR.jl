@@ -173,20 +173,21 @@ function _tdtr_solve(λ1, λ2, gt1, gt2, Δ, boundary, abstol, maxiter)
     σhi = max(σlo, hypot(gt1, gt2) / Δ - λ1)
 
     # second-order estimate of the root measured from -λ₁, accurate when the
-    # root is close to -λ₁ (the near-hard regime, where the reciprocal secular
-    # equation is flat on one side and Newton would fall back to bisection)
+    # root is close to -λ₁ (the hard-case side, where the reciprocal secular
+    # equation is flat on one side and Newton would fall back to bisection).
+    # The hard-case side includes λ₁ = 0 and tiny positive λ₁, so the estimate
+    # is not gated on the sign of λ₁; for well-separated roots the bracket
+    # clamp turns it into an ordinary starting point
     σhard = T(NaN)
-    if λ1 < z
-        w0 = gt2 / (λ2 + σlo)
-        τ20 = Δ^2 - w0^2
-        if τ20 > z
-            σhard = -λ1 + abs(gt1) / sqrt(τ20)
-        end
+    w0 = gt2 / (λ2 + σlo)
+    τ20 = Δ^2 - w0^2
+    if τ20 > z
+        σhard = -λ1 + abs(gt1) / sqrt(τ20)
     end
 
     solved = false
     σ = σlo
-    if !isnan(σhard) && σhard + λ1 <= cbrt(eps(T)) * max(-λ1, σhard)
+    if λ1 < z && !isnan(σhard) && σhard + λ1 <= cbrt(eps(T)) * max(-λ1, σhard)
         # the root is unresolvably close to -λ₁: the boundary completion below
         # rebuilds p̃₁ from the boundary equation, so iterating on σ cannot
         # improve on the estimate
