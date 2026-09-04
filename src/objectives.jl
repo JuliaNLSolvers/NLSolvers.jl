@@ -81,6 +81,19 @@ function upto_hessian(so::ScalarObjective, ∇f, ∇²f, x)
         end
     end
 end
+# Standalone Hessian evaluation for callers that already hold the objective
+# value and gradient; falls back to the fused fgh when no standalone h is
+# available.
+function hessian_only(so::ScalarObjective, ∇f, ∇²f, x)
+    if so.h === nothing
+        return upto_hessian(so, ∇f, ∇²f, x)[3]
+    end
+    if has_param(so)
+        return so.h(∇²f, x, so.param)
+    else
+        return so.h(∇²f, x)
+    end
+end
 has_batched_f(so::ScalarObjective) = !(so.batched_f === nothing)
 """
     batched_value(obj, X)
@@ -135,7 +148,11 @@ VectorObjective(; F = nothing, J = nothing, FJ = nothing, Jv = nothing) =
 
 ## If prob is a NEqProblem, then we can just dispatch to least squares MeritObjective
 # if fast JacVec exists then maybe even line searches that updates the gradient can be used??? 
-struct LineObjective!{TP,T1,T2,T3}
+# The gradient-evaluating call records its step length in lastgradλ, so a
+# driver can tell whether ∇fz already holds the gradient at the accepted step
+# (the line search's last trial) or must be evaluated there. Initialized to
+# NaN, which compares unequal to every step length.
+struct LineObjective!{TP,T1,T2,T3,TR}
     prob::TP
     ∇fz::T1
     z::T2
@@ -143,6 +160,7 @@ struct LineObjective!{TP,T1,T2,T3}
     d::T2
     φ0::T3
     dφ0::T3
+    lastgradλ::TR
 end
 function (le::LineObjective!)(λ)
     z = retract!(_manifold(le.prob), le.z, le.x, le.d, λ)
@@ -151,8 +169,15 @@ function (le::LineObjective!)(λ)
 end
 function (le::LineObjective!)(λ, calc_grad::Bool)
     f, g = upto_gradient(le.prob, le.∇fz, retract!(_manifold(le.prob), le.z, le.x, le.d, λ))
+    # The objective may return a gradient other than the buffer (out-of-place
+    # user functions behind an in-place problem). lastgradλ promises that the
+    # buffer holds the gradient of this trial, so sync it before recording.
+    g === le.∇fz || copyto!(le.∇fz, g)
+    le.lastgradλ[] = λ
     (ϕ = f, dϕ = real(dot(g, le.d))) # because complex dot might not have exactly zero im part and it's the wrong type
 end
+# No record on the out-of-place LineObjective: nothing consumes it there yet,
+# and allocating the Ref would break the allocation-free static-array path.
 struct LineObjective{TP,T1,T2,T3}
     prob::TP
     ∇fz::T1
@@ -175,9 +200,29 @@ function (le::LineObjective)(λ, calc_grad::Bool)
     (ϕ = f, dϕ = real(dot(g, le.d))) # because complex dot might not have exactly zero im part and it's the wrong type
 end
 
-# We call real on dφ0 because x and df might be complex
-_lineobjective(mstyle::InPlace, prob::AbstractProblem, ∇fz, z, x, d, φ0, dφ0) =
-    LineObjective!(prob, ∇fz, z, x, d, φ0, real(dφ0))
+# One Ref per solve, created by the in-place drivers and reused across
+# iterations to keep the per-iteration path allocation-free. The out-of-place
+# drivers have no consumer and stay allocation-free on the static-array path.
+_lastgradλ_ref(mstyle::InPlace, fz) = Ref(oftype(float(real(fz)), NaN))
+_lastgradλ_ref(mstyle::OutOfPlace, fz) = nothing
+
+# We call real on dφ0 because x and df might be complex. Building the line
+# objective for a new direction resets the record: it refers to the previous
+# iteration's line problem.
+function _lineobjective(
+    mstyle::InPlace,
+    prob::AbstractProblem,
+    ∇fz,
+    z,
+    x,
+    d,
+    φ0,
+    dφ0,
+    lastgradλ,
+)
+    lastgradλ[] = oftype(lastgradλ[], NaN)
+    LineObjective!(prob, ∇fz, z, x, d, φ0, real(dφ0), lastgradλ)
+end
 _lineobjective(mstyle::OutOfPlace, prob::AbstractProblem, ∇fz, z, x, d, φ0, dφ0) =
     LineObjective(prob, ∇fz, z, x, d, φ0, real(dφ0))
 
