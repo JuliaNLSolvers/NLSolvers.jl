@@ -1,11 +1,16 @@
-# Initial sizing scales the whole approximation by γ. The mutating drivers hand
-# `update!` a dense B that it overwrites immediately after, so scale it in
-# place. γ comes from the scaling rule applied to s, y and B, so it is already
-# B's element type; converting up front says so, and throws rather than
-# silently widening B, which would change its type from one iteration to the
-# next. UniformScaling, static and other non-Array B keep the allocating form.
-_rescale!!(B, γ) = γ * B
-_rescale!!(B::Array{T}, γ::Number) where {T} = lmul!(convert(T, γ), B)
+# Initial sizing scales the whole approximation by γ. The caller states whether
+# it owns B, as it does for every other mutating helper here, so that an
+# out-of-place solve cannot have its approximation overwritten by a method that
+# guessed permission from the container type. In place and dense, the scaling
+# happens in the buffer that `update!` overwrites immediately after; everything
+# else takes the allocating form, including a mutable static array, which is
+# storage the solver does not own either.
+#
+# γ comes from the scaling rule applied to s, y and B, so it is already B's
+# element type; converting up front says so, and throws rather than silently
+# widening B, which would change its type from one iteration to the next.
+_rescale!!(mstyle, B, γ) = γ * B
+_rescale!!(::InPlace, B::Array{T}, γ::Number) where {T} = lmul!(convert(T, γ), B)
 
 function update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme, scale, dφ0)
     fz, ∇fz = upto_gradient(problem, ∇fz, z)
@@ -22,7 +27,7 @@ function update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme, scale, dφ0)
         if !isfinite(γ) || iszero(γ)
             return fz, ∇fz, B, s, y
         end
-        Badj = _rescale!!(B, γ)
+        Badj = _rescale!!(mstyle(problem), B, γ)
     else
         Badj = B
     end
@@ -48,14 +53,14 @@ function tr_trial_eval!(problem, z, ∇fz, B, scheme::Newton)
     return fz, ∇fz, B
 end
 
-function tr_update_approx!(y, s, ∇fx, ∇fz, B, scheme, scale)
+function tr_update_approx!(mstyle, y, s, ∇fx, ∇fz, B, scheme, scale)
     @. y = ∇fz - ∇fx
     if scale == nothing
         γ = qn_scaling(scheme)(scheme.approx, s, y, B)
         if !isfinite(γ) || iszero(γ)
             return B, s, y
         end
-        Badj = _rescale!!(B, γ)
+        Badj = _rescale!!(mstyle, B, γ)
     else
         Badj = B
     end
@@ -63,7 +68,7 @@ function tr_update_approx!(y, s, ∇fx, ∇fz, B, scheme, scale)
     return B, s, y
 end
 # Newton's "model update" is the Hessian evaluation in tr_trial_eval!
-tr_update_approx!(y, s, ∇fx, ∇fz, B, scheme::Newton, scale) = B, s, y
+tr_update_approx!(mstyle, y, s, ∇fx, ∇fz, B, scheme::Newton, scale) = B, s, y
 
 function update_obj(problem, s, ∇fx, z, ∇fz, B, scheme, scale, dφ0)
     fz, ∇fz = upto_gradient(problem, ∇fz, z)
