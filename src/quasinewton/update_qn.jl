@@ -1,16 +1,17 @@
-# Initial sizing scales the whole approximation by γ. The caller states whether
-# it owns B, as it does for every other mutating helper here, so that an
-# out-of-place solve cannot have its approximation overwritten by a method that
-# guessed permission from the container type. In place and dense, the scaling
-# happens in the buffer that `update!` overwrites immediately after; everything
-# else takes the allocating form, including a mutable static array, which is
-# storage the solver does not own either.
+# Initial sizing scales the whole approximation by γ, once per solve, and
+# `update!` consumes the result immediately.
 #
-# γ comes from the scaling rule applied to s, y and B, so it is already B's
-# element type; converting up front says so, and throws rather than silently
-# widening B, which would change its type from one iteration to the next.
-_rescale!!(mstyle, B, γ) = γ * B
-_rescale!!(::InPlace, B::Array{T}, γ::Number) where {T} = lmul!(convert(T, γ), B)
+# The caller says whether it owns B, as it does for every other mutating helper
+# here. It says nothing about what B is, and nothing needs to: whatever B is,
+# `update!` is about to write into it under the same style, so a B that cannot
+# be scaled in place cannot be updated in place either, and this fails where
+# that would. Broadcasting rather than `lmul!` keeps it to `setindex!`, which is
+# what the updates need too, and off the scalar indexing that array types on a
+# device reject. Assigning into B also fixes its element type: γ is B's element
+# type by construction, and one that cannot be represented throws here instead
+# of silently widening B from one iteration to the next.
+_rescale!!(::OutOfPlace, B, γ::Number) = γ * B
+_rescale!!(::InPlace, B, γ::Number) = B .= γ .* B
 
 function update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme, scale, dφ0)
     fz, ∇fz = upto_gradient(problem, ∇fz, z)
