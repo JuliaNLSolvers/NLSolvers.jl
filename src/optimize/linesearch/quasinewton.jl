@@ -204,7 +204,7 @@ function iterate(
             fz, ∇fz, B = ls_accepted_eval!(problem, z, ∇fz, B, scheme)
         end
         # Update approximation
-        B, s, y = ls_update_approx!(s, y, ∇fx, ∇fz, B, scheme, is_first, dφ0)
+        B, s, y = ls_update_approx!(mstyle, s, y, ∇fx, ∇fz, B, scheme, is_first, dφ0)
     else
         # Reset B to identity — next iteration uses steepest descent
         B = one(B)

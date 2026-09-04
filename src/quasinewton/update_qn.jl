@@ -29,7 +29,7 @@ ls_accepted_hessian!(problem, z, ∇fz, B, scheme) = B
 ls_accepted_hessian!(problem, z, ∇fz, B, scheme::Newton) =
     hessian_only(problem, ∇fz, B, z)
 
-function ls_update_approx!(s, y, ∇fx, ∇fz, B, scheme, scale, dφ0)
+function ls_update_approx!(mstyle, s, y, ∇fx, ∇fz, B, scheme, scale, dφ0)
     @. y = ∇fz - ∇fx
 
     # Check PD skip condition (dφ0 == nothing means no skip check)
@@ -43,7 +43,7 @@ function ls_update_approx!(s, y, ∇fx, ∇fz, B, scheme, scale, dφ0)
         if !isfinite(γ) || iszero(γ)
             return B, s, y
         end
-        Badj = _rescale!!(mstyle(problem), B, γ)
+        Badj = _rescale!!(mstyle, B, γ)
     else
         Badj = B
     end
@@ -52,7 +52,7 @@ function ls_update_approx!(s, y, ∇fx, ∇fz, B, scheme, scale, dφ0)
 end
 
 # Newton's "model update" is the Hessian evaluation above
-ls_update_approx!(s, y, ∇fx, ∇fz, B, scheme::Newton, scale, dφ0) = B, s, s
+ls_update_approx!(mstyle, s, y, ∇fx, ∇fz, B, scheme::Newton, scale, dφ0) = B, s, s
 
 # The trust-region driver splits the trial-point evaluation from the model
 # update: it needs the objective value before it can decide acceptance, and
