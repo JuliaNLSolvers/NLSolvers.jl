@@ -173,14 +173,14 @@ function iterate!(
                 ∇fz = gradient_only(problem.objective, ∇fz, z)
             end
         end
-        B, s, y = tr_update_approx!(y, spr.p, ∇fx, ∇fz, B, scheme, scale)
+        B, s, y = tr_update_approx!(mstyle(problem), y, spr.p, ∇fx, ∇fz, B, scheme, scale)
     else
         if !approach.eval_f_first && approach.update_reject
             # Rejected steps may still update the approximation: the trial
             # gradient carries curvature information whether or not the step
             # is taken (Nocedal & Wright, Algorithm 6.2). Newton is exempt
             # (see below); opt out with TrustRegion(update_reject = false).
-            B, s, y = tr_update_approx!(y, spr.p, ∇fx, ∇fz, B, scheme, scale)
+            B, s, y = tr_update_approx!(mstyle(problem), y, spr.p, ∇fx, ∇fz, B, scheme, scale)
         end
         z = _copyto(mstyle(problem), z, x)
         fz = fx

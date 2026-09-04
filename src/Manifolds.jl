@@ -47,6 +47,11 @@ end
 
 exp!(M::Euclidean, y, x, v) = (y .= x .+ v)
 
+# The generic five-argument retract! forms t*v as a temporary; on a Euclidean
+# manifold the step length fuses into the broadcast. Line searches call this
+# once per trial point, so the temporary would be per evaluation.
+retract!(M::Euclidean, y, x, v, t::Real) = (y .= x .+ t .* v)
+
 log!(M::Euclidean, v, x, y) = (v .= y .- x)
 
 function zero_tangent_vector!(M::Euclidean, v, x)

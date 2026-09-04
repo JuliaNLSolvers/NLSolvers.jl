@@ -35,10 +35,11 @@ function update!(scheme::BFGS{<:Direct}, B, s, y)
     # Then calculate the vector b
     b = B * s # vector temporary
     sBs = dot(s, b)
-    # Calculate one vector divided by dot(s, b)
-    ρbb = inv(sBs) * b
-    # And calculate
-    B .+= (ρ * y) * y' .- ρbb * b'
+    # B .+= ρ*y*y' .- b*b'/sBs, applied as two rank-1 updates. As a broadcast
+    # each outer product is a full n by n temporary.
+    mul!(B, y, y', ρ, true)
+    mul!(B, b, b', -inv(sBs), true)
+    return B
 end
 function update(scheme::BFGS{<:Direct}, B, s, y)
     # As above, but out of place

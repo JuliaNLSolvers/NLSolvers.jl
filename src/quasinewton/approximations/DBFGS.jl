@@ -25,20 +25,18 @@ function update!(scheme::DBFGS{<:Direct,<:Any,<:Any}, B, s, y)
     # Then calculate the vector b
     b = B * s # vector temporary
     sb = dot(s, b)
+    # Both branches are two rank-1 updates applied in place; as a broadcast each
+    # outer product is a full n by n temporary.
     if σ ≥ scheme.theta * sb
-        θ = 1.0
-        # Calculate one vector divided by dot(s, b)
-        ρbb = inv(sb) * b
-        # And calculate
-        B .+= (inv(σ) * y) * y' .- ρbb * b'
+        mul!(B, y, y', inv(σ), true)
+        mul!(B, b, b', -inv(sb), true)
     else
         θ = 0.8 * sb / (sb - σ)
-        r = y * θ + (1 - θ) * b
-        # Calculate one vector divided by dot(s, b)
-        ρbb = inv(dot(s, b)) * b
-        # And calculate
-        B .+= (inv(dot(s, r)) * r) * r' .- ρbb * b'
+        r = y * θ + (1 - θ) * b # vector temporary
+        mul!(B, r, r', inv(dot(s, r)), true)
+        mul!(B, b, b', -inv(sb), true)
     end
+    return B
 end
 function update(scheme::DBFGS{<:Direct,<:Any}, B, s, y)
     # As above, but out of place
@@ -94,11 +92,12 @@ function update!(scheme::DBFGS{<:Inverse,<:Any}, H, s, y)
     ρ = inv(σ)
 
     if isfinite(ρ)
-        Hȳ = H * ȳ
-        H .= H .+ ((σ + ȳ' * Hȳ) .* ρ^2) * (s * s')
-        Hȳs = Hȳ * s'
-        Hȳs .= Hȳs .+ Hȳs'
-        H .= H .- Hȳs .* ρ
+        # Three rank-1 updates in place. The symmetrized Hȳ*s' + s*Hȳ' and the
+        # s*s' term were each a full n by n temporary.
+        Hȳ = H * ȳ # vector temporary
+        mul!(H, s, s', (σ + dot(ȳ, Hȳ)) * ρ^2, true)
+        mul!(H, Hȳ, s', -ρ, true)
+        mul!(H, s, Hȳ', -ρ, true)
     end
     H
 end
