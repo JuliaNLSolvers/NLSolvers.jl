@@ -151,7 +151,7 @@ function solve(
         it = 0
         while !btk_conv
             it += 1
-            z = retract(problem, z, x, xp, -1)
+            z = move(problem, z, x, xp, -1)
 
             Fx = problem.R.F(Fx, z)
             btk_conv = norm(Fx, 2) ≤ (1 - t * (1 - ηₖ)) * ρFx || it > 20

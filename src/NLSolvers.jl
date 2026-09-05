@@ -209,12 +209,39 @@ end
 mstyle(problem::AbstractProblem) = problem.mstyle
 
 """
-    retract(problem, z, x, p [, α])
+    move(problem, z, x, p)
+    move(problem, z, x, d, α)
+    move(problem, z, s, x, d, α)
 
-Move from `x` along the direction `p` (or `α*p` if α is supplied) to a new point on the manifold in `problem` and store it in z if the problem is specified as inplace.  If the problem is inplace and updated `z` is returned, else a new vector is returned.
+Move from `x` along `d`, by `α` in that direction when a length is given, and
+store the new point in `z` when the problem is in place; out of place a new
+point is returned. `p` is a step that has already been formed.
+
+Every movement of a state along a direction goes through this, so where a step
+lands is decided in one place and two callers cannot disagree about it.
+
+The six-argument form writes the step it took into `s` and returns `(z, s)`.
+Take that one when the step is needed afterwards, so the scaling happens once
+here rather than once in the caller and again on the way through. Out of place
+nothing is written and `s` may be `nothing`.
+
+`retract` is the geometry underneath. `move` is what the solvers call, and it
+resolves the problem's mutation style and manifold before handing over.
 """
-retract(problem, z, x, p) = _retract(mstyle(problem), _manifold(problem), z, x, p)
-retract(problem, z, x, p, α) = _retract(mstyle(problem), _manifold(problem), z, x, p, α)
+move(problem, z, x, p) = _retract(mstyle(problem), _manifold(problem), z, x, p)
+move(problem, z, x, d, α) = _retract(mstyle(problem), _manifold(problem), z, x, d, α)
+move(problem, z, s, x, d, α) = _move(mstyle(problem), _manifold(problem), z, s, x, d, α)
+
+# The step taken is the tangent vector α*d, on a Euclidean space as anywhere
+# else; forming it here keeps the scaling and the movement in one place.
+function _move(mstyle::InPlace, manifold::Manifold, z, s, x, d, α)
+    @. s = α * d
+    return _retract(mstyle, manifold, z, x, s), s
+end
+function _move(mstyle::OutOfPlace, manifold::Manifold, z, s, x, d, α)
+    s = @. α * d
+    return _retract(mstyle, manifold, z, x, s), s
+end
 function _retract(::InPlace, manifold::Manifold, z, x, p)
     retract!(manifold, z, x, p)
     return z

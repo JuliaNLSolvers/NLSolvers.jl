@@ -138,7 +138,7 @@ function iterate!(
     spr = subproblemsolver(∇fx, B, Δk, p, scheme, problem.mstyle)
     Δm = -spr.mz
 
-    z = retract(problem, z, x, spr.p)
+    z = move(problem, z, x, spr.p)
 
     if approach.eval_f_first
         # Only the objective value is needed to decide acceptance; the gradient

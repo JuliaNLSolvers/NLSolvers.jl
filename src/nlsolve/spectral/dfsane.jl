@@ -131,7 +131,7 @@ function solve(
         # φ evaluates trial residuals into Fx, so the current residual must be
         # captured into y before the line search runs
         y .= -Fx
-        φ(α) = norm(F(Fx, (z .= x .+ α .* d)))^nexp
+        φ(α) = norm(F(Fx, move(prob, z, x, d, α)))^nexp
         φ0 = fx
         α, φα = find_steplength(RNMS(method.γ, method.σ0), φ, φ0, fbar, ηk, τmin, τmax)
         if isnan(α) || isnan(φα)
