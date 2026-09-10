@@ -57,8 +57,8 @@ end
 function main()
     scheme = NLSolvers.Newton()
     solvers = (
-        ("TDTR(:quartic)", NLSolvers.TDTR(boundary = :quartic), false),
-        ("TDTR(:newton)", NLSolvers.TDTR(boundary = :newton), false),
+        ("TDTR(Quartic)", NLSolvers.TDTR(boundary = NLSolvers.TDTRBoundary.Quartic), false),
+        ("TDTR(Newton)", NLSolvers.TDTR(boundary = NLSolvers.TDTRBoundary.Newton), false),
         ("NWI", NLSolvers.NWI(), true),
         ("NTR", NLSolvers.NTR(), true),
         ("Dogleg", NLSolvers.Dogleg(), true),

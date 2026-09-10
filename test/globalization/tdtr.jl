@@ -2,7 +2,10 @@ using Test, NLSolvers, LinearAlgebra, StaticArrays
 import Random
 
 @testset "TDTR" begin
-    solvers = (NLSolvers.TDTR(boundary = :quartic), NLSolvers.TDTR(boundary = :newton))
+    solvers = (
+        NLSolvers.TDTR(boundary = NLSolvers.TDTRBoundary.Quartic),
+        NLSolvers.TDTR(boundary = NLSolvers.TDTRBoundary.Newton),
+    )
 
     function tdtr_kkt_ok(g, H, Δ, res; stat_tol = 1e-8, bound_tol = 1e-6)
         p, σ = res.p, res.λ
@@ -285,7 +288,11 @@ import Random
     @testset "solver fields and keyword overrides" begin
         H = [2.0 0.3; 0.3 1.0]
         g = [1.0, 1.5]
-        short = NLSolvers.TDTR(boundary = :newton, maxiter = 1, abstol = 1e-14)
+        short = NLSolvers.TDTR(
+            boundary = NLSolvers.TDTRBoundary.Newton,
+            maxiter = 1,
+            abstol = 1e-14,
+        )
         res = short(g, copy(H), 0.5, zeros(2), NLSolvers.Newton(), NLSolvers.InPlace())
         @test !res.solved
         res = short(
@@ -301,7 +308,7 @@ import Random
     end
 
     @testset "argument errors" begin
-        @test_throws ArgumentError NLSolvers.TDTR(boundary = :cubic)
+        @test_throws MethodError NLSolvers.TDTR(boundary = :quartic)
         for sp in solvers
             @test_throws ArgumentError sp(
                 ones(3),

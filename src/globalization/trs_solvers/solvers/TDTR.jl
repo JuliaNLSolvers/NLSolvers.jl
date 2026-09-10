@@ -15,10 +15,11 @@
     ||p(σ)||² = g̃₁²/(λ₁+σ)² + g̃₂²/(λ₂+σ)² = Δ²
 
   (g̃ = Q'∇f in the eigenbasis) reduces to a quartic in the multiplier σ that
-  can either be solved in closed form (boundary = :quartic, Ferrari's method
-  with a trigonometric resolvent branch, followed by one safeguarded Newton
-  polish step) or by a safeguarded Newton iteration on the reciprocal secular
-  equation 1/||p(σ)|| = 1/Δ (boundary = :newton), which is nearly linear in σ
+  can either be solved in closed form (boundary = TDTRBoundary.Quartic,
+  Ferrari's method with a trigonometric resolvent branch, followed by one
+  safeguarded Newton polish step) or by a safeguarded Newton iteration on the
+  reciprocal secular equation 1/||p(σ)|| = 1/Δ (boundary =
+  TDTRBoundary.Newton), which is nearly linear in σ
   [MoreSorensen1983]. The hard case (the term is from [MoreSorensen1983]) is
   handled exactly: in two dimensions the boundary solution along the extra
   eigenvector direction is available in closed form, so no inverse iteration
@@ -51,28 +52,35 @@
                            Equations".
 ===============================================================================#
 """
-    TDTR(; boundary = :newton, abstol = 1e-10, maxiter = 50)
+    TDTRBoundary
+
+Strategy for finding the boundary multiplier in [`TDTR`](@ref):
+`TDTRBoundary.Newton` (safeguarded Newton iteration on the reciprocal secular
+equation) or `TDTRBoundary.Quartic` (closed-form Ferrari solve polished by
+one safeguarded Newton step).
+"""
+@enumx TDTRBoundary Newton Quartic
+
+"""
+    TDTR(; boundary = TDTRBoundary.Newton, abstol = 1e-10, maxiter = 50)
 
 An exact trust region sub-problem solver for two-dimensional problems. The
 2x2 model Hessian is diagonalized in closed form and the boundary multiplier
 is found from the secular quartic, by a safeguarded Newton iteration on the
-reciprocal secular equation (`boundary = :newton`, the default and the faster
-of the two in benchmarks) or in closed form (`boundary = :quartic`, Ferrari's
-method polished by one safeguarded Newton step, falling back to the iteration
-when the closed form degenerates). The hard case is solved exactly.
-Indefinite model Hessians are supported, and the `Direct`/`Inverse` form of
-quasi-Newton schemes is respected. Throws an `ArgumentError` for problems
-that are not two-dimensional.
+reciprocal secular equation (`boundary = TDTRBoundary.Newton`, the default
+and the faster of the two in benchmarks) or in closed form (`boundary =
+TDTRBoundary.Quartic`, Ferrari's method polished by one safeguarded Newton
+step, falling back to the iteration when the closed form degenerates). The
+hard case is solved exactly. Indefinite model Hessians are supported, and
+the `Direct`/`Inverse` form of quasi-Newton schemes is respected. Throws an
+`ArgumentError` for problems that are not two-dimensional.
 """
 struct TDTR{Ta} <: NearlyExactTRSP
-    boundary::Symbol
+    boundary::TDTRBoundary.T
     abstol::Ta
     maxiter::Int
 end
-function TDTR(; boundary = :newton, abstol = 1e-10, maxiter = 50)
-    if !(boundary === :quartic || boundary === :newton)
-        throw(ArgumentError("boundary must be :quartic or :newton"))
-    end
+function TDTR(; boundary = TDTRBoundary.Newton, abstol = 1e-10, maxiter = 50)
     TDTR(boundary, float(abstol), maxiter)
 end
 summary(::TDTR) = "Trust Region (2x2, closed form)"
@@ -222,7 +230,7 @@ function _tdtr_solve(λ1, λ2, gt1, gt2, Δ, boundary, abstol, maxiter)
         σ = clamp(σhard, σlo, σhi)
         solved = true
     else
-        if boundary === :quartic
+        if boundary === TDTRBoundary.Quartic
             σq = _tdtr_secular_quartic(λ1, λ2, gt1, gt2, Δ, σlo, σhi)
             σ, solved = _tdtr_secular_newton(λ1, λ2, gt1, gt2, Δ, σlo, σhi, σq, abstol, 3)
         end
