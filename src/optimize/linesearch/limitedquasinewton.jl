@@ -152,7 +152,7 @@ function iterate(
 
     if ls_success
         # qnvars.d doubles as the buffer for the step taken
-        z, _ = move(problem, z, qnvars.d, x, d, α)
+        z, _ = move_and_step(problem, z, qnvars.d, x, d, α)
 
         # Update approximation (writes s into S array only if not skipped)
         fz, ∇fz, qnvars =
@@ -205,7 +205,7 @@ function iterate(
 
     if ls_success
         # # Calculate final step vector and update the state
-        z, s = move(problem, z, nothing, x, d, α)
+        z, s = move_and_step(problem, z, x, d, α)
 
         # Update approximation
         fz, ∇fz, B = update_obj(problem, s, ∇fx, z, ∇fz, B, scheme, is_first, nothing)

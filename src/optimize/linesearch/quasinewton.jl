@@ -188,7 +188,7 @@ function iterate(
     α, f_α, ls_success = find_steplength(mstyle, linesearch, φ, Tf(1))
 
     if ls_success
-        z, s = move(problem, z, s, x, d, α)
+        z, s = move_and_step(problem, z, s, x, d, α)
 
         # Update approximation
         fz, ∇fz, B, s, y = update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme, is_first, dφ0)
@@ -247,7 +247,7 @@ function iterate(
 
     if ls_success
         # Calculate final step vector and update the state
-        z, s = move(problem, z, nothing, x, d, α)
+        z, s = move_and_step(problem, z, x, d, α)
 
         # Update approximation
         fz, ∇fz, B, s, y = update_obj(problem, s, ∇fx, z, ∇fz, B, scheme, is_first, dφ0)

@@ -211,7 +211,6 @@ mstyle(problem::AbstractProblem) = problem.mstyle
 """
     move(problem, z, x, p)
     move(problem, z, x, d, α)
-    move(problem, z, s, x, d, α)
 
 Move from `x` along `d`, by `α` in that direction when a length is given, and
 store the new point in `z` when the problem is in place; out of place a new
@@ -220,25 +219,47 @@ point is returned. `p` is a step that has already been formed.
 Every movement of a state along a direction goes through this, so where a step
 lands is decided in one place and two callers cannot disagree about it.
 
-The six-argument form writes the step it took into `s` and returns `(z, s)`.
-Take that one when the step is needed afterwards, so the scaling happens once
-here rather than once in the caller and again on the way through. Out of place
-nothing is written and `s` may be `nothing`.
-
 `retract` is the geometry underneath. `move` is what the solvers call, and it
 resolves the problem's mutation style and manifold before handing over.
 """
 move(problem, z, x, p) = _retract(mstyle(problem), _manifold(problem), z, x, p)
 move(problem, z, x, d, α) = _retract(mstyle(problem), _manifold(problem), z, x, d, α)
-move(problem, z, s, x, d, α) = _move(mstyle(problem), _manifold(problem), z, s, x, d, α)
 
-# The step taken is the tangent vector α*d, on a Euclidean space as anywhere
-# else; forming it here keeps the scaling and the movement in one place.
-function _move(mstyle::InPlace, manifold::Manifold, z, s, x, d, α)
+"""
+    move_and_step(problem, z, x, d, α)
+    move_and_step(problem, z, s, x, d, α)
+
+Move as `move` does and return `(z, s)`, where `s` is the step that was taken.
+Pass a buffer for it to be written into, or leave it out and have it allocated.
+
+The step comes back with the point because only the movement knows what it was,
+and taking it from here rather than forming `α*d` outside also means the scaling
+happens once instead of once in the caller and again on the way through.
+
+For the geometries here the step is `α*d`, and on a Euclidean space that is also
+the displacement of the iterates. The two part company as soon as the movement
+bends or clips the step, and which of them the quasi-Newton pair wants is not a
+question about geometry alone: it depends on whether the update is Riemannian,
+acting on tangent vectors with transport between tangent spaces, or ambient, in
+which case it needs the displacement that actually happened so that it pairs with
+the gradient difference that actually happened. The updates here are ambient while
+this interface is shaped Riemannian, so that is unsettled rather than decided, and
+this returns the step taken rather than promising either reading.
+"""
+move_and_step(problem, z, s, x, d, α) =
+    _move_and_step(mstyle(problem), _manifold(problem), z, s, x, d, α)
+move_and_step(problem, z, x, d, α) =
+    _move_and_step(mstyle(problem), _manifold(problem), z, nothing, x, d, α)
+
+function _move_and_step(mstyle::InPlace, manifold::Manifold, z, s, x, d, α)
     @. s = α * d
     return _retract(mstyle, manifold, z, x, s), s
 end
-function _move(mstyle::OutOfPlace, manifold::Manifold, z, s, x, d, α)
+function _move_and_step(mstyle::InPlace, manifold::Manifold, z, ::Nothing, x, d, α)
+    s = α .* d
+    return _retract(mstyle, manifold, z, x, s), s
+end
+function _move_and_step(mstyle::OutOfPlace, manifold::Manifold, z, s, x, d, α)
     s = @. α * d
     return _retract(mstyle, manifold, z, x, s), s
 end
