@@ -58,7 +58,6 @@ function _solve(
     ∇f0 = norm(objvars.∇fz, Inf)
     f0 = objvars.fz
     P = initial_preconditioner(approach, x0)
-    lsgradλ = _lastgradλ_ref(mstyle, objvars.fz)
 
     restarts = 0
 
@@ -66,7 +65,7 @@ function _solve(
          First iteration
     ========================#
     objvars, qnvars, P =
-        iterate(mstyle, 1, qnvars, lsgradλ, objvars, P, approach, problem, problem, options)
+        iterate(mstyle, 1, qnvars, objvars, P, approach, problem, problem, options)
     iter = 1
     callback_stopped = false
     # Check for gradient convergence
@@ -81,7 +80,6 @@ function _solve(
             mstyle,
             iter,
             qnvars,
-            lsgradλ,
             objvars,
             P,
             approach,
@@ -122,7 +120,6 @@ function iterate(
     mstyle::InPlace,
     iter::Integer,
     qnvars::TwoLoopVars,
-    lsgradλ,
     objvars,
     P,
     approach::LineSearch{<:LBFGS{<:Inverse,<:TwoLoop},<:Any,<:QNScaling},
@@ -148,19 +145,18 @@ function iterate(
     # Update current gradient and calculate the search direction
     d = find_direction!(scheme, copy(∇fz), qnvars, current_memory, K, P) # solve Bd = -∇fx
     dφ0 = real(dot(∇fx, d))
-    φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, dφ0, lsgradλ) # real is needed to convert complex dots to actually being real
+    φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, dφ0) # real is needed to convert complex dots to actually being real
 
     # Perform line search along d
-    α, f_α, ls_success = find_steplength(mstyle, linesearch, φ, Tf(1))
+    α, f_α, ls_success, g_current = find_steplength(mstyle, linesearch, φ, Tf(1))
 
     if ls_success
         @. qnvars.d = α * d  # use d as temporary for the step
         z = retract(problem, z, x, qnvars.d)
 
-        # Evaluate at the accepted point, unless the line search's last
-        # gradient evaluation was already there: then f_α and the ∇fz buffer
-        # belong to z.
-        if lsgradλ[] == α
+        # The line search says whether what the objective holds belongs to
+        # the step it returned.
+        if g_current
             fz = oftype(fz, f_α)
         else
             fz, ∇fz = upto_gradient(problem, ∇fz, z)
@@ -189,7 +185,6 @@ function iterate(
     mstyle::OutOfPlace,
     iter::Integer,
     cache,
-    lsgradλ,
     objvars::NamedTuple,
     P,
     approach::LineSearch{<:LBFGS{<:Inverse,<:TwoLoop},<:Any,<:QNScaling},

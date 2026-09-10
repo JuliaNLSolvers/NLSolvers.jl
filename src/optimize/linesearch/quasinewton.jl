@@ -86,7 +86,6 @@ function _solve(
         )
     end
     qnvars = QNVars(copy(objvars.∇fz), copy(objvars.∇fz), copy(objvars.∇fz))
-    lsgradλ = _lastgradλ_ref(mstyle, objvars.fz)
 
     restarts = 0
 
@@ -94,7 +93,7 @@ function _solve(
              First iteration
     ==============================#
     objvars, P, qnvars =
-        iterate(mstyle, qnvars, lsgradλ, objvars, P, approach, problem, options)
+        iterate(mstyle, qnvars, objvars, P, approach, problem, options)
     iter = 1
     callback_stopped = false
     # Check for gradient convergence
@@ -107,7 +106,7 @@ function _solve(
                      iterate
         ==============================#
         objvars, P, qnvars =
-            iterate(mstyle, qnvars, lsgradλ, objvars, P, approach, problem, options, false)
+            iterate(mstyle, qnvars, objvars, P, approach, problem, options, false)
 
         # Track restarts (ls_success=false ⟹ α=NaN and B was reset to I)
         if !objvars.ls_success
@@ -158,7 +157,6 @@ end
 function iterate(
     mstyle::InPlace,
     cache,
-    lsgradλ,
     objvars,
     P,
     approach::LineSearch,
@@ -184,20 +182,20 @@ function iterate(
     d = find_direction!(d, B, P, ∇fx, scheme) # solve Bd = -∇fx
     # real is needed to convert complex dots to actually being real
     dφ0 = real(dot(∇fx, d))
-    φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, dφ0, lsgradλ)
+    φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, dφ0)
 
     # Perform line search along d
     # Also returns final step vector and update the state
-    α, f_α, ls_success = find_steplength(mstyle, linesearch, φ, Tf(1))
+    α, f_α, ls_success, g_current = find_steplength(mstyle, linesearch, φ, Tf(1))
 
     if ls_success
         @. s = α * d
         z = retract(problem, z, x, s)
 
-        # Evaluate at the accepted point, unless the line search's last
-        # gradient evaluation was already there: then f_α and the ∇fz buffer
-        # belong to z, and only Newton has a Hessian left to evaluate.
-        if lsgradλ[] == α
+        # The line search says whether what the objective holds belongs to
+        # the step it returned. When it does, only Newton has anything left to
+        # evaluate here.
+        if g_current
             fz = oftype(fz, f_α)
             B = ls_accepted_hessian!(problem, z, ∇fz, B, scheme)
         else
@@ -231,7 +229,6 @@ end
 function iterate(
     mstyle::OutOfPlace,
     cache,
-    lsgradλ,
     objvars,
     P,
     approach::LineSearch,
@@ -257,7 +254,7 @@ function iterate(
     φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, dφ0)
 
     # Perform line search along d
-    α, f_α, ls_success = find_steplength(mstyle, linesearch, φ, Tf(1))
+    α, f_α, ls_success, g_current = find_steplength(mstyle, linesearch, φ, Tf(1))
 
     if ls_success
         # Calculate final step vector and update the state
