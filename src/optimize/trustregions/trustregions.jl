@@ -5,8 +5,9 @@ abstract type TrustRegionUpdater end
 
 A trust-region method that builds a local quadratic model from `scheme` (for
 example `Newton()`, `BFGS()`, `SR1()`) and solves the constrained model problem
-with the sub-problem solver `spsolve` (`NTR()`, `NWI()`, `Dogleg()`, `TCG()`).
-The no-argument form uses `Newton()` with `NTR()`.
+with the sub-problem solver `spsolve` (`NTR()`, `NWI()`, `Dogleg()`, `TCG()`, or
+`TDTR()` for two-dimensional problems). The no-argument form uses `Newton()`
+with `NTR()`.
 
 A trial step is accepted when the ratio of actual to model reduction satisfies
 `R >= eta` (see [`BTR`](@ref)); accepted steps with `R < 1/4` shrink the region,

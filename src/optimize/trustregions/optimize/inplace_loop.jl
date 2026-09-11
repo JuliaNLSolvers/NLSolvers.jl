@@ -16,7 +16,7 @@ function solve(
     objvars::NamedTuple;
     initial_Δ = nothing,
 )
-    if !(mstyle(problem) === InPlace()) && !(approach.spsolve isa Dogleg)
+    if !(mstyle(problem) === InPlace()) && !(approach.spsolve isa Union{Dogleg,TDTR})
         throw(
             ErrorException("solve() not defined for OutOfPlace() with TrustRegion solvers"),
         )

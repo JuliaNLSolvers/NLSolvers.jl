@@ -11,8 +11,10 @@ import JET
 
     @testset "ExplicitImports" begin
         # No implicit imports (`using XY`)
+        # The EnumX-generated TDTRBoundary baremodule has no analyzable source
         @test ExplicitImports.check_no_implicit_imports(
-            NLSolvers
+            NLSolvers;
+            allow_unanalyzable = (NLSolvers.TDTRBoundary,),
         ) === nothing
 
         # All explicit imports (`using XY: Z`) are loaded via their owners
@@ -28,6 +30,7 @@ import JET
         # No explicit imports (`using XY: Z`) that are not used
         @test ExplicitImports.check_no_stale_explicit_imports(
             NLSolvers;
+            allow_unanalyzable = (NLSolvers.TDTRBoundary,),
         ) === nothing
 
         # Nothing is accessed via modules other than its owner

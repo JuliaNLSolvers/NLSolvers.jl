@@ -1,6 +1,7 @@
 module NLSolvers
 
 import Base: show, summary
+using EnumX: @enumx
 using Statistics: var # for var in statistics... probably not worth it
 
 #============================ LinearAlgebra ===========================
@@ -139,7 +140,7 @@ export Backtracking, Static, HZAW
 export FFQuadInterp
 
 include("globalization/trs_solvers/root.jl")
-export NWI, Dogleg, NTR
+export NWI, Dogleg, NTR, TDTR, TDTRBoundary
 
 # Quasi-Newton (including Newton and gradient descent) functionality
 include("quasinewton/quasinewton.jl")
