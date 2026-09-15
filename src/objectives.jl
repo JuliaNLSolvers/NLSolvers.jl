@@ -145,12 +145,12 @@ struct LineObjective!{TP,T1,T2,T3}
     dφ0::T3
 end
 function (le::LineObjective!)(λ)
-    z = retract!(_manifold(le.prob), le.z, le.x, le.d, λ)
+    z = move(le.prob, le.z, le.x, le.d, λ)
     ϕ = value(le.prob, z)
     (ϕ = ϕ, z = z)
 end
 function (le::LineObjective!)(λ, calc_grad::Bool)
-    f, g = upto_gradient(le.prob, le.∇fz, retract!(_manifold(le.prob), le.z, le.x, le.d, λ))
+    f, g = upto_gradient(le.prob, le.∇fz, move(le.prob, le.z, le.x, le.d, λ))
     (ϕ = f, dϕ = real(dot(g, le.d))) # because complex dot might not have exactly zero im part and it's the wrong type
 end
 struct LineObjective{TP,T1,T2,T3}
@@ -163,7 +163,7 @@ struct LineObjective{TP,T1,T2,T3}
     dφ0::T3
 end
 function (le::LineObjective)(λ)
-    z = retract(_manifold(le.prob), le.x, le.d, λ)
+    z = move(le.prob, le.z, le.x, le.d, λ)
     _value = value(le.prob, z)
     if le.prob.objective isa MeritObjective
         return (ϕ = _value.ϕ, _value.Fx)
@@ -171,7 +171,7 @@ function (le::LineObjective)(λ)
     (ϕ = _value,)
 end
 function (le::LineObjective)(λ, calc_grad::Bool)
-    f, g = upto_gradient(le.prob, le.∇fz, retract(_manifold(le.prob), le.x, le.d, λ))
+    f, g = upto_gradient(le.prob, le.∇fz, move(le.prob, le.z, le.x, le.d, λ))
     (ϕ = f, dϕ = real(dot(g, le.d))) # because complex dot might not have exactly zero im part and it's the wrong type
 end
 

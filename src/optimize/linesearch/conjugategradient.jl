@@ -312,7 +312,7 @@ function iterate(
 
     # Calculate final step vector and update the state
     if ls_success
-        z = retract(problem, z, x, d, α)
+        z = move(problem, z, x, d, α)
         fz, ∇fz = upto_gradient(problem, ∇fz, z)
         @. y = ∇fz - ∇fx
     else
@@ -368,7 +368,7 @@ function iterate(
     # Perform line search along d
     α, f_α, ls_success = find_steplength(mstyle, linesearch, φ, Tx(1))
 
-    z = retract(problem, z, x, d, α)
+    z = move(problem, z, x, d, α)
     fz, ∇fz = upto_gradient(problem, ∇fz, z)
     y = @. ∇fz - ∇fx
     β = update_parameter(mstyle, scheme.update, d, ∇fz, ∇fx, y, P, P∇fz)

@@ -209,12 +209,64 @@ end
 mstyle(problem::AbstractProblem) = problem.mstyle
 
 """
-    retract(problem, z, x, p [, α])
+    move(problem, z, x, p)
+    move(problem, z, x, d, α)
 
-Move from `x` along the direction `p` (or `α*p` if α is supplied) to a new point on the manifold in `problem` and store it in z if the problem is specified as inplace.  If the problem is inplace and updated `z` is returned, else a new vector is returned.
+Move from `x` along `d`, by `α` in that direction when a length is given, and
+store the new point in `z` when the problem is in place; out of place a new
+point is returned. `p` is a step that has already been formed.
+
+Every movement of a state along a direction goes through this, so where a step
+lands is decided in one place and two callers cannot disagree about it.
+
+`retract` is the geometry underneath. `move` is what the solvers call, and it
+resolves the problem's mutation style and manifold before handing over.
 """
-retract(problem, z, x, p) = _retract(mstyle(problem), _manifold(problem), z, x, p)
-retract(problem, z, x, p, α) = _retract(mstyle(problem), _manifold(problem), z, x, p, α)
+move(problem, z, x, p) = _retract(mstyle(problem), _manifold(problem), z, x, p)
+move(problem, z, x, d, α) = _retract(mstyle(problem), _manifold(problem), z, x, d, α)
+
+"""
+    move_and_step(problem, z, x, d, α)
+    move_and_step(problem, z, s, x, d, α)
+
+Move as `move` does and return `(z, s)`, where `s` is the step that was taken.
+Pass a buffer for it to be written into, or leave it out and have it allocated.
+
+The step is the displacement the iterates actually underwent, `z - x`, not the
+`α*d` that was asked for. The two agree on a Euclidean space up to the rounding
+of the addition, and part company as soon as the movement bends or clips the
+step.
+
+The displacement is what these updates need. They are ambient: the approximation
+is held in the same space as `x`, with no transport between tangent spaces, so
+the pair has to be a displacement that happened and the gradient difference that
+happened at its ends. Asking for `α*d` there would pair a step that was intended
+with a change that was not caused by it. A Riemannian update, acting on tangent
+vectors with transport, would want the inverse retraction instead, and on these
+geometries that is `α*d`; the choice here follows the updates, not the manifold.
+
+It also stays honest when the step underflows. If `α*d` is small enough against
+`x` that the iterate does not move, the displacement is zero, which the skip
+conditions already handle, where `α*d` would report a step that never happened.
+"""
+move_and_step(problem, z, s, x, d, α) =
+    _move_and_step(mstyle(problem), _manifold(problem), z, s, x, d, α)
+move_and_step(problem, z, x, d, α) =
+    _move_and_step(mstyle(problem), _manifold(problem), z, nothing, x, d, α)
+
+function _move_and_step(mstyle::InPlace, manifold::Manifold, z, s, x, d, α)
+    z = _retract(mstyle, manifold, z, x, d, α)
+    @. s = z - x
+    return z, s
+end
+function _move_and_step(mstyle::InPlace, manifold::Manifold, z, ::Nothing, x, d, α)
+    z = _retract(mstyle, manifold, z, x, d, α)
+    return z, z .- x
+end
+function _move_and_step(mstyle::OutOfPlace, manifold::Manifold, z, s, x, d, α)
+    z = _retract(mstyle, manifold, z, x, d, α)
+    return z, z .- x
+end
 function _retract(::InPlace, manifold::Manifold, z, x, p)
     retract!(manifold, z, x, p)
     return z

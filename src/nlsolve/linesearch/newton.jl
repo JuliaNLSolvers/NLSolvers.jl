@@ -104,7 +104,7 @@ function solve(
         # Perform line search along d
         α, ϕ_out, ls_success = find_steplength(mstyle, linesearch, φ, T(1))
         # Step in the direction α*d
-        z = retract(problem, z, x, d, α)
+        z = move(problem, z, x, d, α)
 
         # Update residual and jacobian
         Fx, Jx, JFx, age = update_model(
