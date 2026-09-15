@@ -25,6 +25,8 @@ batched_value(prob::OptimizationProblem, F, X) = batched_value(prob.objective, F
 upto_gradient(prob::OptimizationProblem, ∇f, x) = upto_gradient(prob.objective, ∇f, x)
 upto_hessian(prob::OptimizationProblem, ∇f, ∇²f, x) =
     upto_hessian(prob.objective, ∇f, ∇²f, x)
+hessian_only(prob::OptimizationProblem, ∇f, ∇²f, x) =
+    hessian_only(prob.objective, ∇f, ∇²f, x)
 _manifold(prob::OptimizationProblem) = prob.manifold
 lowerbounds(mp::OptimizationProblem) =
     mp.bounds === nothing ?
