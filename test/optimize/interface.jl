@@ -102,6 +102,13 @@ isdefined(Main, :TestProblems) || include(joinpath(@__DIR__, "testproblems.jl"))
     res = solve(prob, x0, LineSearch(SR1()), OptimizationOptions())
     @test res.info.minimum < 1e-12
 
+    # starts a few ulps apart, so the outcome cannot hinge on rounding
+    for i in -2:2, j in -2:2
+        x0 = [nextfloat(3.0, i), nextfloat(1.0, j)]
+        res = solve(prob, x0, LineSearch(SR1()), OptimizationOptions())
+        @test res.info.minimum < 1e-12
+    end
+
     x0 = TestProblems.himmelblau.x0()
     res = solve(prob, x0, LineSearch(DFP()), OptimizationOptions())
     @test res.info.minimum < 1e-12
