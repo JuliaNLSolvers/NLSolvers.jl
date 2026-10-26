@@ -147,6 +147,9 @@ function Base.show(io::IO, ci::ConvergenceInfo)
         if haskey(info, :∇fz)
             ρ∇f = opt.g_norm(info.∇fz)
             if haskey(info, :prob) && hasbounds(info.prob)
+                ρP = opt.g_norm(
+                    info.solution .- clamp.(info.solution .- info.∇fz, info.prob.bounds...),
+                )
                 println(
                     io,
                     "  |x - P(x - g(x))|     = $(@sprintf("%.2e", ρP)) <= $(@sprintf("%.2e", opt.g_abstol)) ($(ρP<=opt.g_abstol))",
