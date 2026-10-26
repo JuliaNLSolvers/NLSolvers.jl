@@ -81,7 +81,7 @@ function _solve(prob, bm::BrentMin, options)
                 e = d
             end
 
-            if abs(p) < abs(q * r / 2) && p < q * (a - x) && p < q * (b - x)
+            if abs(p) < abs(q * r / 2) && p > q * (a - x) && p < q * (b - x)
                 # then do the parapolic interpolation
                 d = p / q
                 u = x + d
