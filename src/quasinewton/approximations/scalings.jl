@@ -93,5 +93,6 @@ next(qns::QNScaling) = qns
 next(is::InitialScaling) = is.scaling
 
 # Dispatch helper: the scaling used by a given scheme. Schemes that carry a
-# `scaling` field override this (see BFGS/DFP/SR1/DBFGS); default is OrenLuenberger.
+# `scaling` field override this (see BFGS/DFP/SR1/DBFGS); default is ShannoPhua.
+# A scaling of `nothing` skips the initial sizing.
 qn_scaling(scheme) = ShannoPhua()

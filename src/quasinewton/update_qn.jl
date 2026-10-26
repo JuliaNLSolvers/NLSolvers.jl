@@ -23,7 +23,7 @@ function update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme, scale, dφ0)
     end
 
     # Initial Hessian sizing (the scheme picks ShannoPhua, OrenLuenberger, …)
-    if scale == nothing
+    if scale == nothing && qn_scaling(scheme) !== nothing
         γ = qn_scaling(scheme)(scheme.approx, s, y, B)
         if !isfinite(γ) || iszero(γ)
             return fz, ∇fz, B, s, y
@@ -56,7 +56,7 @@ end
 
 function tr_update_approx!(mstyle, y, s, ∇fx, ∇fz, B, scheme, scale)
     @. y = ∇fz - ∇fx
-    if scale == nothing
+    if scale == nothing && qn_scaling(scheme) !== nothing
         γ = qn_scaling(scheme)(scheme.approx, s, y, B)
         if !isfinite(γ) || iszero(γ)
             return B, s, y
@@ -81,7 +81,7 @@ function update_obj(problem, s, ∇fx, z, ∇fz, B, scheme, scale, dφ0)
     end
 
     # Initial Hessian sizing (the scheme picks ShannoPhua, OrenLuenberger, …)
-    if scale == nothing
+    if scale == nothing && qn_scaling(scheme) !== nothing
         γ = qn_scaling(scheme)(scheme.approx, s, y, B)
         if !isfinite(γ) || iszero(γ)
             return fz, ∇fz, B, s, y

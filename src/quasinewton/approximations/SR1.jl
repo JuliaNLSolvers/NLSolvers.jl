@@ -7,13 +7,17 @@
 #   |w'y|        ≥ r · ||w|| · ||y||             (Inverse form, w = s - Hy)
 #
 # with r ≈ 1e-8. When violated, the update is skipped.
+#
+# There is no initial sizing by default. Sizing B to γI with ShannoPhua's
+# γ = y'y/s'y makes the first update exactly singular: then (y - γs)'y = 0, and
+# the rank-one term cancels γI along y - γs.
 struct SR1{T1,Tr,Tscaling} <: QuasiNewton{T1}
     approx::T1
     r::Tr
     scaling::Tscaling
 end
-SR1(approx::HessianApproximation) = SR1(approx, 1e-8, ShannoPhua())
-SR1(; inverse = false, r = 1e-8, scaling = ShannoPhua()) =
+SR1(approx::HessianApproximation) = SR1(approx, 1e-8, nothing)
+SR1(; inverse = false, r = 1e-8, scaling = nothing) =
     SR1(inverse ? Inverse() : Direct(), r, scaling)
 hasprecon(::SR1) = NoPrecon()
 qn_scaling(scheme::SR1) = scheme.scaling

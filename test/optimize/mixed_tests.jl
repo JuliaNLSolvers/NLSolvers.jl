@@ -212,14 +212,14 @@ end
             prob_oop = OptimizationProblem(hb.inplace; inplace = false)
             prob_static = OptimizationProblem(hb.static; inplace = false)
             x0s = SVector{2}(hb.x0())
-            # Inverse: only the in-place form converges
+            # Inverse converges in every form
             res = solve(prob, hb.x0(), LineSearch(SR1(Inverse())), OptimizationOptions())
             @test res.info.minimum <= hb.minimum + 1e-8
             res =
                 solve(prob_oop, hb.x0(), LineSearch(SR1(Inverse())), OptimizationOptions())
-            @test_broken res.info.minimum <= hb.minimum + 1e-8
+            @test res.info.minimum <= hb.minimum + 1e-8
             res = solve(prob_static, x0s, LineSearch(SR1(Inverse())), OptimizationOptions())
-            @test_broken res.info.minimum <= hb.minimum + 1e-8
+            @test res.info.minimum <= hb.minimum + 1e-8
             # Direct converges in every form
             res = solve(prob, hb.x0(), LineSearch(SR1(Direct())), OptimizationOptions())
             @test res.info.minimum <= hb.minimum + 1e-8
