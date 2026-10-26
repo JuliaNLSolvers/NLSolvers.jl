@@ -266,6 +266,13 @@ const prob3 = OptimizationProblem(obj3, (-10.1, 9.0))
     @test all(abs.(solve(prob, BrentMin(), OptimizationOptions()).info.minimum) .< 1e-8)
     @test all(abs.(solve(prob2, BrentMin(), OptimizationOptions()).info.minimum) .< 1e-8)
     @test all(abs.(solve(prob3, BrentMin(), OptimizationOptions()).info.minimum) .< 1e-8)
+    # The parabolic step is taken whenever it lands inside the bracket. With the lower
+    # bracket test inverted every step was golden section, 43 iterations on this one.
+    @test solve(prob, BrentMin(), OptimizationOptions()).info.iter <= 10
+    cos_prob = OptimizationProblem(ScalarObjective(; f = cos), (0.0, 2pi))
+    cos_res = solve(cos_prob, BrentMin(), OptimizationOptions())
+    @test cos_res.info.x ≈ pi atol = 1e-7
+    @test cos_res.info.iter <= 10
     #@allocated solve(prob3, BrentMin(), OptimizationOptions()) == 0
     #@test @allocated solve(prob3, BrentMin(), OptimizationOptions()) == 0
 
