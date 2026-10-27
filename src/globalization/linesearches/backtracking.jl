@@ -182,5 +182,5 @@ function find_steplength(mstyle, ls::Backtracking, φ::T, λ) where {T}
         println("Exiting line search with step size: ", α)
         println("Exiting line search with value: ", f_α.ϕ)
     end
-    return α, f_α, ls_success
+    return α, f_α, ls_success, false
 end

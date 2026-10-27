@@ -154,10 +154,13 @@ function find_steplength(mstyle, hzl::HZAW, φ, c::T) where {T}
 
     Σ0 = TrialBundle(T(0), φ0, dφ0)
     if !isfinite(Σ0)
-        return T(NaN), T(NaN), false
+        return T(NaN), T(NaN), false, false
     end
 
     Σc = _evaltrial(φ, c)
+    # The step whose evaluation the objective still holds. Every return says
+    # whether that is the step being returned, so the caller never has to guess.
+    lastp = c
 
     # Backtrack into feasible region; not part of original algorithm
     iter = 0
@@ -165,56 +168,61 @@ function find_steplength(mstyle, hzl::HZAW, φ, c::T) where {T}
         iter += 1
         c = c * ρ_finite_check
         Σc = _evaltrial(φ, c)
+        lastp = c
     end
     if iter > hzl.maxiter_finite_check
-        return T(NaN), T(NaN), false
+        return T(NaN), T(NaN), false, false
     end
 
     wolfesetup = WolfeSetup(Σ0, δ, σ, ϵ)
 
     # Check initial convergence
-    _is_converged(wolfesetup, Σc) && return Σc.p, Σc.φ, true
+    _is_converged(wolfesetup, Σc) && return Σc.p, Σc.φ, true, true
 
     # Set up bracket
-    Σaj, Σbj, wolfe_in_bracket = _hz_bracket(hzl, Σ0, Σc, φ, ρ, wolfesetup)
+    Σaj, Σbj, wolfe_in_bracket, lastp = _hz_bracket(hzl, Σ0, Σc, φ, ρ, wolfesetup, lastp)
     if wolfe_in_bracket
-        return Σaj.p, Σaj.φ, true
+        return Σaj.p, Σaj.φ, true, true
     end
 
     # Main loop
     for j = 1:hzl.maxiter
         # === Step L1: Secant^2 update ===
-        Σa, Σb, iswolfe = _hz_secant²(hzl, φ, φ0, Σaj, Σbj, ϵ, wolfesetup)
+        Σa, Σb, iswolfe, lastp = _hz_secant²(hzl, φ, φ0, Σaj, Σbj, ϵ, wolfesetup, lastp)
         if iswolfe
-            return Σa.p, Σa.φ, true
+            return Σa.p, Σa.φ, true, true
         end
 
         # === Step L2: Bisection if insufficient decrease ===
         aj, bj = Σaj.p, Σbj.p
         a, b = Σa.p, Σb.p
-        Σaj, Σbj = if b - a > hzl.γ * (bj - aj)
+        Σaj, Σbj, lastp = if b - a > hzl.γ * (bj - aj)
             c = (a + b) / 2
-            _hz_update(hzl, Σa, Σb, c, φ, φ0, ϵ)
+            _hz_update(hzl, Σa, Σb, c, φ, φ0, ϵ, lastp)
         else
-            Σa, Σb
+            Σa, Σb, lastp
         end
 
         # Check bracket endpoints for convergence
         a_conv = _is_converged(wolfesetup, Σaj)
         b_conv = _is_converged(wolfesetup, Σbj)
-        if a_conv && b_conv
-            if Σaj.φ < Σbj.φ
-                return Σaj.p, Σaj.φ, true
+        if a_conv || b_conv
+            Σ = if a_conv && b_conv
+                Σaj.φ < Σbj.φ ? Σaj : Σbj
+            elseif a_conv
+                Σaj
             else
-                return Σbj.p, Σbj.φ, true
+                Σbj
             end
-        elseif a_conv
-            return Σaj.p, Σaj.φ, true
-        elseif b_conv
-            return Σbj.p, Σbj.φ, true
+            # A bracket endpoint, which later trials may have displaced from
+            # the objective. Evaluate it again when they have, so that what the
+            # objective holds belongs to the step being returned. Every other
+            # successful return hands back the trial it just evaluated.
+            Σ.p == lastp || (Σ = _evaltrial(φ, Σ.p))
+            return Σ.p, Σ.φ, true, true
         end
     end
-    return T(NaN), T(NaN), false
+    return T(NaN), T(NaN), false, false
 end
 
 """
@@ -225,7 +233,15 @@ are in `_hz_update`, but this step is separated out to be able to use it in
 step B2 of `_hz_bracket`. Initialization of a_bar and b_bar is done outside
 this call.
 """
-function _hz_update_U3(hzl::HZAW, φ, φ0, Σā::TrialBundle{T}, Σb̄::TrialBundle{T}, ϵ) where {T}
+function _hz_update_U3(
+    hzl::HZAW,
+    φ,
+    φ0,
+    Σā::TrialBundle{T},
+    Σb̄::TrialBundle{T},
+    ϵ,
+    lastp,
+) where {T}
     # verified against paper description [p. 123, CG_DESCENT_851]
     θ = hzl.θ
 
@@ -234,10 +250,11 @@ function _hz_update_U3(hzl::HZAW, φ, φ0, Σā::TrialBundle{T}, Σb̄::TrialBun
         ā, b̄ = Σā.p, Σb̄.p
         d = (1 - θ) * ā + θ * b̄
         Σd = _evaltrial(φ, d)
+        lastp = d
 
         if Σd.dφ ≥ T(0)
             # found point of increasing objective; return with upper bound d
-            return Σā, Σd
+            return Σā, Σd, lastp
         else # now Σd.dφ < T(0)
             if Σd.φ ≤ φ0 + ϵ * abs(φ0)
                 # === Step U3.b ===
@@ -248,34 +265,43 @@ function _hz_update_U3(hzl::HZAW, φ, φ0, Σā::TrialBundle{T}, Σb̄::TrialBun
             end
         end
     end
-    return Σā, Σb̄
+    return Σā, Σb̄, lastp
 end
 
 # Full update: bounds check + evaluate + U1-U3. Used by L2 bisection.
-function _hz_update(hzl::HZAW, Σa, Σb, c, φ, φ0, ϵ)
+function _hz_update(hzl::HZAW, Σa, Σb, c, φ, φ0, ϵ, lastp)
     # === Step U0: Check c is interior to interval ===
     if !_in_bounds(c, Σa, Σb)
-        return Σa, Σb
+        return Σa, Σb, lastp
     end
     Σc = _evaltrial(φ, c)
-    _hz_update_inner(hzl, Σa, Σb, Σc, φ, φ0, ϵ)
+    _hz_update_inner(hzl, Σa, Σb, Σc, φ, φ0, ϵ, c)
 end
 
 # Inner update with pre-evaluated Σc: U1-U3 only. Used by secant^2 after Wolfe check.
-function _hz_update_inner(hzl::HZAW, Σa, Σb, Σc::TrialBundle{T}, φ, φ0, ϵ) where {T}
+function _hz_update_inner(
+    hzl::HZAW,
+    Σa,
+    Σb,
+    Σc::TrialBundle{T},
+    φ,
+    φ0,
+    ϵ,
+    lastp,
+) where {T}
     # verified against paper description [p. 123, CG_DESCENT_851]
     # === Step U1: Positive derivative (update upper bound) ===
     if Σc.dφ ≥ T(0)
-        return Σa, Σc
+        return Σa, Σc, lastp
     else # Σc.dφ < T(0)
         # === Step U2: Negative derivative with sufficient decrease ===
         if Σc.φ ≤ φ0 + ϵ * abs(φ0)
-            return Σc, Σb
+            return Σc, Σb, lastp
         end
         # === Step U3: Negative derivative without sufficient decrease ===
         Σā, Σb̄ = Σa, Σc
-        Σa, Σb = _hz_update_U3(hzl, φ, φ0, Σā, Σb̄, ϵ)
-        return Σa, Σb
+        Σa, Σb, lastp = _hz_update_U3(hzl, φ, φ0, Σā, Σb̄, ϵ, lastp)
+        return Σa, Σb, lastp
     end
 end
 
@@ -285,7 +311,15 @@ end
 Find an interval satisfying the opposite slope condition starting from
 [0, c] [pp. 123-124, CG_DESCENT_851].
 """
-function _hz_bracket(hzl::HZAW, Σ0::TrialBundle{T}, Σc::TrialBundle{T}, φ, ρ, wolfesetup) where {T}
+function _hz_bracket(
+    hzl::HZAW,
+    Σ0::TrialBundle{T},
+    Σc::TrialBundle{T},
+    φ,
+    ρ,
+    wolfesetup,
+    lastp,
+) where {T}
     # verified against paper description [pp. 123-124, CG_DESCENT_851]
     φ0 = Σ0.φ
     ϵ = hzl.ϵ
@@ -304,8 +338,8 @@ function _hz_bracket(hzl::HZAW, Σ0::TrialBundle{T}, Σc::TrialBundle{T}, φ, ρ
             # === Step B2: Decreasing derivative without sufficient decrease ===
             # φ is decreasing at cj but function value is sufficiently larger than
             # φ0 so we must have passed a place with increasing φ, use U3 to update.
-            Σa, Σb = _hz_update_U3(hzl, φ, φ0, Σ0, Σcj, ϵ)
-            return Σa, Σb, false
+            Σa, Σb, lastp = _hz_update_U3(hzl, φ, φ0, Σ0, Σcj, ϵ, lastp)
+            return Σa, Σb, false, lastp
         end
 
         # === Step B3: Decreasing derivative with sufficient decrease ===
@@ -314,9 +348,10 @@ function _hz_bracket(hzl::HZAW, Σ0::TrialBundle{T}, Σc::TrialBundle{T}, φ, ρ
 
         cj = ρ * Σcj.p
         Σcj = _evaltrial(φ, cj)
+        lastp = cj
         # Check if the new point satisfies Wolfe before continuing expansion
         if _is_converged(wolfesetup, Σcj)
-            return Σcj, Σcj, true
+            return Σcj, Σcj, true, lastp
         end
     end
     if j == maxj
@@ -325,7 +360,7 @@ function _hz_bracket(hzl::HZAW, Σ0::TrialBundle{T}, Σc::TrialBundle{T}, φ, ρ
 
     # Implicitly Σcj.dφ ≥ T(0) since we exited the loop =>
     # === Step B1: Positive derivative found (opposite slope condition) ===
-    return Σci, Σcj, false
+    return Σci, Σcj, false, lastp
 end
 
 function _hz_secant(Σa::TrialBundle{T}, Σb::TrialBundle{T}) where {T}
@@ -341,19 +376,29 @@ function _hz_secant(Σa::TrialBundle{T}, Σb::TrialBundle{T}) where {T}
     return sec
 end
 
-function _hz_secant²(hzl::HZAW, φ, φ0, Σa::TrialBundle{T}, Σb::TrialBundle{T}, ϵ, wolfesetup) where {T}
+function _hz_secant²(
+    hzl::HZAW,
+    φ,
+    φ0,
+    Σa::TrialBundle{T},
+    Σb::TrialBundle{T},
+    ϵ,
+    wolfesetup,
+    lastp,
+) where {T}
     # verified against paper description [p. 123, CG_DESCENT_851]
     # === Step S1: First secant step ===
     c = _hz_secant(Σa, Σb)
     if !_in_bounds(c, Σa, Σb)
-        return Σa, Σb, false
+        return Σa, Σb, false, lastp
     end
     Σc = _evaltrial(φ, c)
+    lastp = c
     if _is_converged(wolfesetup, Σc)
-        return Σc, Σc, true
+        return Σc, Σc, true, lastp
     end
     # First update (U1-U3 with pre-evaluated Σc)
-    ΣA, ΣB = _hz_update_inner(hzl, Σa, Σb, Σc, φ, φ0, ϵ)
+    ΣA, ΣB, lastp = _hz_update_inner(hzl, Σa, Σb, Σc, φ, φ0, ϵ, lastp)
     updated = false
     c̄ = c
     if c == ΣB.p # B == c
@@ -369,16 +414,17 @@ function _hz_secant²(hzl::HZAW, φ, φ0, Σa::TrialBundle{T}, Σb::TrialBundle{
     # === Step S4 ===
     if !updated
         # === Step S4 (variant 2): Return without second secant ===
-        return ΣA, ΣB, false
+        return ΣA, ΣB, false, lastp
     end
     if !_in_bounds(c̄, ΣA, ΣB)
-        return ΣA, ΣB, false
+        return ΣA, ΣB, false, lastp
     end
     Σc̄ = _evaltrial(φ, c̄)
+    lastp = c̄
     if _is_converged(wolfesetup, Σc̄)
-        return Σc̄, Σc̄, true
+        return Σc̄, Σc̄, true, lastp
     end
     # === Step S4 (variant 1): Update with second secant point ===
-    Σā, Σb̄ = _hz_update_inner(hzl, ΣA, ΣB, Σc̄, φ, φ0, ϵ)
-    return Σā, Σb̄, false
+    Σā, Σb̄, lastp = _hz_update_inner(hzl, ΣA, ΣB, Σc̄, φ, φ0, ϵ, lastp)
+    return Σā, Σb̄, false, lastp
 end

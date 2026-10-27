@@ -102,7 +102,7 @@ function solve(
         φ = LineObjective(meritproblem, ∇merit, z, x, d, (ρ2F^2) / 2, -ρ2F^2)
 
         # Perform line search along d
-        α, ϕ_out, ls_success = find_steplength(mstyle, linesearch, φ, T(1))
+        α, ϕ_out, ls_success, _ = find_steplength(mstyle, linesearch, φ, T(1))
         # Step in the direction α*d
         z = retract(problem, z, x, d, α)
 

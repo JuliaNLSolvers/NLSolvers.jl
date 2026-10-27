@@ -308,12 +308,18 @@ function iterate(
     φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, dot(∇fx, d))
 
     # Perform line search along d
-    α, f_α, ls_success = find_steplength(mstyle, linesearch, φ, Tx(1))
+    α, f_α, ls_success, g_current = find_steplength(mstyle, linesearch, φ, Tx(1))
 
     # Calculate final step vector and update the state
     if ls_success
         z = retract(problem, z, x, d, α)
-        fz, ∇fz = upto_gradient(problem, ∇fz, z)
+        # The line search says whether what the objective holds belongs to
+        # the step it returned.
+        if g_current
+            fz = oftype(fz, f_α)
+        else
+            fz, ∇fz = upto_gradient(problem, ∇fz, z)
+        end
         @. y = ∇fz - ∇fx
     else
         # if no succesful search direction is found, reset to gradient
@@ -366,7 +372,7 @@ function iterate(
     φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, dot(∇fx, d))
 
     # Perform line search along d
-    α, f_α, ls_success = find_steplength(mstyle, linesearch, φ, Tx(1))
+    α, f_α, ls_success, g_current = find_steplength(mstyle, linesearch, φ, Tx(1))
 
     z = retract(problem, z, x, d, α)
     fz, ∇fz = upto_gradient(problem, ∇fz, z)

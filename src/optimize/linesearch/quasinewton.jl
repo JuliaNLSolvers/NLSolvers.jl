@@ -92,7 +92,8 @@ function _solve(
     #==============================
              First iteration
     ==============================#
-    objvars, P, qnvars = iterate(mstyle, qnvars, objvars, P, approach, problem, options)
+    objvars, P, qnvars =
+        iterate(mstyle, qnvars, objvars, P, approach, problem, options)
     iter = 1
     callback_stopped = false
     # Check for gradient convergence
@@ -185,14 +186,23 @@ function iterate(
 
     # Perform line search along d
     # Also returns final step vector and update the state
-    α, f_α, ls_success = find_steplength(mstyle, linesearch, φ, Tf(1))
+    α, f_α, ls_success, g_current = find_steplength(mstyle, linesearch, φ, Tf(1))
 
     if ls_success
         @. s = α * d
         z = retract(problem, z, x, s)
 
+        # The line search says whether what the objective holds belongs to
+        # the step it returned. When it does, only Newton has anything left to
+        # evaluate here.
+        if g_current
+            fz = oftype(fz, f_α)
+            B = ls_accepted_hessian!(problem, z, ∇fz, B, scheme)
+        else
+            fz, ∇fz, B = ls_accepted_eval!(problem, z, ∇fz, B, scheme)
+        end
         # Update approximation
-        fz, ∇fz, B, s, y = update_obj!(problem, s, y, ∇fx, z, ∇fz, B, scheme, is_first, dφ0)
+        B, s, y = ls_update_approx!(mstyle, s, y, ∇fx, ∇fz, B, scheme, is_first, dφ0)
     else
         # Reset B to identity — next iteration uses steepest descent
         B = one(B)
@@ -244,7 +254,7 @@ function iterate(
     φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, dφ0)
 
     # Perform line search along d
-    α, f_α, ls_success = find_steplength(mstyle, linesearch, φ, Tf(1))
+    α, f_α, ls_success, g_current = find_steplength(mstyle, linesearch, φ, Tf(1))
 
     if ls_success
         # Calculate final step vector and update the state

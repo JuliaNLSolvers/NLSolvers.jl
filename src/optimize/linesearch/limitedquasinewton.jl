@@ -148,15 +148,21 @@ function iterate(
     φ = _lineobjective(mstyle, problem, ∇fz, z, x, d, fx, dφ0) # real is needed to convert complex dots to actually being real
 
     # Perform line search along d
-    α, f_α, ls_success = find_steplength(mstyle, linesearch, φ, Tf(1))
+    α, f_α, ls_success, g_current = find_steplength(mstyle, linesearch, φ, Tf(1))
 
     if ls_success
         @. qnvars.d = α * d  # use d as temporary for the step
         z = retract(problem, z, x, qnvars.d)
 
+        # The line search says whether what the objective holds belongs to
+        # the step it returned.
+        if g_current
+            fz = oftype(fz, f_α)
+        else
+            fz, ∇fz = upto_gradient(problem, ∇fz, z)
+        end
         # Update approximation (writes s into S array only if not skipped)
-        fz, ∇fz, qnvars =
-            update_obj!(problem, qnvars, α, x, ∇fx, z, ∇fz, current_memory, scheme, nothing, dφ0)
+        qnvars = update!(scheme, qnvars, ∇fx, ∇fz, current_memory, dφ0)
     else
         # Reset L-BFGS memory — next iteration uses steepest descent
         qnvars = TwoLoopVars(qnvars.d, qnvars.S, qnvars.Y, qnvars.α, qnvars.ρ, 0)
@@ -177,6 +183,7 @@ end
 
 function iterate(
     mstyle::OutOfPlace,
+    iter::Integer,
     cache,
     objvars::NamedTuple,
     P,

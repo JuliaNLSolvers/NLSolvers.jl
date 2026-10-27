@@ -81,6 +81,19 @@ function upto_hessian(so::ScalarObjective, ∇f, ∇²f, x)
         end
     end
 end
+# Standalone Hessian evaluation for callers that already hold the objective
+# value and gradient; falls back to the fused fgh when no standalone h is
+# available.
+function hessian_only(so::ScalarObjective, ∇f, ∇²f, x)
+    if so.h === nothing
+        return upto_hessian(so, ∇f, ∇²f, x)[3]
+    end
+    if has_param(so)
+        return so.h(∇²f, x, so.param)
+    else
+        return so.h(∇²f, x)
+    end
+end
 has_batched_f(so::ScalarObjective) = !(so.batched_f === nothing)
 """
     batched_value(obj, X)
@@ -151,6 +164,10 @@ function (le::LineObjective!)(λ)
 end
 function (le::LineObjective!)(λ, calc_grad::Bool)
     f, g = upto_gradient(le.prob, le.∇fz, retract!(_manifold(le.prob), le.z, le.x, le.d, λ))
+    # The objective may return a gradient other than the buffer (out-of-place
+    # user functions behind an in-place problem). The line search reports that
+    # the buffer holds the gradient at the step it returns, so sync it.
+    g === le.∇fz || copyto!(le.∇fz, g)
     (ϕ = f, dϕ = real(dot(g, le.d))) # because complex dot might not have exactly zero im part and it's the wrong type
 end
 struct LineObjective{TP,T1,T2,T3}
