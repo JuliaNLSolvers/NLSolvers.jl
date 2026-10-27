@@ -32,6 +32,12 @@ using Test, NLSolvers, LinearAlgebra
         @test norm(res.p) ≈ Δ
         # default κhard = 2/10 only guarantees an approximate solution
         @test m(res.p) <= 0.98 * m_exact
+        # The reported model value has to be the model in the unshifted
+        # Hessian: the caller divides the actual reduction by it to get the
+        # acceptance ratio. 𝓖_root sees H(λ) = H + λI, so an uncorrected
+        # value is off by λ‖s‖²/2, which is enough to flip the sign of the
+        # predicted reduction and accept a step that must be rejected.
+        @test res.mz ≈ m(res.p)
 
         res_tight = ntr(
             g,
@@ -48,6 +54,10 @@ using Test, NLSolvers, LinearAlgebra
         @test res_tight.hard_case
         @test norm(res_tight.p) ≈ Δ
         @test m(res_tight.p) ≈ m_exact rtol = 1e-8
+        @test res_tight.mz ≈ m(res_tight.p)
+        # and it must be a predicted decrease, which is what the acceptance
+        # ratio's denominator relies on
+        @test res_tight.mz < 0
     end
 
     @testset "easy boundary case" begin

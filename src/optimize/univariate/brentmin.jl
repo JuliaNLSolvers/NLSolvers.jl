@@ -34,6 +34,7 @@ function _solve(prob, bm::BrentMin, options)
     #   - u is the last point at which the objective was evaluated
     #   - f0 is the first value observed
     fv = fw = fx = value(prob, x)
+    fa = fb = fx
 
     # We modify the algorith slightly here, and evaluate the objetive
     # at the bounds initially. If this is not what the user wants, they
@@ -80,7 +81,7 @@ function _solve(prob, bm::BrentMin, options)
                 e = d
             end
 
-            if abs(p) < abs(q * r / 2) && p < q * (a - x) && p < q * (b - x)
+            if abs(p) < abs(q * r / 2) && p > q * (a - x) && p < q * (b - x)
                 # then do the parapolic interpolation
                 d = p / q
                 u = x + d

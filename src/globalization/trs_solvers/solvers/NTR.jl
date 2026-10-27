@@ -175,6 +175,13 @@ function (ms::NTR)(
                 if α^2 * dot(u, H * u) ≤ κhard * (dot(s, H * s) + λ * Δ^2)
                     s .= s_g
                     H = update_H!(H, h)
+                    # 𝓖_root saw H(λ) = H + λI, since the restore above runs
+                    # after it, so its model value carries an extra λ‖s‖²/2.
+                    # The caller divides the actual reduction by this one to
+                    # get the acceptance ratio, so it has to be the model in
+                    # the unshifted Hessian. Both α roots have norm Δ, so the
+                    # shift cancels in 𝓖_root's own choice between them and
+                    # only the returned value needs correcting.
                     return tr_return(;
                         λ = λ,
                         ∇f = ∇f,
@@ -184,7 +191,7 @@ function (ms::NTR)(
                         solved = true,
                         hard_case = true,
                         Δ = Δ,
-                        m = m_g,
+                        m = m_g - λ * dot(s, s) / 2,
                     )
                 end
                 # If not the hard case solution, try to factorize H(λ⁺)
