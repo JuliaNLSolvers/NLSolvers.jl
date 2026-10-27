@@ -119,14 +119,19 @@ function Base.show(io::IO, ci::ConvergenceInfo)
         )
     elseif isa(ci.solver, SimulatedAnnealing)
     else
+        # after a failed line search x' == x, which is not convergence
+        ls_success = get(info, :ls_success, true)
+        if !ls_success
+            println(io, "  The last line search failed, so the x and f tests do not apply")
+        end
         if haskey(info, :ρs)
             println(
                 io,
-                "  |x - x'|              = $(@sprintf("%.2e", info.ρs)) <= $(@sprintf("%.2e", opt.x_abstol)) ($(info.ρs<=opt.x_abstol))",
+                "  |x - x'|              = $(@sprintf("%.2e", info.ρs)) <= $(@sprintf("%.2e", opt.x_abstol)) ($(ls_success && info.ρs<=opt.x_abstol))",
             )
             println(
                 io,
-                "  |x - x'|/|x|          = $(@sprintf("%.2e", info.ρs/info.ρx)) <= $(@sprintf("%.2e", opt.x_reltol)) ($(info.ρs/info.ρx <= opt.x_reltol))",
+                "  |x - x'|/|x|          = $(@sprintf("%.2e", info.ρs/info.ρx)) <= $(@sprintf("%.2e", opt.x_reltol)) ($(ls_success && info.ρs/info.ρx <= opt.x_reltol))",
             )
         end
         if isfinite(opt.f_limit)
@@ -139,11 +144,11 @@ function Base.show(io::IO, ci::ConvergenceInfo)
             Δf = abs(info.fx - info.minimum)
             println(
                 io,
-                "  |f(x) - f(x')|        = $(@sprintf("%.2e", Δf)) <= $(@sprintf("%.2e", opt.f_abstol)) ($(Δf<=opt.f_abstol))",
+                "  |f(x) - f(x')|        = $(@sprintf("%.2e", Δf)) <= $(@sprintf("%.2e", opt.f_abstol)) ($(ls_success && Δf<=opt.f_abstol))",
             )
             println(
                 io,
-                "  |f(x) - f(x')|/|f(x)| = $(@sprintf("%.2e", Δf/abs(info.fx))) <= $(@sprintf("%.2e", opt.f_reltol)) ($(Δf/abs(info.fx)<=opt.f_reltol))",
+                "  |f(x) - f(x')|/|f(x)| = $(@sprintf("%.2e", Δf/abs(info.fx))) <= $(@sprintf("%.2e", opt.f_reltol)) ($(ls_success && Δf/abs(info.fx)<=opt.f_reltol))",
             )
         end
         if haskey(info, :∇fz)
@@ -224,7 +229,9 @@ Keyword arguments:
 - `f_reltol = -Inf`: tolerance on the change in the objective relative to its value
 - `nm_tol = 1e-8`: simplex convergence tolerance used by `NelderMead`
 - `maxiter = 10000`: maximum number of iterations
-- `max_restarts = 10`: maximum number of restarts in the quasi-Newton solvers
+- `max_restarts = 10`: maximum number of restarts in the quasi-Newton solvers. A
+  failed line search restarts from the same point with the approximation reset;
+  a second failure in a row ends the solve, since the next retry would repeat it
 - `show_trace = false`: print progress
 - `callback = nothing`: function called with an info `NamedTuple` each
   iteration; must return a `Bool`, and `true` stops the solve
@@ -402,11 +409,19 @@ function f_converged(fx, fz, options)
     f_converged = f_converged || isnan(fz)
     return f_converged
 end
+# Whether the last line search succeeded. Solvers without a line search, and
+# line-search drivers that do not report it, count as successful.
+_ls_success(objvars::NamedTuple) = get(objvars, :ls_success, true)
+_ls_success(objvars) = true
+
 function converged(approach, objvars, ∇f0, options, skip = nothing, Δkp1 = nothing)
     x, fx, ∇fx, z, fz, ∇fz, B, Pg = objvars
-    xcon, gcon, fcon = x_converged(x, z, options),
+    # A failed line search leaves z == x and fz == fx, which the x and f tests
+    # would read as convergence. Only the gradient test says anything there.
+    ls_success = _ls_success(objvars)
+    xcon, gcon, fcon = ls_success && x_converged(x, z, options),
     g_converged(∇fz, ∇f0, options),
-    f_converged(fx, fz, options)
+    ls_success && f_converged(fx, fz, options)
     if approach isa TrustRegion
         # deltamin = nothing resolves to the iterate's floating-point
         # resolution: below it no step can change z, so further iterations
