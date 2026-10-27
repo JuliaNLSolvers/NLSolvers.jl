@@ -151,10 +151,10 @@ function (ms::NTR)(
             if s₂ < Δ # in 𝓖 because we're in 𝓕, but curve below Δ
                 # we're in 𝓖 so λ is a new upper bound; λᴹ < λ
                 in𝓖 = true
-                λU = λ
+                λU = min(λU, λ)
             else # λ ∈ 𝓛
                 # in 𝓛 λ is a *lower* bound instead
-                λL = λ
+                λL = max(λL, λ)
             end
 
             # Step 3
@@ -165,7 +165,7 @@ function (ms::NTR)(
             λ⁺ = λ + ((s₂ - Δ) / Δ) * (s₂^2 / dot(w, w))
             if in𝓖
                 w, u = λL_with_linpack(F)
-                λL = max(λL, λ - dot(u, H * u))
+                λL = max(λL, rayleigh_lower_bound(H, u, λ))
 
                 α, s_g, m_g = 𝓖_root(u, s, Δ, ∇f, H)
                 # check hard case convergence: Step 3 of Algorithm 7.3.5
@@ -194,16 +194,18 @@ function (ms::NTR)(
                         m = m_g - λ * dot(s, s) / 2,
                     )
                 end
-                # If not the hard case solution, try to factorize H(λ⁺)
+                # If not the hard case solution, try to factorize H(λ⁺). A λ⁺
+                # outside the bracket cannot be in L, whatever the factorization
+                # says: near a singular H(λ) its success is decided by rounding.
                 H = update_H!(H, h, λ⁺)
                 F = cholesky(H; check = false)
-                if issuccess(F) # Then we're in L, great! lemma 7.3.2
+                if λL ≤ λ⁺ < λU && issuccess(F) # Then we're in L, great! lemma 7.3.2
                     λ = λ⁺
                 else # we landed in N, this is bad, so use bounds to approach L
                     λ = max(sqrt(λL * λU), λL + θ * (λU - λL))
                 end
             else # in L, we can safely step
-                λ = λ⁺
+                λ = λ⁺ < λU ? λ⁺ : max(sqrt(λL * λU), λL + θ * (λU - λL))
             end
 
             # check for convergence: the κeasy rule, Step 1 of Algorithm 7.3.5
@@ -225,9 +227,10 @@ function (ms::NTR)(
         else # λ ∈ 𝓝, because the factorization failed (typo in CGT)
             # Use partial factorization to find δ and v such that
             # H(λ) + δ*e*e' = 0. All we can do here is to find a better
-            # lower bound, we cannot apply the Newton step here.
+            # lower bound, we cannot apply the Newton step here. In exact
+            # arithmetic the bound is λ + δ/v'v, the Rayleigh quotient form below.
             δ, v = λL_in_𝓝(H, F)
-            λL = max(λL, λ + δ / dot(v, v)) # update lower bound
+            λL = max(λL, rayleigh_lower_bound(H, v, λ)) # update lower bound
             λ = max(sqrt(λL * λU), λL + θ * (λU - λL)) # no converence possible, so step in bracket
         end
     end
@@ -258,6 +261,21 @@ function λL_in_𝓝(H, F)
         v[j] = -vj / F.factors[j, j]
     end
     return δ, v
+end
+
+# A lower bound on λ from any vector v: with H = H(λ) = B + λI, v'Hv/v'v ≥ λ₁(H), so
+# λ - v'Hv/v'v ≤ -λ₁(B), which no solution λ can be below. Rounding in forming
+# H(λ), in H*v and in the dot product puts an error of up to about 2n eps |v|'|H||v|
+# on the computed quadratic form. For a badly scaled H that exceeds the bound itself
+# and can put λL above the solution, so that much is subtracted.
+function rayleigh_lower_bound(H, v, λ)
+    T = eltype(v)
+    vHv_abs = zero(T)
+    for j in eachindex(v), i in eachindex(v)
+        vHv_abs += abs(v[i]) * abs(H[i, j]) * abs(v[j])
+    end
+    vv = dot(v, v)
+    return λ - (dot(v, H * v) + 2 * (length(v) + 1) * eps(T) * vHv_abs) / vv
 end
 
 function λL_with_linpack(F)
