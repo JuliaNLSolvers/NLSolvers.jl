@@ -124,4 +124,31 @@ using Test, NLSolvers, LinearAlgebra
         @test res.interior
         @test res.p ≈ -(H \ g)
     end
+
+    @testset "badly scaled Hessian, definiteness decided by rounding" begin
+        # An SR1 model from a trust-region run on the MGH Meyer problem. In exact
+        # arithmetic H is positive definite (smallest eigenvalue about 17.9) and
+        # ‖H⁻¹g‖ ≈ 863 < Δ, so the solution is interior with λ = 0. At this scale
+        # Cholesky fails at λ = 0 and succeeds or fails by rounding for λ up to
+        # about 20, and the Rayleigh-quotient lower bound on λ is computed with an
+        # error near 30. NTR used to raise λL above the solution from that bound,
+        # take Newton iterates below λL, and then throw a DomainError from
+        # sqrt(λL * λU) with λU < 0.
+        H = [
+            1.1563074688446904e16 4.915188745126157e16 -8.101325526010321e17
+            4.915188745126157e16 2.277794984641779e17 -3.7543133783208115e18
+            -8.101325526010321e17 -3.7543133783208115e18 6.187944497935269e19
+        ]
+        g = [-5.820455241611351e9, -68862.92737539407, 1.3339292810738764e6]
+        Δ = 3092.1447945946884
+        m(p) = dot(g, p) + dot(p, H * p) / 2
+
+        Hc = copy(H)
+        res = NLSolvers.NTR()(g, Hc, Δ, zeros(3), NLSolvers.SR1(), NLSolvers.InPlace())
+        @test Hc == H
+        @test res.λ ≥ 0
+        @test norm(res.p) ≤ Δ
+        @test m(res.p) < 0
+        @test res.mz ≈ m(res.p)
+    end
 end
