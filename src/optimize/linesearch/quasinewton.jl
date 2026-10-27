@@ -81,6 +81,7 @@ function _solve(
                 ∇f0 = ∇f0,
                 iter = 0,
                 time = time() - t0,
+                ls_success = true,
             ),
             options,
         )
@@ -96,11 +97,19 @@ function _solve(
         iterate(mstyle, qnvars, objvars, P, approach, problem, options)
     iter = 1
     callback_stopped = false
+    # A failed search is retried from the same x with the approximation reset.
+    # That retry is repeated exactly if it fails too, so two failures in a row
+    # end the solve.
+    failed = !objvars.ls_success
+    failed_twice = false
+    if failed
+        restarts += 1
+    end
     # Check for gradient convergence
     is_converged = converged(approach, objvars, ∇f0, options)
     print_trace(approach, options, iter, t0, objvars)
     callback_stopped = _check_callback(options.callback, (iter=iter, time=time()-t0, state=objvars))
-    while iter < options.maxiter && !any(is_converged) && restarts < options.max_restarts && !callback_stopped
+    while iter < options.maxiter && !any(is_converged) && restarts < options.max_restarts && !failed_twice && !callback_stopped
         iter += 1
         #==============================
                      iterate
@@ -109,7 +118,9 @@ function _solve(
             iterate(mstyle, qnvars, objvars, P, approach, problem, options, false)
 
         # Track restarts (ls_success=false ⟹ α=NaN and B was reset to I)
-        if !objvars.ls_success
+        failed_twice = failed && !objvars.ls_success
+        failed = !objvars.ls_success
+        if failed
             restarts += 1
         end
 
@@ -136,6 +147,7 @@ function _solve(
             ∇f0 = ∇f0,
             iter = iter,
             time = time() - t0,
+            ls_success = objvars.ls_success,
         ),
         options,
     )
@@ -204,6 +216,10 @@ function iterate(
         # Update approximation
         B, s, y = ls_update_approx!(mstyle, s, y, ∇fx, ∇fz, B, scheme, is_first, dφ0)
     else
+        # The line objective wrote each trial point into z and its gradient
+        # into ∇fz, while fz is still f(x): go back to x.
+        copyto!(z, x)
+        copyto!(∇fz, ∇fx)
         # Reset B to identity — next iteration uses steepest descent
         B = one(B)
     end

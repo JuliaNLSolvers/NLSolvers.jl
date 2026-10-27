@@ -68,13 +68,20 @@ function _solve(
         iterate(mstyle, 1, qnvars, objvars, P, approach, problem, problem, options)
     iter = 1
     callback_stopped = false
+    # A failed search is retried from the same x with the approximation reset.
+    # That retry is repeated exactly if it fails too, so two failures in a row
+    # end the solve.
+    failed = !_ls_success(objvars)
+    failed_twice = false
+    if failed
+        restarts += 1
+    end
     # Check for gradient convergence
     is_converged = converged(approach, objvars, ∇f0, options)
 
     callback_stopped = _check_callback(options.callback, (iter=iter, time=time()-t0, state=objvars))
-    while iter <= options.maxiter && !any(is_converged) && restarts < options.max_restarts && !callback_stopped
+    while iter <= options.maxiter && !any(is_converged) && restarts < options.max_restarts && !failed_twice && !callback_stopped
         iter += 1
-        prev_memory = qnvars.current_memory
         # take a step and update approximation
         objvars, qnvars, P = iterate(
             mstyle,
@@ -88,8 +95,10 @@ function _solve(
             options,
             false,
         )
-        # Track restarts (memory was reset to 0 by a failed line search)
-        if qnvars.current_memory == 0 && prev_memory > 0
+        # Track restarts (a failed line search resets the memory to 0)
+        failed_twice = failed && !_ls_success(objvars)
+        failed = !_ls_success(objvars)
+        if failed
             restarts += 1
         end
         # Check for gradient convergence
@@ -112,6 +121,7 @@ function _solve(
             ∇f0 = ∇f0,
             iter = iter,
             time = time() - t0,
+            ls_success = _ls_success(objvars),
         ),
         options,
     )
@@ -164,6 +174,10 @@ function iterate(
         # Update approximation (writes s into S array only if not skipped)
         qnvars = update!(scheme, qnvars, ∇fx, ∇fz, current_memory, dφ0)
     else
+        # The line objective wrote each trial point into z and its gradient
+        # into ∇fz, while fz is still f(x): go back to x.
+        copyto!(z, x)
+        copyto!(∇fz, ∇fx)
         # Reset L-BFGS memory — next iteration uses steepest descent
         qnvars = TwoLoopVars(qnvars.d, qnvars.S, qnvars.Y, qnvars.α, qnvars.ρ, 0)
     end
@@ -176,6 +190,7 @@ function iterate(
         ∇fz = ∇fz,
         B = nothing,
         Pg = nothing,
+        ls_success = ls_success,
     ),
     qnvars,
     P
